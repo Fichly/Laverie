@@ -5,43 +5,74 @@ laverie automatique. **Ville pilote : Pessac (33600, Bordeaux Métropole).**
 
 ## Lancer l'application
 
-Aucun build, aucune dépendance à installer :
+**Le plus simple — version autonome :** ouvrir `laverie-mapper.html` d'un
+double-clic. Un seul fichier, aucune installation, aucun serveur. Une connexion
+internet est nécessaire uniquement pour afficher le fond de carte.
+
+**Version modulaire** (pour développer, avec les données dans des fichiers
+séparés) :
 
 ```bash
-python3 -m http.server 8000
-# puis ouvrir http://localhost:8000
+python3 -m http.server 8000   # puis ouvrir http://localhost:8000
 ```
 
-(un serveur local est nécessaire : la page charge les fichiers `data/*.json`)
+Après toute modification de `data/*.json`, régénérer le fichier autonome :
+
+```bash
+python3 scripts/build_standalone.py
+```
 
 ## Ce que fait la Phase 1 (version actuelle)
 
 - **Inventaire cartographié** : 9 points de lavage recensés à Pessac
   (chaînes, indépendants, laveries captives CROUS), avec fiche par laverie
-  (adresse, horaires, note Google, champs terrain à compléter).
+  et liste cliquable pour contrôler chaque emplacement.
+- **Indicateur de complétude** : part des champs terrain effectivement
+  renseignés (11 % aujourd'hui — le relevé terrain reste à faire).
 - **Statistiques de marché** : nombre de laveries, ratio habitants/laverie
   comparé aux benchmarks du secteur.
 - **Zones de chalandise** : rayon piéton paramétrable (300–1000 m) autour de
   chaque laverie, pour visualiser les recouvrements et la saturation.
 - **Carte de chaleur de l'offre** : concentration des laveries existantes.
-- **Tension du marché par quartier** : croisement offre accessible / demande
-  estimée (vert = saturé, jaune = équilibré, rouge = sous-équipé).
+- **Potentiel par quartier** : rouge = une nouvelle laverie y dégagerait plus
+  que le CA médian du secteur, vert = pas de place.
+- **Classement des zones d'implantation** : les 6 meilleures zones triées par
+  CA potentiel, cliquables pour lancer directement la simulation.
 - **Simulateur d'implantation** : cliquer sur la carte → population captée,
-  ménages cibles, concurrence (modèle de Huff simplifié), fourchette de CA
-  potentiel et d'EBE, verdict de viabilité.
+  clientèle régulière et ponctuelle, concurrence, fourchette de CA et d'EBE,
+  verdict de viabilité.
 - **Benchmarks secteur** intégrés (prix, CA, marges, investissement) —
   uniquement des fourchettes publiques, faute de données d'exploitants.
+
+## Le modèle en trois idées
+
+1. **Deux clientèles, pas une.** Les ménages *sans lave-linge* (2 % en secteur
+   pavillonnaire, jusqu'à 10 % là où dominent studios et T1) viennent chaque
+   semaine et dépensent 300–700 €/an. Tous les autres viennent 1 à 3 fois par an
+   pour les couettes : 20–45 €/an. Les confondre fausse totalement l'estimation.
+2. **La part de marché se dispute.** Chaque laverie existante réduit la part
+   captable selon sa distance (modèle de Huff simplifié, décroissance
+   gaussienne). Les laveries captives CROUS ne pèsent que 40 %.
+3. **Un seul calcul pour deux affichages.** La fonction `estimerCA()` alimente
+   à la fois la couleur des quartiers et le simulateur : les deux lectures de la
+   carte ne peuvent pas se contredire.
+
+L'indice affiché est le rapport entre le CA médian estimé de la zone et le CA
+médian d'une laverie du secteur (85 000 €). Au-dessus de 1, la zone porte une
+laverie de taille normale.
 
 ## Structure
 
 ```
-index.html            Application (Leaflet, sans framework)
+laverie-mapper.html          Version autonome, générée — à ouvrir d'un double-clic
+index.html                   Application (Leaflet, sans framework)
 css/style.css
-js/app.js             Carte, couches, scoring, simulateur
-data/laveries.json    Inventaire des laveries (source de vérité, éditable à la main)
-data/quartiers.json   Demande par quartier (estimations → à remplacer par INSEE)
-data/benchmarks.json  Hypothèses économiques du secteur (fourchettes)
-scripts/sync_osm.py   Synchronisation de l'inventaire avec OpenStreetMap
+js/app.js                    Carte, couches, modèle, simulateur
+data/laveries.json           Inventaire des laveries (source de vérité, éditable à la main)
+data/quartiers.json          Demande par quartier (estimations → à remplacer par INSEE)
+data/benchmarks.json         Hypothèses économiques du secteur (fourchettes)
+scripts/sync_osm.py          Synchronisation de l'inventaire avec OpenStreetMap
+scripts/build_standalone.py  Génère laverie-mapper.html
 ```
 
 ## Fiabilité des données — à lire avant toute décision

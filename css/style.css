@@ -54,7 +54,7 @@ header h1 { font-size: 1.3rem; }
 .slider-row { padding: 6px 0 10px 24px; font-size: 0.8rem; color: var(--muted); }
 .slider-row input[type=range] { width: 100%; margin-top: 4px; }
 
-.legend { display: flex; gap: 10px; padding: 6px 0 0 24px; font-size: 0.72rem; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 6px 0 0 24px; font-size: 0.72rem; color: var(--muted); line-height: 1.4; }
 .legend i { width: 10px; height: 10px; display: inline-block; border-radius: 2px; margin-right: 3px; }
 
 button {
@@ -82,6 +82,46 @@ button.active { background: #f97316; color: #431407; }
 
 .bench { font-size: 0.78rem; line-height: 1.6; color: var(--muted); }
 .bench b { color: var(--text); }
+
+.badge { background: var(--panel-2); color: var(--muted); border-radius: 10px; padding: 1px 7px; font-size: 0.7rem; margin-left: 4px; }
+
+.liste { list-style: none; margin: 4px 0 10px; }
+.liste li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px; border-radius: 6px; cursor: pointer;
+  font-size: 0.82rem; line-height: 1.3;
+  border-left: 3px solid transparent;
+}
+.liste li:hover { background: var(--panel-2); }
+.liste li.actif { background: var(--panel-2); border-left-color: var(--accent); }
+.liste .nom { flex: 1; }
+.liste .meta { display: block; font-size: 0.7rem; color: var(--muted); }
+.liste .note { font-size: 0.72rem; font-weight: 700; padding: 2px 5px; border-radius: 4px; white-space: nowrap; }
+.note-bonne { background: #14532d; color: #86efac; }
+.note-moyenne { background: #713f12; color: #fde047; }
+.note-mauvaise { background: #7f1d1d; color: #fca5a5; }
+.note-inconnue { background: #334155; color: #94a3b8; }
+
+.classement { list-style: none; counter-reset: rang; }
+.classement li {
+  counter-increment: rang;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px; margin-bottom: 3px; border-radius: 6px;
+  background: var(--panel-2); cursor: pointer; font-size: 0.82rem;
+  border-left: 3px solid transparent;
+}
+.classement li:hover { filter: brightness(1.2); }
+.classement li::before {
+  content: counter(rang);
+  font-weight: 700; color: var(--muted); min-width: 14px; font-size: 0.75rem;
+}
+.classement .z-nom { flex: 1; line-height: 1.25; }
+.classement .z-ca { display: block; font-size: 0.7rem; color: var(--muted); }
+.classement .z-ind { font-weight: 700; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+
+.completude { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: var(--muted); }
+.completude .bar { flex: 1; height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+.completude .bar div { height: 100%; background: var(--accent); }
 
 footer { font-size: 0.7rem; color: #64748b; padding: 8px 4px 20px; line-height: 1.5; }
 

@@ -21,10 +21,19 @@
     "besoin_electrique": "24-36 kVA triphasé + arrivée d'eau gros débit + évacuation — vérifier la faisabilité du local avant tout engagement"
   },
   "demande": {
-    "part_menages_sans_lave_linge_pct": [4, 8],
-    "part_menages_sans_ll_petits_logements_pct": [15, 30],
-    "depense_annuelle_menage_utilisateur_eur": [120, 250],
-    "part_usage_ponctuel_gros_volumes": "Couettes, couvertures : quasi tous les ménages 1-3x/an — représente 20-40% du CA des laveries modernes",
+    "_commentaire": "La clientèle d'une laverie se compose de DEUX populations distinctes qu'il faut modéliser séparément — les confondre fausse totalement l'estimation de CA.",
+    "clientele_reguliere": {
+      "definition": "Ménages sans lave-linge à domicile : viennent chaque semaine ou tous les 15 jours. Cœur du chiffre d'affaires.",
+      "_note_part": "La part varie fortement selon le type d'habitat : ~2 % en secteur pavillonnaire (tout le monde est équipé), ~10 % là où dominent studios et T1. Le modèle interpole entre ces deux bornes en fonction de la part de petits logements du quartier (borne haute atteinte à 50 % de petits logements).",
+      "part_menages_pct": [2, 10],
+      "seuil_petits_logements_borne_haute": 0.5,
+      "depense_annuelle_eur": [300, 700]
+    },
+    "clientele_ponctuelle": {
+      "definition": "Ménages équipés d'un lave-linge qui viennent 1 à 3 fois par an pour les gros volumes (couettes, couvertures, sacs de couchage). Représente typiquement 20-40 % du CA d'une laverie moderne équipée de grosses machines.",
+      "part_menages_concernes_pct": [15, 25],
+      "depense_annuelle_eur": [20, 45]
+    },
     "habitants_par_laverie_zone_urbaine": [8000, 15000]
   },
   "chalandise": {

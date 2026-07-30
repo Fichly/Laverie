@@ -8,11 +8,16 @@
 
 const TAILLE_MENAGE = 2.2; // personnes par ménage (moyenne France, à affiner par quartier via INSEE)
 
+// Rayon de référence du diagnostic par quartier. Volontairement indépendant du
+// curseur d'affichage : les couleurs de la carte ne doivent pas changer de sens
+// quand on ajuste la taille des cercles de couverture.
+const RAYON_TENSION = 800;
+
 const state = {
   laveries: [],
   quartiers: [],
   benchmarks: null,
-  rayon: 600,
+  rayon: RAYON_TENSION,
   simulation: false,
   layers: {},
 };
@@ -56,11 +61,15 @@ function couverture(d, rayon) {
 // ---------- chargement ----------
 
 async function charger() {
-  const [lav, qua, bench] = await Promise.all([
-    fetch('data/laveries.json').then(r => r.json()),
-    fetch('data/quartiers.json').then(r => r.json()),
-    fetch('data/benchmarks.json').then(r => r.json()),
-  ]);
+  // La version autonome (fichier HTML unique) injecte les données dans window.__DATA__ ;
+  // la version modulaire les charge depuis data/*.json via un serveur local.
+  const [lav, qua, bench] = window.__DATA__
+    ? [window.__DATA__.laveries, window.__DATA__.quartiers, window.__DATA__.benchmarks]
+    : await Promise.all([
+      fetch('data/laveries.json').then(r => r.json()),
+      fetch('data/quartiers.json').then(r => r.json()),
+      fetch('data/benchmarks.json').then(r => r.json()),
+    ]);
   state.laveries = lav.laveries;
   state.quartiers = qua.quartiers;
   state.benchmarks = bench;
@@ -104,9 +113,11 @@ function laveriesVisibles() {
 
 function rafraichir() {
   dessinerMarqueurs();
+  dessinerListe();
   dessinerCouverture();
   dessinerTension();
   dessinerHeat();
+  dessinerClassement();
   majStats();
 }
 
@@ -134,15 +145,70 @@ function popupLaverie(l) {
 
 function dessinerMarqueurs() {
   state.layers.marqueurs.clearLayers();
+  state.marqueurs = {};
   for (const l of laveriesVisibles()) {
-    L.circleMarker([l.lat, l.lon], {
+    const m = L.circleMarker([l.lat, l.lon], {
       radius: 9,
       color: '#fff',
       weight: 2,
       fillColor: COULEURS[l.type],
       fillOpacity: 0.95,
     }).bindPopup(popupLaverie(l), { maxWidth: 320 }).addTo(state.layers.marqueurs);
+    m.on('click', () => surlignerListe(l.id));
+    state.marqueurs[l.id] = m;
   }
+}
+
+// ---------- liste des laveries (contrôle de l'inventaire) ----------
+
+// Champs qui doivent être relevés sur le terrain pour qu'une fiche soit exploitable.
+const CHAMPS_TERRAIN = ['surface_m2', 'nb_lave_linge', 'nb_seche_linge', 'prix_cycle_8kg', 'horaires'];
+
+function classeNote(n) {
+  if (n == null) return 'note-inconnue';
+  if (n >= 4) return 'note-bonne';
+  if (n >= 3) return 'note-moyenne';
+  return 'note-mauvaise';
+}
+
+function surlignerListe(id) {
+  for (const li of document.querySelectorAll('#liste-laveries li')) {
+    li.classList.toggle('actif', li.dataset.id === id);
+  }
+}
+
+function dessinerListe() {
+  const ul = document.getElementById('liste-laveries');
+  const visibles = laveriesVisibles();
+  ul.innerHTML = visibles.map(l => {
+    const note = l.note_google != null ? `${l.note_google}★` : '?';
+    return `<li data-id="${l.id}">
+      <span class="dot dot-${l.type}"></span>
+      <span class="nom">${l.nom}<span class="meta">${l.quartier ?? 'quartier à définir'}</span></span>
+      <span class="note ${classeNote(l.note_google)}">${note}</span>
+    </li>`;
+  }).join('');
+
+  document.getElementById('liste-count').textContent = visibles.length;
+
+  for (const li of ul.querySelectorAll('li')) {
+    li.addEventListener('click', () => {
+      const l = state.laveries.find(x => x.id === li.dataset.id);
+      map.flyTo([l.lat, l.lon], 16, { duration: 0.8 });
+      state.marqueurs[l.id]?.openPopup();
+      surlignerListe(l.id);
+    });
+  }
+
+  // Complétude : part des champs terrain effectivement renseignés
+  const total = state.laveries.length * CHAMPS_TERRAIN.length;
+  let remplis = 0;
+  for (const l of state.laveries) {
+    for (const c of CHAMPS_TERRAIN) if (l[c] != null) remplis++;
+  }
+  const pct = Math.round(100 * remplis / total);
+  document.getElementById('completude-bar').style.width = pct + '%';
+  document.getElementById('completude-txt').textContent = pct + ' %';
 }
 
 function dessinerCouverture() {
@@ -167,30 +233,97 @@ function dessinerHeat() {
   state.layers.heat = L.heatLayer(points, { radius: 45, blur: 30, maxZoom: 15, max: 1.5 }).addTo(map);
 }
 
-// Tension = demande locale / offre accessible.
-// Demande d'un quartier : ménages estimés sans lave-linge.
-// Offre accessible : somme des laveries pondérées par la distance au centroïde.
-function tensionQuartier(q) {
-  const menages = q.population / TAILLE_MENAGE;
-  const [pMin, pMax] = state.benchmarks.demande.part_menages_sans_lave_linge_pct;
-  // La part de ménages sans lave-linge croît avec la part de petits logements.
-  const partSansLL = (pMin + (pMax - pMin) * Math.min(1, q.part_petits_logements_est * 2.5)) / 100;
-  const demande = menages * partSansLL;
-
-  let offre = 0;
-  for (const l of state.laveries.filter(x => x.statut === 'actif')) {
-    const d = distanceM(q.lat, q.lon, l.lat, l.lon);
-    offre += poidsConcurrence(l) * couverture(d, 800);
-  }
-  // ~150 ménages utilisateurs absorbés par laverie bien placée (ordre de grandeur benchmark)
-  const capacite = offre * 150;
-  return { demande, offre, ratio: demande / Math.max(capacite, 1) };
+// Part de ménages sans lave-linge dans un quartier : elle croît avec la part de
+// petits logements (studios et T1 sont rarement équipés).
+function partClienteleReguliere(q) {
+  const c = state.benchmarks.demande.clientele_reguliere;
+  const [pMin, pMax] = c.part_menages_pct;
+  const facteur = Math.min(1, q.part_petits_logements_est / c.seuil_petits_logements_borne_haute);
+  return (pMin + (pMax - pMin) * facteur) / 100;
 }
 
-function couleurTension(ratio) {
-  if (ratio < 0.8) return '#15803d';   // offre >= demande : saturé
-  if (ratio < 1.6) return '#eab308';   // équilibré
-  return '#dc2626';                    // demande >> offre : sous-équipé
+// CA médian d'une laverie du secteur : référence à laquelle on compare une zone.
+function caReference() {
+  const [min, max] = state.benchmarks.exploitation.ca_annuel_laverie_eur;
+  return (min + max) / 2;
+}
+
+// Demande accessible depuis un point : agrège les quartiers voisins pondérés par
+// la distance. La demande ne s'arrête pas à la frontière d'un quartier, un
+// habitant du quartier d'à côté à 300 m est un client tout aussi probable.
+function demandeAccessible(lat, lon, R) {
+  const [ppMin, ppMax] = state.benchmarks.demande.clientele_ponctuelle.part_menages_concernes_pct;
+  const partPonctuelle = ((ppMin + ppMax) / 2) / 100;
+  let pop = 0, reguliers = 0, ponctuels = 0;
+  for (const q of state.quartiers) {
+    const w = couverture(distanceM(lat, lon, q.lat, q.lon), R);
+    if (w < 0.05) continue;
+    pop += q.population * w;
+    const menages = q.population * w / TAILLE_MENAGE;
+    const reg = menages * partClienteleReguliere(q);
+    reguliers += reg;
+    ponctuels += (menages - reg) * partPonctuelle;
+  }
+  return { pop, reguliers, ponctuels };
+}
+
+// Pression concurrentielle exercée sur un point par les laveries existantes.
+function offreAccessible(lat, lon, R) {
+  let pression = 0;
+  const concurrents = [];
+  for (const l of state.laveries.filter(x => x.statut === 'actif')) {
+    const d = distanceM(lat, lon, l.lat, l.lon);
+    const p = poidsConcurrence(l) * couverture(d, R);
+    if (p < 0.01) continue;
+    pression += p;
+    if (p > 0.05) concurrents.push({ nom: l.nom, d: Math.round(d), type: l.type });
+  }
+  return { pression, concurrents };
+}
+
+// CŒUR DU MODÈLE : estime ce que réaliserait une laverie implantée en (lat, lon).
+//
+// Une seule fonction alimente à la fois le diagnostic par quartier et le
+// simulateur — c'est ce qui garantit que les deux lectures de la carte racontent
+// toujours la même histoire. Elle combine :
+//   1. la demande accessible, séparée en clientèle régulière et ponctuelle ;
+//   2. la part de marché face aux laveries existantes (Huff simplifié) ;
+//   3. les dépenses annuelles par type de clientèle, en fourchette.
+function estimerCA(lat, lon, R) {
+  const b = state.benchmarks;
+  const dem = demandeAccessible(lat, lon, R);
+  const { pression, concurrents } = offreAccessible(lat, lon, R);
+  const partMarche = 1 / (1 + pression);
+
+  const [regMin, regMax] = b.demande.clientele_reguliere.depense_annuelle_eur;
+  const [ponMin, ponMax] = b.demande.clientele_ponctuelle.depense_annuelle_eur;
+  const regCaptes = dem.reguliers * partMarche;
+  const ponCaptes = dem.ponctuels * partMarche;
+
+  const caMin = regCaptes * regMin + ponCaptes * ponMin;
+  const caMax = regCaptes * regMax + ponCaptes * ponMax;
+  const caMed = (caMin + caMax) / 2;
+
+  return {
+    ...dem, pression, concurrents, partMarche, regCaptes, ponCaptes,
+    caMin, caMax, caMed,
+    // indice > 1 : la zone dégagerait plus que le CA médian du secteur
+    indice: caMed / caReference(),
+  };
+}
+
+// Diagnostic d'un quartier : une NOUVELLE laverie implantée ici serait-elle viable ?
+// On évite volontairement un ratio offre/demande brut, qui explose vers l'infini
+// dès que l'offre locale tend vers zéro et ferait passer un hameau de 300
+// habitants pour une opportunité majeure.
+function tensionQuartier(q) {
+  return estimerCA(q.lat, q.lon, RAYON_TENSION);
+}
+
+function couleurTension(i) {
+  if (i < 0.6) return '#15803d';   // pas de place : marché déjà servi ou demande trop faible
+  if (i < 1.0) return '#eab308';   // limite
+  return '#dc2626';                // une nouvelle laverie atteindrait le seuil de viabilité
 }
 
 function dessinerTension() {
@@ -198,22 +331,56 @@ function dessinerTension() {
   if (!document.getElementById('l-tension').checked) return;
   for (const q of state.quartiers) {
     const t = tensionQuartier(q);
-    const label = t.ratio < 0.8 ? 'Zone saturée' : (t.ratio < 1.6 ? 'Marché équilibré' : 'Zone sous-équipée');
+    const label = t.indice < 0.6 ? 'Pas de place pour une laverie'
+      : (t.indice < 1.0 ? 'Zone limite' : 'Place pour une laverie');
     L.circleMarker([q.lat, q.lon], {
       radius: Math.max(10, Math.sqrt(q.population) / 5),
-      color: couleurTension(t.ratio),
+      color: couleurTension(t.indice),
       weight: 2,
-      fillColor: couleurTension(t.ratio),
+      fillColor: couleurTension(t.indice),
       fillOpacity: 0.30,
     }).bindPopup(`<div class="popup"><h3>${q.nom}</h3>
       <table>
       <tr><td>Population (est.)</td><td>${fmtInt(q.population)}</td></tr>
-      <tr><td>Ménages cibles (est.)</td><td>~${fmtInt(t.demande)}</td></tr>
-      <tr><td>Offre accessible</td><td>${t.offre.toFixed(2)} équiv. laverie</td></tr>
-      <tr><td>Diagnostic</td><td><strong>${label}</strong></td></tr>
+      <tr><td>Clientèle régulière accessible</td><td>~${fmtInt(t.reguliers)} ménages</td></tr>
+      <tr><td>Concurrence en place</td><td>${t.pression.toFixed(2)} équiv. laverie → part de marché ${Math.round(t.partMarche * 100)} %</td></tr>
+      <tr><td>CA d'une nouvelle laverie</td><td>${fmtEur(t.caMin)} – ${fmtEur(t.caMax)}<br>(référence secteur : ${fmtEur(caReference())})</td></tr>
+      <tr><td>Diagnostic</td><td><strong>${label}</strong> (indice ${t.indice.toFixed(2)})</td></tr>
       </table>
-      <p class="warn">${q.commentaire ?? ''}</p></div>`, { maxWidth: 300 })
+      <p class="warn">${q.commentaire ?? ''}</p></div>`, { maxWidth: 320 })
       .addTo(state.layers.tension);
+  }
+}
+
+// ---------- classement des zones d'implantation ----------
+
+function dessinerClassement() {
+  const ol = document.getElementById('classement');
+  const zones = state.quartiers
+    .map(q => ({ q, t: tensionQuartier(q) }))
+    .sort((a, b) => b.t.indice - a.t.indice)
+    .slice(0, 6);
+
+  ol.innerHTML = zones.map(({ q, t }) => {
+    const cls = t.indice >= 1 ? 'verdict bon' : (t.indice >= 0.6 ? 'verdict moyen' : 'verdict faible');
+    return `<li data-id="${q.id}" style="border-left-color:${couleurTension(t.indice)}">
+      <span class="z-nom">${q.nom}
+        <span class="z-ca">CA potentiel ${fmtEur(t.caMin)} – ${fmtEur(t.caMax)}</span></span>
+      <span class="z-ind ${cls}">${t.indice.toFixed(2)}</span>
+    </li>`;
+  }).join('');
+
+  for (const li of ol.querySelectorAll('li')) {
+    li.addEventListener('click', () => {
+      const q = state.quartiers.find(x => x.id === li.dataset.id);
+      map.flyTo([q.lat, q.lon], 15, { duration: 0.8 });
+      // On lance directement la simulation sur la zone pour éviter un aller-retour.
+      state.simulation = true;
+      const btn = document.getElementById('btn-simu');
+      btn.classList.add('active');
+      btn.textContent = '🎯 Cliquez sur la carte… (cliquer ici pour quitter)';
+      simuler(q.lat, q.lon);
+    });
   }
 }
 
@@ -249,38 +416,11 @@ function simuler(lat, lon) {
   L.circle([lat, lon], { radius: R, color: '#f97316', weight: 2, dashArray: '6 6', fillColor: '#f97316', fillOpacity: 0.08 })
     .addTo(state.layers.simulation);
 
-  // 1. Population et ménages cibles captés dans la zone
-  let popCouverte = 0;
-  let menagesCibles = 0;
-  const [pMin, pMax] = b.demande.part_menages_sans_lave_linge_pct;
-  for (const q of state.quartiers) {
-    const d = distanceM(lat, lon, q.lat, q.lon);
-    const w = couverture(d, R);
-    if (w < 0.05) continue;
-    popCouverte += q.population * w;
-    const partSansLL = (pMin + (pMax - pMin) * Math.min(1, q.part_petits_logements_est * 2.5)) / 100;
-    menagesCibles += (q.population * w / TAILLE_MENAGE) * partSansLL;
-  }
-
-  // 2. Concurrence : part de marché façon Huff simplifié
-  //    attractivité égale pour tous, décroissance gaussienne avec la distance
-  let pressionConcurrence = 0;
-  const concurrents = [];
-  for (const l of state.laveries.filter(x => x.statut === 'actif')) {
-    const d = distanceM(lat, lon, l.lat, l.lon);
-    if (d < 2 * R) {
-      const p = poidsConcurrence(l) * couverture(d, R);
-      pressionConcurrence += p;
-      if (p > 0.05) concurrents.push({ nom: l.nom, d: Math.round(d), type: l.type });
-    }
-  }
-  const partMarche = 1 / (1 + pressionConcurrence);
-  const menagesCaptes = menagesCibles * partMarche;
-
-  // 3. CA : ménages réguliers captés × dépense annuelle + usage ponctuel (gros volumes)
-  const [depMin, depMax] = b.demande.depense_annuelle_menage_utilisateur_eur;
-  const caMin = menagesCaptes * depMin * 1.20; // +20% usage ponctuel (hypothèse basse)
-  const caMax = menagesCaptes * depMax * 1.40; // +40% usage ponctuel (hypothèse haute)
+  // Même fonction d'estimation que le diagnostic par quartier : les deux
+  // lectures de la carte ne peuvent donc pas se contredire.
+  const e = estimerCA(lat, lon, R);
+  const { pop: popCouverte, reguliers: menagesReguliers, ponctuels: menagesPonctuels,
+          concurrents, partMarche, regCaptes, ponCaptes, caMin, caMax } = e;
 
   const [viabMin] = b.exploitation.ca_annuel_laverie_eur;
   let verdictCls, verdictTxt;
@@ -298,8 +438,10 @@ function simuler(lat, lon) {
   el.innerHTML = `
     <h3>Résultat de la simulation</h3>
     Population dans la zone (pondérée) : <b>~${fmtInt(popCouverte)} hab.</b><br>
-    Ménages cibles (sans lave-linge) : <b>~${fmtInt(menagesCibles)}</b><br>
-    Part de marché estimée : <b>${Math.round(partMarche * 100)} %</b><br>
+    Clientèle régulière (sans lave-linge) : <b>~${fmtInt(menagesReguliers)} ménages</b><br>
+    Clientèle ponctuelle (gros volumes) : <b>~${fmtInt(menagesPonctuels)} ménages</b><br>
+    Part de marché estimée : <b>${Math.round(partMarche * 100)} %</b>
+    → <b>${fmtInt(regCaptes)}</b> réguliers + <b>${fmtInt(ponCaptes)}</b> ponctuels captés<br>
     <br><b>Concurrence dans la zone :</b><br>${listeConc}<br><br>
     CA potentiel annuel : <span class="ca">${fmtEur(caMin)} – ${fmtEur(caMax)}</span><br>
     EBE indicatif (${margeMin}–${margeMax} % du CA) : ${fmtEur(caMin * margeMin / 100)} – ${fmtEur(caMax * margeMax / 100)}

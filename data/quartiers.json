@@ -6,20 +6,170 @@
     "avertissement": "Ces chiffres servent uniquement à faire tourner le modèle en attendant les vraies données INSEE. Ne pas fonder une décision d'investissement dessus."
   },
   "quartiers": [
-    { "id": "centre-bourg", "nom": "Centre / Bourg", "lat": 44.8068, "lon": -0.6315, "population": 6000, "part_locataires_est": 0.55, "part_petits_logements_est": 0.30, "densite": "forte", "commentaire": "Centre-ville, gare SNCF, tram B (terminus zone), commerces. Habitat mixte collectif/ancien." },
-    { "id": "le-monteil", "nom": "Le Monteil", "lat": 44.8095, "lon": -0.6225, "population": 5500, "part_locataires_est": 0.45, "part_petits_logements_est": 0.20, "densite": "moyenne", "commentaire": "Proche Talence, habitat mixte, étudiants en diffus." },
-    { "id": "verthamon", "nom": "Verthamon / Haut-Brion", "lat": 44.8108, "lon": -0.6115, "population": 4000, "part_locataires_est": 0.35, "part_petits_logements_est": 0.15, "densite": "moyenne", "commentaire": "Résidentiel aisé, vignobles. Demande laverie faible." },
-    { "id": "brivazac-candau", "nom": "Brivazac / Candau", "lat": 44.8028, "lon": -0.6152, "population": 4500, "part_locataires_est": 0.50, "part_petits_logements_est": 0.25, "densite": "moyenne", "commentaire": "Proche campus, locatif étudiant en diffus." },
-    { "id": "saige", "nom": "Saige (Formanoir)", "lat": 44.7997, "lon": -0.6180, "population": 6500, "part_locataires_est": 0.80, "part_petits_logements_est": 0.40, "densite": "tres_forte", "commentaire": "Grand ensemble, forte part de logement social. Demande laverie structurellement élevée. Tram B." },
-    { "id": "campus", "nom": "Campus universitaire (partie Pessac)", "lat": 44.7970, "lon": -0.6100, "population": 3500, "part_locataires_est": 0.95, "part_petits_logements_est": 0.90, "densite": "forte", "commentaire": "~3 500 lits en résidences (CROUS + privées) côté Pessac ; ~15-20 000 étudiants fréquentent le site en journée. Deux laveries captives CROUS." },
-    { "id": "casino", "nom": "Casino / Sardine", "lat": 44.8010, "lon": -0.6260, "population": 3500, "part_locataires_est": 0.45, "part_petits_logements_est": 0.20, "densite": "moyenne", "commentaire": "Entre centre et Saige." },
-    { "id": "noes", "nom": "Noès", "lat": 44.8090, "lon": -0.6440, "population": 3000, "part_locataires_est": 0.40, "part_petits_logements_est": 0.15, "densite": "moyenne", "commentaire": "Pavillonnaire + collectifs récents." },
-    { "id": "arago-chataigneraie", "nom": "Arago / La Châtaigneraie", "lat": 44.8005, "lon": -0.6395, "population": 5000, "part_locataires_est": 0.50, "part_petits_logements_est": 0.25, "densite": "forte", "commentaire": "Collectifs denses, proximité rocade." },
-    { "id": "france-alouette", "nom": "France / Alouette", "lat": 44.7925, "lon": -0.6470, "population": 6500, "part_locataires_est": 0.45, "part_petits_logements_est": 0.20, "densite": "moyenne", "commentaire": "Pôle Alouette : gare, clinique, commerces. Terminus tram B Alouette-France." },
-    { "id": "3m-bourgailh", "nom": "3M / Bourgailh", "lat": 44.7975, "lon": -0.6570, "population": 3000, "part_locataires_est": 0.45, "part_petits_logements_est": 0.20, "densite": "moyenne", "commentaire": "Habitat social et pavillonnaire, forêt du Bourgailh." },
-    { "id": "cap-de-bos", "nom": "Cap de Bos", "lat": 44.7885, "lon": -0.6710, "population": 5500, "part_locataires_est": 0.30, "part_petits_logements_est": 0.10, "densite": "faible", "commentaire": "Pavillonnaire. Centre commercial de proximité." },
-    { "id": "magonty", "nom": "Magonty", "lat": 44.7825, "lon": -0.6905, "population": 5500, "part_locataires_est": 0.25, "part_petits_logements_est": 0.10, "densite": "faible", "commentaire": "Pavillonnaire excentré." },
-    { "id": "toctoucau", "nom": "Toctoucau", "lat": 44.7660, "lon": -0.7280, "population": 2500, "part_locataires_est": 0.30, "part_petits_logements_est": 0.10, "densite": "faible", "commentaire": "Bourg excentré, limite Cestas." },
-    { "id": "bersol", "nom": "Bersol (zone d'activités)", "lat": 44.7900, "lon": -0.6360, "population": 1000, "part_locataires_est": 0.40, "part_petits_logements_est": 0.15, "densite": "faible", "commentaire": "Zone économique, peu résidentielle mais flux salariés important." }
+    {
+      "id": "centre-bourg",
+      "nom": "Centre / Bourg",
+      "lat": 44.8068,
+      "lon": -0.6315,
+      "population": 6000,
+      "part_locataires_est": 0.55,
+      "part_petits_logements_est": 0.3,
+      "densite": "forte",
+      "commentaire": "Centre-ville, gare SNCF, tram B (terminus zone), commerces. Habitat mixte collectif/ancien."
+    },
+    {
+      "id": "le-monteil",
+      "nom": "Le Monteil",
+      "lat": 44.8095,
+      "lon": -0.6225,
+      "population": 5500,
+      "part_locataires_est": 0.45,
+      "part_petits_logements_est": 0.2,
+      "densite": "moyenne",
+      "commentaire": "Proche Talence, habitat mixte, étudiants en diffus."
+    },
+    {
+      "id": "verthamon",
+      "nom": "Verthamon / Haut-Brion",
+      "lat": 44.8108,
+      "lon": -0.6115,
+      "population": 4000,
+      "part_locataires_est": 0.35,
+      "part_petits_logements_est": 0.08,
+      "densite": "moyenne",
+      "commentaire": "Résidentiel aisé, vignobles. Demande laverie faible."
+    },
+    {
+      "id": "brivazac-candau",
+      "nom": "Brivazac / Candau",
+      "lat": 44.8028,
+      "lon": -0.6152,
+      "population": 4500,
+      "part_locataires_est": 0.5,
+      "part_petits_logements_est": 0.25,
+      "densite": "moyenne",
+      "commentaire": "Proche campus, locatif étudiant en diffus."
+    },
+    {
+      "id": "saige",
+      "nom": "Saige (Formanoir)",
+      "lat": 44.7997,
+      "lon": -0.618,
+      "population": 6500,
+      "part_locataires_est": 0.8,
+      "part_petits_logements_est": 0.4,
+      "densite": "tres_forte",
+      "commentaire": "Grand ensemble, forte part de logement social. Demande laverie structurellement élevée. Tram B."
+    },
+    {
+      "id": "campus",
+      "nom": "Campus universitaire (partie Pessac)",
+      "lat": 44.797,
+      "lon": -0.61,
+      "population": 3500,
+      "part_locataires_est": 0.95,
+      "part_petits_logements_est": 0.9,
+      "densite": "forte",
+      "commentaire": "~3 500 lits en résidences (CROUS + privées) côté Pessac ; ~15-20 000 étudiants fréquentent le site en journée. Deux laveries captives CROUS."
+    },
+    {
+      "id": "casino",
+      "nom": "Casino / Sardine",
+      "lat": 44.801,
+      "lon": -0.626,
+      "population": 3500,
+      "part_locataires_est": 0.45,
+      "part_petits_logements_est": 0.2,
+      "densite": "moyenne",
+      "commentaire": "Entre centre et Saige."
+    },
+    {
+      "id": "noes",
+      "nom": "Noès",
+      "lat": 44.809,
+      "lon": -0.644,
+      "population": 3000,
+      "part_locataires_est": 0.4,
+      "part_petits_logements_est": 0.15,
+      "densite": "moyenne",
+      "commentaire": "Pavillonnaire + collectifs récents."
+    },
+    {
+      "id": "arago-chataigneraie",
+      "nom": "Arago / La Châtaigneraie",
+      "lat": 44.8005,
+      "lon": -0.6395,
+      "population": 5000,
+      "part_locataires_est": 0.5,
+      "part_petits_logements_est": 0.25,
+      "densite": "forte",
+      "commentaire": "Collectifs denses, proximité rocade."
+    },
+    {
+      "id": "france-alouette",
+      "nom": "France / Alouette",
+      "lat": 44.7925,
+      "lon": -0.647,
+      "population": 6500,
+      "part_locataires_est": 0.45,
+      "part_petits_logements_est": 0.2,
+      "densite": "moyenne",
+      "commentaire": "Pôle Alouette : gare, clinique, commerces. Terminus tram B Alouette-France."
+    },
+    {
+      "id": "3m-bourgailh",
+      "nom": "3M / Bourgailh",
+      "lat": 44.7975,
+      "lon": -0.657,
+      "population": 3000,
+      "part_locataires_est": 0.45,
+      "part_petits_logements_est": 0.2,
+      "densite": "moyenne",
+      "commentaire": "Habitat social et pavillonnaire, forêt du Bourgailh."
+    },
+    {
+      "id": "cap-de-bos",
+      "nom": "Cap de Bos",
+      "lat": 44.7885,
+      "lon": -0.671,
+      "population": 5500,
+      "part_locataires_est": 0.3,
+      "part_petits_logements_est": 0.08,
+      "densite": "faible",
+      "commentaire": "Pavillonnaire. Centre commercial de proximité."
+    },
+    {
+      "id": "magonty",
+      "nom": "Magonty",
+      "lat": 44.7825,
+      "lon": -0.6905,
+      "population": 5500,
+      "part_locataires_est": 0.25,
+      "part_petits_logements_est": 0.07,
+      "densite": "faible",
+      "commentaire": "Pavillonnaire excentré."
+    },
+    {
+      "id": "toctoucau",
+      "nom": "Toctoucau",
+      "lat": 44.766,
+      "lon": -0.728,
+      "population": 2500,
+      "part_locataires_est": 0.3,
+      "part_petits_logements_est": 0.07,
+      "densite": "faible",
+      "commentaire": "Bourg excentré, limite Cestas."
+    },
+    {
+      "id": "bersol",
+      "nom": "Bersol (zone d'activités)",
+      "lat": 44.79,
+      "lon": -0.636,
+      "population": 1000,
+      "part_locataires_est": 0.4,
+      "part_petits_logements_est": 0.15,
+      "densite": "faible",
+      "commentaire": "Zone économique, peu résidentielle mais flux salariés important."
+    }
   ]
 }

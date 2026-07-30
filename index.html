@@ -27,6 +27,17 @@
       </section>
 
       <section class="panel">
+        <h2>Les laveries recensées <span id="liste-count" class="badge"></span></h2>
+        <p class="hint">Cliquez sur une ligne pour la localiser sur la carte et vérifier son emplacement.</p>
+        <ul id="liste-laveries" class="liste"></ul>
+        <div class="completude">
+          <span>Complétude des fiches</span>
+          <div class="bar"><div id="completude-bar"></div></div>
+          <span id="completude-txt"></span>
+        </div>
+      </section>
+
+      <section class="panel">
         <h2>Filtres</h2>
         <label class="check"><input type="checkbox" id="f-chaine" checked> <span class="dot dot-chaine"></span> Chaînes / réseaux</label>
         <label class="check"><input type="checkbox" id="f-independant" checked> <span class="dot dot-independant"></span> Indépendants</label>
@@ -37,16 +48,23 @@
         <h2>Couches d'analyse</h2>
         <label class="check"><input type="checkbox" id="l-couverture" checked> Zones de chalandise (couverture)</label>
         <div class="slider-row">
-          <label for="rayon">Rayon piéton : <strong><span id="rayon-val">600</span> m</strong></label>
-          <input type="range" id="rayon" min="300" max="1000" step="50" value="600">
+          <label for="rayon">Rayon piéton : <strong><span id="rayon-val">800</span> m</strong></label>
+          <input type="range" id="rayon" min="300" max="1000" step="50" value="800">
         </div>
         <label class="check"><input type="checkbox" id="l-heat-offre"> Carte de chaleur — concentration de l'offre</label>
-        <label class="check"><input type="checkbox" id="l-tension" checked> Tension du marché par quartier (offre vs demande)</label>
+        <label class="check"><input type="checkbox" id="l-tension" checked> Potentiel par quartier (demande vs concurrence)</label>
         <div class="legend" id="legende-tension">
-          <span class="lg"><i style="background:#15803d"></i> Saturé</span>
-          <span class="lg"><i style="background:#eab308"></i> Équilibré</span>
-          <span class="lg"><i style="background:#dc2626"></i> Sous-équipé</span>
+          <span class="lg"><i style="background:#dc2626"></i> Place pour une laverie</span>
+          <span class="lg"><i style="background:#eab308"></i> Limite</span>
+          <span class="lg"><i style="background:#15803d"></i> Pas de place</span>
+          <span style="flex-basis:100%;margin-top:4px">Rouge = une nouvelle laverie y dégagerait plus que le CA médian du secteur (85 000 €). Rayon de référence : 800 m.</span>
         </div>
+      </section>
+
+      <section class="panel">
+        <h2>🎯 Où implanter ? Classement des zones</h2>
+        <p class="hint">Zones classées par CA potentiel d'une nouvelle laverie. Cliquez pour vous y rendre et lancer la simulation.</p>
+        <ol id="classement" class="classement"></ol>
       </section>
 
       <section class="panel">

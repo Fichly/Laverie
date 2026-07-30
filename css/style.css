@@ -102,6 +102,81 @@ button.active { background: #f97316; color: #431407; }
 .note-mauvaise { background: #7f1d1d; color: #fca5a5; }
 .note-inconnue { background: #334155; color: #94a3b8; }
 
+/* ---- Fiche détaillée façon Google Maps ---- */
+#fiche {
+  position: absolute; top: 0; left: 0; bottom: 0;
+  width: 360px; z-index: 1000;
+  background: var(--bg); border-right: 1px solid #334155;
+  overflow-y: auto; box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+}
+#fiche.hidden { display: none; }
+#fiche-fermer {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  width: 30px; height: 30px; padding: 0; border-radius: 50%;
+  background: rgba(15, 23, 42, 0.85); color: var(--text);
+  font-size: 0.9rem; font-weight: 400; line-height: 1;
+}
+
+.galerie { position: relative; background: var(--panel-2); }
+.galerie img { width: 100%; height: 190px; object-fit: cover; display: block; }
+.galerie-vide {
+  height: 190px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px;
+  color: var(--muted); font-size: 0.78rem; text-align: center; padding: 0 24px;
+}
+.galerie-vide .ico { font-size: 1.8rem; opacity: 0.5; }
+.galerie-miniatures { display: flex; gap: 3px; padding: 3px; background: var(--panel-2); }
+.galerie-miniatures img { height: 52px; flex: 1; object-fit: cover; cursor: pointer; border-radius: 3px; }
+.galerie-attrib { font-size: 0.62rem; color: #64748b; padding: 4px 14px; line-height: 1.3; }
+
+.fiche-corps { padding: 12px 14px 24px; }
+.fiche-corps h2 { font-size: 1.15rem; line-height: 1.25; margin-bottom: 6px; }
+
+.note-ligne { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 0.85rem; }
+.note-chiffre { font-weight: 700; }
+.etoiles { color: #fbbf24; letter-spacing: 1px; }
+.note-nb { color: var(--muted); font-size: 0.8rem; }
+.note-abs { color: var(--muted); font-size: 0.8rem; font-style: italic; }
+
+.fiabilite {
+  display: inline-block; font-size: 0.62rem; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 2px 6px; border-radius: 4px; font-weight: 700;
+}
+.fia-officielle { background: #14532d; color: #86efac; }
+.fia-bonne { background: #1e3a8a; color: #bfdbfe; }
+.fia-moyenne { background: #713f12; color: #fde047; }
+.fia-faible { background: #7f1d1d; color: #fca5a5; }
+
+.fiche-infos { font-size: 0.82rem; line-height: 1.6; }
+.fiche-infos .ligne { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px solid #26334a; }
+.fiche-infos .ligne .ic { width: 16px; flex-shrink: 0; opacity: 0.7; }
+.fiche-infos .ligne .val { flex: 1; }
+.fiche-infos .manquant { color: #fbbf24; font-style: italic; }
+
+.fiche-actions { display: flex; gap: 6px; margin: 12px 0; }
+.fiche-actions a {
+  flex: 1; text-align: center; text-decoration: none;
+  background: var(--panel-2); color: var(--accent);
+  border-radius: 8px; padding: 8px 4px; font-size: 0.75rem; font-weight: 600;
+}
+.fiche-actions a:hover { background: #33415a; }
+
+.avis-liste { margin-top: 6px; }
+.avis-item { background: var(--panel); border-radius: 8px; padding: 9px 11px; margin-bottom: 7px; font-size: 0.8rem; line-height: 1.45; }
+.avis-tete { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.avis-auteur { font-weight: 600; font-size: 0.78rem; }
+.avis-date { color: var(--muted); font-size: 0.7rem; margin-left: auto; }
+.avis-texte { color: #cbd5e1; }
+.avis-src { color: #64748b; font-size: 0.66rem; margin-top: 4px; }
+
+.encart {
+  background: var(--panel); border-left: 3px solid var(--accent);
+  border-radius: 6px; padding: 9px 11px; margin-top: 12px;
+  font-size: 0.76rem; line-height: 1.5; color: var(--muted);
+}
+.encart b { color: var(--text); }
+.encart code { background: var(--panel-2); padding: 1px 4px; border-radius: 3px; font-size: 0.72rem; }
+
 .classement { list-style: none; counter-reset: rang; }
 .classement li {
   counter-increment: rang;
@@ -130,7 +205,11 @@ footer { font-size: 0.7rem; color: #64748b; padding: 8px 4px 20px; line-height: 
 .leaflet-popup-tip { background: var(--panel); }
 .leaflet-popup-content { font-size: 0.82rem; line-height: 1.5; margin: 12px 14px; }
 .popup h3 { font-size: 0.95rem; margin-bottom: 4px; }
-.popup .tag { display: inline-block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; margin-bottom: 6px; }
+.tag {
+  display: inline-block; color: #fff;
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.03em; padding: 3px 7px; border-radius: 4px; margin-bottom: 6px;
+}
 .tag-chaine { background: var(--chaine); }
 .tag-independant { background: var(--independant); }
 .tag-captif { background: var(--captif); }

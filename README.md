@@ -75,12 +75,38 @@ scripts/sync_osm.py          Synchronisation de l'inventaire avec OpenStreetMap
 scripts/build_standalone.py  Génère laverie-mapper.html
 ```
 
+## Récupérer les notes, avis et photos Google
+
+L'application affiche déjà les notes collectées sur des annuaires qui republient
+Google. Pour obtenir les données **officielles** (note exacte, avis complets,
+photos, horaires, coordonnées GPS précises) :
+
+```bash
+export GOOGLE_MAPS_API_KEY="votre_cle"     # console.cloud.google.com → Places API (New)
+python3 scripts/enrich_google_places.py --decouverte
+python3 scripts/build_standalone.py        # régénère le fichier autonome
+```
+
+`--decouverte` cherche en plus les laveries absentes de l'inventaire.
+`--id laverie-de-saige` ne traite qu'un établissement. `--sans-photos` évite
+le téléchargement d'images.
+
+**Pourquoi une clé API et pas du scraping ?** Récupérer les pages Google Maps
+viole leurs conditions d'utilisation et les photos sont protégées. L'API est la
+seule voie propre : elle fournit les mentions d'attribution obligatoires, que le
+script conserve et que l'application affiche sous chaque galerie. Deux règles
+Google à respecter : les `place_id` se conservent sans limite, mais les notes,
+avis et photos ne doivent pas être stockés au-delà de 30 jours — relancez le
+script plutôt que de traiter le cache comme une base pérenne.
+
 ## Fiabilité des données — à lire avant toute décision
 
 | Donnée | État actuel | Cible |
 |---|---|---|
-| Liste des laveries | Recherche web (annuaires, PagesJaunes, Justacoté, SIRENE) | Croiser OSM (`scripts/sync_osm.py`) + Google Places + **visite terrain** |
-| Coordonnées | Estimées depuis l'adresse (±50–300 m) | Géocodage BAN (api-adresse.data.gouv.fr) ou relevé GPS |
+| Liste des laveries | 8 établissements — recherche web (annuaires, PagesJaunes, Justacoté, SIRENE) | Croiser OSM (`scripts/sync_osm.py`) + Google Places + **visite terrain** |
+| Notes et avis | Relevés sur des annuaires republiant Google — 5 laveries notées sur 8 | `scripts/enrich_google_places.py` (API officielle) |
+| Photos | Aucune | `scripts/enrich_google_places.py` (avec attribution) |
+| Coordonnées | Estimées depuis l'adresse (±50–300 m) | Géocodage BAN (api-adresse.data.gouv.fr), Google Places ou relevé GPS |
 | Taille / machines / prix | Non renseignés (`null`) | **Relevé terrain obligatoire** (Street View puis visite) |
 | Population par quartier | Estimations d'ordre de grandeur | Carroyage INSEE Filosofi 200 m (gratuit) |
 | CA des laveries existantes | Non public (confidentialité des comptes) | Estimation par modèle uniquement, jamais un chiffre affiché comme réel |

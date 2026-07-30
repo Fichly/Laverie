@@ -121,28 +121,6 @@ function rafraichir() {
   majStats();
 }
 
-function popupLaverie(l) {
-  const note = l.note_google != null ? `${l.note_google}/5 (${l.nb_avis ?? '?'} avis)` : 'non renseignée';
-  const lignes = [
-    ['Adresse', l.adresse],
-    ['Quartier', l.quartier],
-    ['Horaires', l.horaires ?? 'à relever'],
-    ['Note Google', note],
-    ['Machines', l.nb_lave_linge != null ? `${l.nb_lave_linge} LL / ${l.nb_seche_linge ?? '?'} SL` : 'à relever sur le terrain'],
-    ['Surface', l.surface_m2 != null ? l.surface_m2 + ' m²' : 'à relever'],
-    ['Prix cycle 8 kg', l.prix_cycle_8kg != null ? l.prix_cycle_8kg + ' €' : 'à relever'],
-  ];
-  const rows = lignes.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
-  const verif = l.a_verifier ? `<p class="warn">⚠ Données partielles — position ${l.coord_precision === 'estimee' ? 'estimée' : 'exacte'}, fiche à compléter sur le terrain.</p>` : '';
-  const notes = l.notes_terrain ? `<p class="warn" style="color:#94a3b8">${l.notes_terrain}</p>` : '';
-  return `<div class="popup">
-    <span class="tag tag-${l.type}">${LIBELLES[l.type]}${l.enseigne ? ' · ' + l.enseigne : ''}</span>
-    <h3>${l.nom}</h3>
-    <table>${rows}</table>
-    ${notes}${verif}
-  </div>`;
-}
-
 function dessinerMarqueurs() {
   state.layers.marqueurs.clearLayers();
   state.marqueurs = {};
@@ -153,10 +131,145 @@ function dessinerMarqueurs() {
       weight: 2,
       fillColor: COULEURS[l.type],
       fillOpacity: 0.95,
-    }).bindPopup(popupLaverie(l), { maxWidth: 320 }).addTo(state.layers.marqueurs);
-    m.on('click', () => surlignerListe(l.id));
+    }).addTo(state.layers.marqueurs);
+    // Un clic sur le marqueur ouvre la fiche complète, comme sur Google Maps.
+    m.on('click', () => { ouvrirFiche(l.id); surlignerListe(l.id); });
+    m.bindTooltip(`${l.nom}${l.note_google != null ? ` — ${l.note_google}★` : ''}`);
     state.marqueurs[l.id] = m;
   }
+}
+
+// ---------- fiche détaillée façon Google Maps ----------
+
+function etoiles(note) {
+  if (note == null) return '';
+  const pleines = Math.floor(note);
+  const demi = note - pleines >= 0.25 && note - pleines < 0.75;
+  const bonus = note - pleines >= 0.75 ? 1 : 0;
+  return '★'.repeat(pleines + bonus) + (demi ? '⯨' : '') +
+         '☆'.repeat(5 - pleines - bonus - (demi ? 1 : 0));
+}
+
+const LIBELLE_FIABILITE = {
+  officielle: 'Google officiel',
+  bonne: 'source fiable',
+  moyenne: 'annuaire tiers',
+  faible: 'à confirmer',
+};
+
+function galerie(l) {
+  if (l.photos && l.photos.length) {
+    const principale = l.photos[0];
+    const minis = l.photos.length > 1
+      ? `<div class="galerie-miniatures">${l.photos.map((p, i) =>
+          `<img src="${p.fichier}" alt="Photo ${i + 1}" data-i="${i}">`).join('')}</div>`
+      : '';
+    // L'attribution des photos Google est obligatoire.
+    const attribs = [...new Set(l.photos.flatMap(p => p.attributions || []))];
+    const credit = attribs.length
+      ? `<p class="galerie-attrib">Photos : ${attribs.join(', ')} — via Google</p>` : '';
+    return `<div class="galerie">
+      <img id="photo-principale" src="${principale.fichier}" alt="${l.nom}">
+      ${minis}</div>${credit}`;
+  }
+  return `<div class="galerie"><div class="galerie-vide">
+    <span class="ico">📷</span>
+    <span>Aucune photo pour l'instant</span>
+    <span style="font-size:0.7rem">Les photos Google se récupèrent avec
+    <code>scripts/enrich_google_places.py</code> et votre clé API.</span>
+  </div></div>`;
+}
+
+function ligneInfo(icone, valeur, manquantTexte) {
+  const contenu = valeur
+    ? `<span class="val">${valeur}</span>`
+    : `<span class="val manquant">${manquantTexte}</span>`;
+  return `<div class="ligne"><span class="ic">${icone}</span>${contenu}</div>`;
+}
+
+function ficheLaverie(l) {
+  const rechercheGoogle = encodeURIComponent(`${l.nom} ${l.adresse}`);
+  const urlMaps = l.google_maps_url
+    || `https://www.google.com/maps/search/?api=1&query=${rechercheGoogle}`;
+  const urlStreet = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${l.lat},${l.lon}`;
+
+  const noteBloc = l.note_google != null
+    ? `<div class="note-ligne">
+         <span class="note-chiffre">${l.note_google.toFixed(1)}</span>
+         <span class="etoiles">${etoiles(l.note_google)}</span>
+         <span class="note-nb">${l.nb_avis != null ? l.nb_avis + ' avis' : 'nombre d\'avis inconnu'}</span>
+         <span class="fiabilite fia-${l.note_fiabilite || 'faible'}">${LIBELLE_FIABILITE[l.note_fiabilite] || 'à confirmer'}</span>
+       </div>`
+    : `<div class="note-ligne"><span class="note-abs">Aucune note trouvée pour cet établissement</span></div>`;
+
+  const avisBloc = (l.avis && l.avis.length)
+    ? `<h3 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);margin:16px 0 6px">
+         Avis (${l.avis.length})</h3>
+       <div class="avis-liste">${l.avis.map(a => `
+         <div class="avis-item">
+           <div class="avis-tete">
+             <span class="avis-auteur">${a.auteur || 'Anonyme'}</span>
+             ${a.note != null ? `<span class="etoiles">${etoiles(a.note)}</span>` : ''}
+             ${a.date ? `<span class="avis-date">${a.date}</span>` : ''}
+           </div>
+           <div class="avis-texte">« ${a.texte} »</div>
+           ${a.source ? `<div class="avis-src">${a.source}</div>` : ''}
+         </div>`).join('')}</div>`
+    : `<div class="encart">Aucun avis détaillé en base. Lancez
+       <code>scripts/enrich_google_places.py</code> pour récupérer les avis Google
+       officiels de cette laverie.</div>`;
+
+  const machines = l.nb_lave_linge != null
+    ? `${l.nb_lave_linge} lave-linge / ${l.nb_seche_linge ?? '?'} sèche-linge` : null;
+
+  return `
+    ${galerie(l)}
+    <div class="fiche-corps">
+      <span class="tag tag-${l.type}">${LIBELLES[l.type]}${l.enseigne ? ' · ' + l.enseigne : ''}</span>
+      <h2>${l.nom}</h2>
+      ${noteBloc}
+      <div class="fiche-actions">
+        <a href="${urlMaps}" target="_blank" rel="noopener">🗺️ Google Maps</a>
+        <a href="${urlStreet}" target="_blank" rel="noopener">👁️ Street View</a>
+      </div>
+      <div class="fiche-infos">
+        ${ligneInfo('📍', l.adresse)}
+        ${ligneInfo('🏘️', l.quartier, 'quartier à définir')}
+        ${ligneInfo('🕐', l.horaires, 'horaires à relever')}
+        ${ligneInfo('📞', l.telephone, 'téléphone inconnu')}
+        ${ligneInfo('🧺', machines, 'nombre de machines à relever sur place')}
+        ${ligneInfo('📐', l.surface_m2 ? l.surface_m2 + ' m²' : null, 'surface à relever sur place')}
+        ${ligneInfo('💶', l.prix_cycle_8kg ? l.prix_cycle_8kg + ' € le cycle 8 kg' : null, 'prix à relever sur place')}
+        ${l.site_web ? ligneInfo('🌐', `<a href="${l.site_web}" target="_blank" rel="noopener" style="color:var(--accent)">site web</a>`) : ''}
+      </div>
+      ${l.notes_terrain ? `<div class="encart"><b>Note d'analyse</b><br>${l.notes_terrain}</div>` : ''}
+      ${avisBloc}
+      <div class="encart" style="border-left-color:#64748b">
+        <b>Sources</b><br>${(l.sources || []).join(' · ')}
+        ${l.note_source ? `<br><br><b>Origine de la note</b><br>${l.note_source}` : ''}
+        <br><br>Position ${l.coord_precision === 'google' ? 'issue de Google (exacte)'
+          : l.coord_precision === 'osm' ? 'issue d\'OpenStreetMap' : 'estimée depuis l\'adresse (±50-300 m)'}.
+      </div>
+    </div>`;
+}
+
+function ouvrirFiche(id) {
+  const l = state.laveries.find(x => x.id === id);
+  if (!l) return;
+  document.getElementById('fiche-contenu').innerHTML = ficheLaverie(l);
+  document.getElementById('fiche').classList.remove('hidden');
+  document.getElementById('fiche').scrollTop = 0;
+
+  // Miniatures cliquables : remplacent la photo principale
+  const principale = document.getElementById('photo-principale');
+  for (const mini of document.querySelectorAll('.galerie-miniatures img')) {
+    mini.addEventListener('click', () => { principale.src = mini.src; });
+  }
+  surlignerListe(id);
+}
+
+function fermerFiche() {
+  document.getElementById('fiche').classList.add('hidden');
 }
 
 // ---------- liste des laveries (contrôle de l'inventaire) ----------
@@ -181,7 +294,9 @@ function dessinerListe() {
   const ul = document.getElementById('liste-laveries');
   const visibles = laveriesVisibles();
   ul.innerHTML = visibles.map(l => {
-    const note = l.note_google != null ? `${l.note_google}★` : '?';
+    const note = l.note_google != null
+      ? `${l.note_google}★${l.nb_avis != null ? `<br><span style="font-weight:400;font-size:0.62rem">${l.nb_avis} avis</span>` : ''}`
+      : 'n.c.';
     return `<li data-id="${l.id}">
       <span class="dot dot-${l.type}"></span>
       <span class="nom">${l.nom}<span class="meta">${l.quartier ?? 'quartier à définir'}</span></span>
@@ -195,8 +310,7 @@ function dessinerListe() {
     li.addEventListener('click', () => {
       const l = state.laveries.find(x => x.id === li.dataset.id);
       map.flyTo([l.lat, l.lon], 16, { duration: 0.8 });
-      state.marqueurs[l.id]?.openPopup();
-      surlignerListe(l.id);
+      ouvrirFiche(l.id);
     });
   }
 
@@ -452,6 +566,9 @@ function simuler(lat, lon) {
 // ---------- UI ----------
 
 function initUI() {
+  document.getElementById('fiche-fermer').addEventListener('click', fermerFiche);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerFiche(); });
+
   for (const id of ['f-chaine', 'f-independant', 'f-captif', 'l-couverture', 'l-heat-offre', 'l-tension']) {
     document.getElementById(id).addEventListener('change', rafraichir);
   }

@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "source": "Benchmarks publics du secteur des laveries automatiques en France (fédérations professionnelles, réseaux de franchise, presse spécialisée). Fourchettes indicatives 2024-2026 — à recaler dès que des données réelles (comptoirs, exploitants) sont disponibles.",
+    "avertissement": "Toutes les valeurs sont des FOURCHETTES. Le simulateur produit des ordres de grandeur, pas des prévisions."
+  },
+  "prix": {
+    "lavage_6_8kg_eur": [3.5, 5.0],
+    "lavage_10_12kg_eur": [5.0, 7.5],
+    "lavage_16_18kg_eur": [8.0, 11.0],
+    "sechage_10min_eur": [1.0, 2.0],
+    "panier_moyen_visite_eur": [7.0, 10.0]
+  },
+  "exploitation": {
+    "ca_annuel_laverie_eur": [50000, 120000],
+    "ca_annuel_par_machine_eur": [5000, 9000],
+    "nb_machines_typique": [8, 14],
+    "surface_typique_m2": [40, 80],
+    "marge_ebe_pct": [30, 45],
+    "investissement_initial_eur": [80000, 200000],
+    "loyer_max_conseille_pct_ca": 10,
+    "besoin_electrique": "24-36 kVA triphasé + arrivée d'eau gros débit + évacuation — vérifier la faisabilité du local avant tout engagement"
+  },
+  "demande": {
+    "part_menages_sans_lave_linge_pct": [4, 8],
+    "part_menages_sans_ll_petits_logements_pct": [15, 30],
+    "depense_annuelle_menage_utilisateur_eur": [120, 250],
+    "part_usage_ponctuel_gros_volumes": "Couettes, couvertures : quasi tous les ménages 1-3x/an — représente 20-40% du CA des laveries modernes",
+    "habitants_par_laverie_zone_urbaine": [8000, 15000]
+  },
+  "chalandise": {
+    "rayon_pieton_m": [400, 800],
+    "rayon_voiture_min": [5, 10],
+    "regle": "En zone dense, 80% de la clientèle habite à moins de 800 m ou à moins de 5 min en voiture avec parking facile."
+  }
+}

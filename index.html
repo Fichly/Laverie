@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laverie Mapper — Pessac (pilote)</title>
+  <link rel="stylesheet" href="vendor/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <header>
+        <h1>🧺 Laverie Mapper</h1>
+        <p class="subtitle">Ville pilote : <strong>Pessac (33600)</strong></p>
+      </header>
+
+      <section id="stats" class="panel">
+        <h2>Marché local</h2>
+        <div class="stat-grid">
+          <div class="stat"><span class="stat-value" id="stat-count">–</span><span class="stat-label">laveries</span></div>
+          <div class="stat"><span class="stat-value" id="stat-open">–</span><span class="stat-label">grand public</span></div>
+          <div class="stat"><span class="stat-value" id="stat-pop">–</span><span class="stat-label">habitants</span></div>
+          <div class="stat"><span class="stat-value" id="stat-ratio">–</span><span class="stat-label">hab. / laverie</span></div>
+        </div>
+        <p class="hint" id="stat-verdict"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Filtres</h2>
+        <label class="check"><input type="checkbox" id="f-chaine" checked> <span class="dot dot-chaine"></span> Chaînes / réseaux</label>
+        <label class="check"><input type="checkbox" id="f-independant" checked> <span class="dot dot-independant"></span> Indépendants</label>
+        <label class="check"><input type="checkbox" id="f-captif" checked> <span class="dot dot-captif"></span> Captives (CROUS / résidences)</label>
+      </section>
+
+      <section class="panel">
+        <h2>Couches d'analyse</h2>
+        <label class="check"><input type="checkbox" id="l-couverture" checked> Zones de chalandise (couverture)</label>
+        <div class="slider-row">
+          <label for="rayon">Rayon piéton : <strong><span id="rayon-val">600</span> m</strong></label>
+          <input type="range" id="rayon" min="300" max="1000" step="50" value="600">
+        </div>
+        <label class="check"><input type="checkbox" id="l-heat-offre"> Carte de chaleur — concentration de l'offre</label>
+        <label class="check"><input type="checkbox" id="l-tension" checked> Tension du marché par quartier (offre vs demande)</label>
+        <div class="legend" id="legende-tension">
+          <span class="lg"><i style="background:#15803d"></i> Saturé</span>
+          <span class="lg"><i style="background:#eab308"></i> Équilibré</span>
+          <span class="lg"><i style="background:#dc2626"></i> Sous-équipé</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Simulateur d'implantation</h2>
+        <p class="hint">Activez puis <strong>cliquez sur la carte</strong> pour tester un emplacement : zone de chalandise, population captée, concurrence et fourchette de CA potentiel.</p>
+        <button id="btn-simu">📍 Activer le mode simulation</button>
+        <div id="simu-result" class="hidden"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Benchmarks secteur</h2>
+        <div id="benchmarks" class="bench"></div>
+      </section>
+
+      <footer>
+        <p>Données : OSM / annuaires web, coordonnées estimées.<br>
+        Population par quartier : estimations à remplacer par l'INSEE carroyé.<br>
+        <strong>Outil d'aide à la décision — pas une étude de marché certifiée.</strong></p>
+      </footer>
+    </aside>
+    <div id="map"></div>
+  </div>
+
+  <script src="vendor/leaflet.js"></script>
+  <script src="vendor/leaflet-heat.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

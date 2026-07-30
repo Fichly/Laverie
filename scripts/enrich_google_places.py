@@ -26,6 +26,7 @@ RÈGLES D'USAGE À RESPECTER (conditions Google) :
 
 import argparse
 import json
+import math
 import os
 import sys
 import time
@@ -48,6 +49,16 @@ LARGEUR_PHOTO = 800     # px
 CENTRE_VILLE = {"latitude": 44.806, "longitude": -0.631}
 RAYON_BIAIS_M = 8000.0
 BIAIS = {"circle": {"center": CENTRE_VILLE, "radius": RAYON_BIAIS_M}}
+
+# Pour la découverte on utilise `locationRestriction` (filtre dur) et non
+# `locationBias` (simple préférence, qui laissait remonter Bordeaux et Mérignac).
+# Rectangle englobant Pessac ; le débordement sur les communes voisines est
+# ensuite éliminé par le filtre sur le code postal.
+RESTRICTION = {"rectangle": {
+    "low": {"latitude": 44.755, "longitude": -0.745},
+    "high": {"latitude": 44.822, "longitude": -0.595},
+}}
+CODE_POSTAL = "33600"
 
 CHAMPS_RECHERCHE = "places.id,places.displayName,places.formattedAddress,places.location"
 CHAMPS_DETAIL = ",".join([
@@ -239,8 +250,38 @@ def enrichir(laverie, cle, telecharger=True):
     return True
 
 
+def distance_m(lat1, lon1, lat2, lon2):
+    r = 6371000
+    dlat, dlon = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1))
+         * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2)
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+def hors_perimetre(place):
+    """Écarte ce qui n'est pas une laverie libre-service de Pessac.
+
+    Deux filtres nécessaires :
+      - la commune, car `locationRestriction` est un rectangle et déborde
+        forcément sur Mérignac, Talence et Gradignan ;
+      - les pressings, qui remontent dans les mêmes recherches mais relèvent
+        d'un autre métier (dépôt avec personnel, pas de libre-service).
+    """
+    adresse = place.get("formattedAddress", "")
+    if CODE_POSTAL not in adresse:
+        return f"hors commune ({adresse.split(',')[-2].strip() if adresse.count(',') >= 2 else adresse})"
+    nom = (place.get("displayName") or {}).get("text", "").lower()
+    if "pressing" in nom and "laverie" not in nom:
+        return "pressing (autre métier)"
+    return None
+
+
 def decouvrir(inventaire, cle):
-    """Cherche des laveries de Pessac absentes de l'inventaire."""
+    """Cherche des laveries de Pessac absentes de l'inventaire.
+
+    À lancer APRÈS l'enrichissement : les place_id des laveries déjà connues
+    doivent être renseignés, sinon Google les réintroduit toutes en doublon.
+    """
     connus = {l.get("place_id") for l in inventaire["laveries"] if l.get("place_id")}
     # Plusieurs formulations : Google ne renvoie pas les mêmes résultats selon les mots.
     requetes = [
@@ -253,15 +294,29 @@ def decouvrir(inventaire, cle):
     for requete in requetes:
         res = appel(f"{API}/places:searchText", cle,
                     {"textQuery": requete, "languageCode": "fr",
-                     "maxResultCount": 20, "locationBias": BIAIS,
+                     "maxResultCount": 20, "locationRestriction": RESTRICTION,
                      "includedType": "laundry"},
                     {"X-Goog-FieldMask": CHAMPS_RECHERCHE})
         for p in (res or {}).get("places", []):
             trouves.setdefault(p["id"], p)
 
-    nouveaux = []
+    nouveaux, ecartes = [], []
     for p in trouves.values():
         if p["id"] in connus:
+            continue
+        motif = hors_perimetre(p)
+        if motif:
+            ecartes.append(f"{(p.get('displayName') or {}).get('text')} — {motif}")
+            continue
+        # Filet de sécurité : une même laverie peut avoir deux fiches Google.
+        loc = p.get("location") or {}
+        doublon = next((l for l in inventaire["laveries"]
+                        if l.get("lat") and loc.get("latitude")
+                        and distance_m(loc["latitude"], loc["longitude"],
+                                       l["lat"], l["lon"]) < 80), None)
+        if doublon:
+            ecartes.append(f"{(p.get('displayName') or {}).get('text')} — "
+                           f"à moins de 80 m de « {doublon['nom']} »")
             continue
         nouveaux.append({
             "id": "google-" + p["id"][-12:].lower(),
@@ -284,13 +339,17 @@ def decouvrir(inventaire, cle):
             "sources": ["Google Places"], "notes_terrain": "Découverte via Google Places.",
             "a_verifier": True,
         })
+    if ecartes:
+        print(f"\n🚫 {len(ecartes)} résultat(s) écarté(s) :")
+        for e in ecartes:
+            print(f"    − {e}")
     if nouveaux:
         print(f"\n🔍 {len(nouveaux)} laverie(s) absente(s) de l'inventaire :")
         for n in nouveaux:
             print(f"    + {n['nom']} — {n['adresse']}")
         inventaire["laveries"].extend(nouveaux)
     else:
-        print("\n🔍 Aucune laverie supplémentaire trouvée.")
+        print("\n🔍 Aucune laverie supplémentaire trouvée dans Pessac.")
     return nouveaux
 
 
@@ -320,9 +379,7 @@ def main():
 
     inventaire = json.loads(DATA.read_text(encoding="utf-8"))
 
-    if args.decouverte:
-        decouvrir(inventaire, cle)
-
+    # 1. Enrichir l'inventaire connu — c'est ce qui renseigne les place_id.
     cibles = [l for l in inventaire["laveries"] if not args.id or l["id"] == args.id]
     if not cibles:
         sys.exit(f"❌ Aucune laverie avec l'id « {args.id} ».")
@@ -332,6 +389,26 @@ def main():
         if enrichir(laverie, cle, telecharger=not args.sans_photos):
             ok += 1
         time.sleep(0.3)
+
+    # 2. Découvrir ensuite : les place_id connus servent à écarter les doublons.
+    if args.decouverte:
+        for nouvelle in decouvrir(inventaire, cle):
+            enrichir(nouvelle, cle, telecharger=not args.sans_photos)
+            time.sleep(0.3)
+
+    # 3. Signaler les fiches de l'inventaire qui pointent vers le même lieu Google.
+    #    C'est ainsi qu'on découvre les doublons que les annuaires entretiennent
+    #    sous deux noms différents.
+    par_place = {}
+    for l in inventaire["laveries"]:
+        if l.get("place_id"):
+            par_place.setdefault(l["place_id"], []).append(l["id"])
+    doublons = {p: ids for p, ids in par_place.items() if len(ids) > 1}
+    if doublons:
+        print("\n⚠ DOUBLONS DÉTECTÉS — plusieurs fiches pour un même lieu Google :")
+        for p, ids in doublons.items():
+            print(f"    {p} → {', '.join(ids)}")
+        print("    Fusionnez-les à la main dans data/laveries.json.")
 
     inventaire["meta"]["derniere_maj_google"] = time.strftime("%Y-%m-%d")
     inventaire["meta"]["avertissement"] = (

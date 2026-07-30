@@ -3,7 +3,7 @@
     "ville": "Pessac",
     "population_totale_estimee": 66000,
     "source": "Estimations d'ordre de grandeur par quartier (population municipale INSEE ~66 000 hab. répartie d'après la structure urbaine). À REMPLACER par les données carroyées INSEE Filosofi 200m (gratuites, insee.fr) via scripts/import_insee.py — voir README.",
-    "avertissement": "Ces chiffres servent uniquement à faire tourner le modèle en attendant les vraies données INSEE. Ne pas fonder une décision d'investissement dessus."
+    "avertissement": "ATTENTION : les centroïdes de quartiers sont des estimations. L'enrichissement Google a montré que plusieurs étaient décalés de 1 à 4 km (Saige recalé, Compostelle situé à l'est et non à l'ouest). Les positions des laveries sont désormais exactes, mais la demande reste portée par ces centroïdes approximatifs : l'import du carroyage INSEE 200 m est devenu la priorité n°1 du modèle."
   },
   "quartiers": [
     {
@@ -53,13 +53,13 @@
     {
       "id": "saige",
       "nom": "Saige (Formanoir)",
-      "lat": 44.7997,
-      "lon": -0.618,
+      "lat": 44.7911,
+      "lon": -0.6325,
       "population": 6500,
       "part_locataires_est": 0.8,
       "part_petits_logements_est": 0.4,
       "densite": "tres_forte",
-      "commentaire": "Grand ensemble, forte part de logement social. Demande laverie structurellement élevée. Tram B."
+      "commentaire": "Grand ensemble, forte part de logement social. Demande laverie structurellement élevée. Tram B. Centroïde recalé sur le centre commercial Saige-Formanoir géolocalisé par Google."
     },
     {
       "id": "campus",

@@ -5,13 +5,15 @@
     "code_postal": "33600",
     "derniere_maj": "2026-07-30",
     "methode": "Inventaire constitué par recherche web (PagesJaunes, Justacoté, Bottin, Yelp, laverie24, GoWork, SIRENE/annuaire-entreprises). Notes et nombres d'avis relevés sur des annuaires qui republient les notes Google.",
-    "avertissement": "Les notes proviennent d'annuaires tiers, PAS de l'API Google officielle : elles peuvent être périmées ou mal attribuées. Lancer scripts/enrich_google_places.py avec une clé API pour obtenir les notes, avis et photos officiels.",
+    "avertissement": "Notes, avis et photos issus de l'API Google Places. Conditions Google : ne pas conserver ces contenus au-delà de 30 jours — relancer scripts/enrich_google_places.py régulièrement.",
     "sources_contradictoires": [
       "Le téléphone 05 57 35 56 40 est attribué tantôt au 35 av. Pasteur, tantôt au 23 av. Léon Duguit selon les annuaires.",
       "La laverie Nancel Pénard est référencée au n°84 ou au n°101 selon les sources.",
       "Un annuaire annonce 5 laveries à Pessac, un autre 4 : aucun ne recense les laveries captives des résidences universitaires.",
-      "Les deux Au Fil du Linge ont été recalés sur les fiches Google fournies par l'utilisateur : l'attribution marqueur→adresse (A=Cap de Bos, B=centre) est déduite de la position sur la carte, à confirmer."
-    ]
+      "Les deux Au Fil du Linge ont été recalés sur les fiches Google fournies par l'utilisateur : l'attribution marqueur→adresse (A=Cap de Bos, B=centre) est déduite de la position sur la carte, à confirmer.",
+      "Trois doublons ont été mis au jour au fil de l'enrichissement : Laverie Saige / Lavomatic Centre, puis 23 av. Léon Duguit / Résidence Durkheim (même place_id Google)."
+    ],
+    "derniere_maj_google": "2026-07-30"
   },
   "laveries": [
     {
@@ -19,27 +21,63 @@
       "nom": "Au Fil du Linge — Cap de Bos",
       "adresse": "Centre Commercial Cap de Bos, 14 rue d'Artois, 33600 Pessac",
       "quartier": "Cap de Bos",
-      "lat": 44.7889,
-      "lon": -0.6712,
-      "coord_precision": "estimee",
+      "lat": 44.792310099999995,
+      "lon": -0.6826390000000001,
+      "coord_precision": "google",
       "type": "chaine",
       "enseigne": "Au Fil du Linge",
       "statut": "actif",
       "telephone": "07 83 28 67 93",
-      "site_web": "https://aufildulinge.com/laverie/laverie-automatique-bordeaux-pessac-cap-de-bos/",
+      "site_web": "http://www.aufildulinge.com/Pessac/index.html",
       "surface_m2": null,
       "nb_lave_linge": null,
       "nb_seche_linge": null,
       "prix_cycle_8kg": null,
-      "horaires": "Lun-Dim 6h-21h (ferme à 21h d'après Google)",
+      "horaires": "lundi: 06:00 – 21:00 ; mardi: 06:00 – 21:00 ; mercredi: 06:00 – 21:00 ; jeudi: 06:00 – 21:00 ; vendredi: 06:00 – 21:00 ; samedi: 06:00 – 21:00 ; dimanche: 06:00 – 21:00",
       "ouvert_24_7": false,
       "note_google": 4.3,
       "nb_avis": 59,
-      "note_source": "Fiche Google Maps relevée par l'utilisateur (30/07/2026)",
-      "note_fiabilite": "bonne",
-      "place_id": null,
+      "note_source": "API Google Places (officiel)",
+      "note_fiabilite": "officielle",
+      "place_id": "ChIJmxUmPdjbVA0RdzmFzkb5L6s",
       "photos": [],
-      "avis": [],
+      "avis": [
+        {
+          "auteur": "Lluna Luminais",
+          "note": 1,
+          "texte": "Je suis venu pour trois machines de linge, ils disent utiliser de la lessive, je me demande bien quel style de lessive ils utilisent étant donné l'odeur de moisi qui ressort de mes vêtements actuellement\nJe suis extrêmement déçu, l'impression de m'être fait pigeonner À 10€, LA machine\nLes soi-disant sèche-linge ne sèche, rien trois fois que je relance la même machine, car elle est encore trempée, elle dégouline . L'odeur du sèche-linge, je vous en parle même pas Obligé d'aller dans une autre laverie pour tout relaver encore une fois\nExtrêmement déçu sale, je déconseille Sauf si vous aimez l'odeur des champignons sur vos vêtements",
+          "date": "il y a 6 mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Ld Emilie",
+          "note": 4,
+          "texte": "Superbe laverie, propre et moderne! Avec une lessive écologique qui plus est ! Le seul bemole serait l'espace détente, qui ne permet pas de s'asseoir confortablement ... Il n'y a qu'un tabouret sans dossier, étant petite de taille, c'était tout sauf confortable ! Heureusement la laverie était assez propre pour que je sois assez en confiance pour m'installer par terre le temps du lavage de mon linge, et ça c'est rare!",
+          "date": "il y a 6 ans",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Julien MATHIEUX",
+          "note": 4,
+          "texte": "Machines récentes très efficaces et lessive fournie avec c'est très pratique. Le fait de pouvoir payer par CB est très sympa aussi. Dommage que les clients soit aussi irrespectueux car je suis venu ce dimanche et le sol est vraiment très sale. Bonne continuation.",
+          "date": "il y a 3 ans",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Mag Da",
+          "note": 1,
+          "texte": "Laverie hyper sale, machine à laver qui n'essore pas, et pour couronner le tout mon linge ressort avec des grosses traînées de graisse noire d'origine inconnue !!!!! Je n'essaie même pas les sèche-linge, et comprends mieux pourquoi la laverie est déserte. Une honte !!!!\nPourquoi le zéro étoiles n'existe pas ?",
+          "date": "il y a un an",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Maëlys Cnde",
+          "note": 5,
+          "texte": "Laverie très clean, et bien entretenue ! Je ne savais pas que la lessive était inclue dans le lavage, et était un peu réticente quant à l’odeur (je suis très exigeante  sur ça), je n’ai pas été déçue, ma couette sent vraiment très bon !\nPrix très correct et lavage rapide (60° = 47 min). Dommage qu’il n’y ait qu’une machine de 13kg, elle était occupée quand je suis venue, j’ai donc lavé ma couette dans celle de 20kg.\nLa laverie possède le relais amazon locker ce qui peut être très pratique !",
+          "date": "il y a 4 ans",
+          "source": "Google Places"
+        }
+      ],
       "acces": {
         "parking": true,
         "arret_tc_a_moins_300m": null,
@@ -54,34 +92,73 @@
         "laverie24.fr"
       ],
       "notes_terrain": "Équipement Electrolux récent, lessive professionnelle incluse, paiement sans contact. Sert aussi de point relais Mondial Relay et Vinted Go — flux additionnel intéressant.",
-      "a_verifier": true
+      "a_verifier": true,
+      "google_maps_url": "https://maps.google.com/?cid=12335351986898942327&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "nom_google": "Laverie Au Fil du Linge",
+      "adresse_google": "14 Rue d'Artois, 33600 Pessac, France"
     },
     {
       "id": "au-fil-du-linge-pasteur",
       "nom": "Au Fil du Linge — Pessac Centre",
       "adresse": "35 avenue Pasteur, 33600 Pessac",
       "quartier": "Centre / Bourg",
-      "lat": 44.8046,
-      "lon": -0.6295,
-      "coord_precision": "estimee",
+      "lat": 44.805596,
+      "lon": -0.6334837999999999,
+      "coord_precision": "google",
       "type": "chaine",
       "enseigne": "Au Fil du Linge",
       "statut": "actif",
       "telephone": "06 50 74 16 94",
-      "site_web": "https://aufildulinge.com/",
+      "site_web": "http://www.aufildulinge.com/",
       "surface_m2": null,
       "nb_lave_linge": null,
       "nb_seche_linge": null,
       "prix_cycle_8kg": null,
-      "horaires": "Lun-Dim 6h-21h (ferme à 21h d'après Google)",
+      "horaires": "lundi: 06:00 – 21:00 ; mardi: 06:00 – 21:00 ; mercredi: 06:00 – 21:00 ; jeudi: 06:00 – 21:00 ; vendredi: 06:00 – 21:00 ; samedi: 06:00 – 21:00 ; dimanche: 06:00 – 21:00",
       "ouvert_24_7": false,
       "note_google": 4.3,
       "nb_avis": 30,
-      "note_source": "Fiche Google Maps relevée par l'utilisateur (30/07/2026)",
-      "note_fiabilite": "bonne",
-      "place_id": null,
+      "note_source": "API Google Places (officiel)",
+      "note_fiabilite": "officielle",
+      "place_id": "ChIJU0GPKADZVA0RqqH8rzOBDoE",
       "photos": [],
-      "avis": [],
+      "avis": [
+        {
+          "auteur": "Wilfried Baccam",
+          "note": 1,
+          "texte": "Bonjour,\n\nJ’ai rencontré des problemes le dimanche 10 Mai au niveau de votre machine à laver numero 1 qui s’est arreté puis m’a demandé de repayé , j’ai donc repayé et la machine a fui et a laissé mes vetements completement imbibés d’eau (j’ai donc perdu 8euros) j’ai du utilisé la machine a lavé numero 4 et payé 10 euros. Puis j’ai utilisé le seche linge numero 7, pareil, un bug, il sonnait en permanence,  (encore 4 euros de perdu)j’ai du attendre et prendre le seche linge numero 6. J’ai laissé plusieurs messages et appeler plusieurs fois sans nouvelles. Je trouve ca inadmissible la perte d’argent et la perte de temps donc je deconseille fortement cette laverie, il n’y a aucun retour et aucun moyen de communiqué avec eux. A fuir !",
+          "date": "il y a 2 mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Poussi cedric",
+          "note": 5,
+          "texte": "Très satisfait.\nJ'ai eu un pti contretemps avec la station de paiement et j'ai dû faire appel a la hotline.\nTrès rapidement j'ai été en ligne avec un conseiller du nom d'Erwan qui a été super réactif et efficace pour me débloquer la situation.\nMerci a lui !",
+          "date": "il y a un an",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Alexis Lacombe",
+          "note": 4,
+          "texte": "Laverie avec des machines assez faciles à utiliser. Habitué de cette laverie depuis plusieurs mois. Seuls bémols, peut être le nombre de sèches linges (2 pour 5 machines), mais surtout l'efficacité des sèches linges. Le temps étant réduit depuis quelques mois, passant de 15 à 12 min puis 10 min désormais. Les cycles ne sèchent pas correctement même quand ils sont au nombre de 3 donc 30 min pour une quantité de linge remplissant le tier de celui-ci. Le prix lui n'a pas baissé avec le temps de mise en route des sèches linges malheureusement. Je comprends bien qu'il faut prendre en compte la quantité de linge pour le nombre de cycle à lancer mais avec une efficacité constante et un temps de cycle réduit, c'est le coût à chaque venue qui prend son envol. Je trouve dommage que les bénéfices prennent le pas sur la qualité du service.",
+          "date": "il y a 2 ans",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Anne-Sophie",
+          "note": 3,
+          "texte": "Laverie agréable et très propre. Plusieurs capacités de machines. Paiement facile par carte.\nEn revanche j'ai l'impression que l'on ne peut pas adapter la température de lavage et la puissance de l'essorage, ou alors c'est mal expliqué.\nPar ailleurs, je trouve l'odeur de la lessive  désagréable et beaucoup trop forte.",
+          "date": "il y a 3 ans",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Chloe Francois",
+          "note": 5,
+          "texte": "Laverie moderne, agréable et propre. L’assistance téléphonique est très facilement disponible, j’ai dû les appeler pour les questionner sur l’ozone, l’échange avec le Monsieur était très agréable.\nJe ne connaissais pas le mode de lavage à l’Ozone et en suis très satisfaite. Mon linge est propre et sent le frais. Je recommande!",
+          "date": "il y a 3 ans",
+          "source": "Google Places"
+        }
+      ],
       "acces": {
         "parking": null,
         "arret_tc_a_moins_300m": true,
@@ -95,34 +172,73 @@
         "facebook.com/laverieaufildulingepessac"
       ],
       "notes_terrain": "Second site du réseau Au Fil du Linge à Pessac. Téléphone possiblement erroné : le même numéro est attribué au 23 av. Léon Duguit par d'autres annuaires.",
-      "a_verifier": true
+      "a_verifier": true,
+      "google_maps_url": "https://maps.google.com/?cid=9299512339562537386&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "nom_google": "Laverie Au Fil du Linge",
+      "adresse_google": "35 Av. Pasteur, 33600 Pessac, France"
     },
     {
       "id": "laverie-compostelle",
       "nom": "Laverie Pessac-Compostelle",
       "adresse": "Centre Commercial Compostelle, rue de Compostelle, 33600 Pessac",
-      "quartier": "France / Alouette",
-      "lat": 44.7952,
-      "lon": -0.6558,
-      "coord_precision": "estimee",
+      "quartier": "Campus / Compostelle (est)",
+      "lat": 44.7934079,
+      "lon": -0.6062552999999999,
+      "coord_precision": "google",
       "type": "independant",
       "enseigne": null,
       "statut": "actif",
       "telephone": "05 56 20 69 72",
-      "site_web": null,
+      "site_web": "http://www.brugere-equipement.fr/",
       "surface_m2": null,
       "nb_lave_linge": null,
       "nb_seche_linge": null,
       "prix_cycle_8kg": null,
-      "horaires": "Lun-Dim 7h-22h",
+      "horaires": "lundi: 07:00 – 22:00 ; mardi: 07:00 – 22:00 ; mercredi: 07:00 – 22:00 ; jeudi: 07:00 – 22:00 ; vendredi: 07:00 – 22:00 ; samedi: 07:00 – 22:00 ; dimanche: 07:00 – 22:00",
       "ouvert_24_7": false,
       "note_google": 4.3,
-      "nb_avis": 70,
-      "note_source": "annuaires (plus de 70 votes)",
-      "note_fiabilite": "moyenne",
-      "place_id": null,
+      "nb_avis": 86,
+      "note_source": "API Google Places (officiel)",
+      "note_fiabilite": "officielle",
+      "place_id": "ChIJLw5ArZjYVA0RRii5Un4w_jI",
       "photos": [],
-      "avis": [],
+      "avis": [
+        {
+          "auteur": "Laura Logodin",
+          "note": 5,
+          "texte": "J'ai utilisé deux laves-linge et un sèche-linge qui fonctionnaient parfaitement. Par ailleurs, l'endroit était très propre. Par contre, il me semble qu'il n'y ait plus que des machines de 8 et 18kg pour laver son linge. En tout cas, je recommande fortement !",
+          "date": "il y a 10 mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Rosalina",
+          "note": 4,
+          "texte": "Dommage pas de wifi ni prises pour charger son téléphone en attendant. sinon prix très raisonnable pour les étudiants et même pour  les habitants à côté. :)",
+          "date": "il y a 2 ans",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Guillaume Laffray",
+          "note": 5,
+          "texte": "Bonjour, je suis venu aujourd'hui pour la première fois dans cet établissement et je l'ai trouvé propre et soigné. Je n'ai pas compris immédiatement comment fonctionnais les machines mais c'est parce que c'était la première fois que j'allais dans ce genre d'établissement. Les prix sont tout a fait correct que ce soit pour les laves linges ou les séchoirs. Par ailleurs le fait de proposer des laves linges grande capacité est un plus pour les gens qui souhaitent venir laver des affaires volumineuse. Bref c'est décidé je sais où je viendrais laver les affaires. Merci",
+          "date": "il y a 7 ans",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Ghalia Meriouch",
+          "note": 3,
+          "texte": "Les prix ont augmenté, et une drôle d'odeur reste sur les vêtements après le lavage.... mais fait le taffe",
+          "date": "il y a un an",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Hugo Doyen",
+          "note": 2,
+          "texte": "Le lieu est propre et les machines sont pour du libre service bien.\nLe fonctionnement est difficile a comprendre au début mais dès qu'on comprend tout va bien mieux.\nCependant, ne PAS UTILISER leur lessive! La lessive, une fois que vous avez laver vos vêtements... et bien... ça pue... une mauvais odeur en sort (et j'ai vérifier que ce n'était pas la machine mais bien la lessive et je confirme que c'était la lessive).\nLes vêtements sont lavés... mais pus",
+          "date": "il y a 2 ans",
+          "source": "Google Places"
+        }
+      ],
       "acces": {
         "parking": true,
         "arret_tc_a_moins_300m": null,
@@ -137,16 +253,19 @@
         "helpmecovid.com"
       ],
       "notes_terrain": "La laverie la mieux notée avec le plus grand volume d'avis (~70) : établissement bien installé. Retours positifs sur la propreté et la simplicité d'usage.",
-      "a_verifier": true
+      "a_verifier": true,
+      "google_maps_url": "https://maps.google.com/?cid=3674427665092782150&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "nom_google": "Laverie Pessac-Compostelle",
+      "adresse_google": "Rue Compostelle Centre Commercial Compostelle 33600, 33600 Pessac, France"
     },
     {
       "id": "laverie-nancel-penard",
       "nom": "Laverie Automatique de Pessac",
       "adresse": "84 (ou 101) avenue du Docteur Nancel Pénard, 33600 Pessac",
-      "quartier": "Noès / Verthamon",
-      "lat": 44.8083,
-      "lon": -0.6438,
-      "coord_precision": "estimee",
+      "quartier": "Centre / Bourg (nord)",
+      "lat": 44.808465299999995,
+      "lon": -0.6309298999999999,
+      "coord_precision": "google",
       "type": "independant",
       "enseigne": null,
       "statut": "actif",
@@ -156,15 +275,37 @@
       "nb_lave_linge": null,
       "nb_seche_linge": null,
       "prix_cycle_8kg": null,
-      "horaires": null,
+      "horaires": "lundi: 07:30 – 22:00 ; mardi: 07:30 – 22:00 ; mercredi: 07:30 – 22:00 ; jeudi: 07:30 – 22:00 ; vendredi: 07:30 – 22:00 ; samedi: 07:30 – 22:00 ; dimanche: 07:30 – 22:00",
       "ouvert_24_7": false,
-      "note_google": 5.0,
-      "nb_avis": null,
-      "note_source": "annuaire (note 5,0 — nombre d'avis inconnu, probablement très faible)",
-      "note_fiabilite": "faible",
-      "place_id": null,
+      "note_google": 5,
+      "nb_avis": 3,
+      "note_source": "API Google Places (officiel)",
+      "note_fiabilite": "officielle",
+      "place_id": "ChIJqwlX3t7ZVA0Rqh7a_Bm8rNo",
       "photos": [],
-      "avis": [],
+      "avis": [
+        {
+          "auteur": "Idir Idjerouidene",
+          "note": 5,
+          "texte": "Récemment rénovée. J’y vais depuis qu’elle est propre. Les machines sont nouvelles et fonctionnent très bien.",
+          "date": "il y a 9 mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Anzo Watanabe",
+          "note": 5,
+          "texte": "nouvelle révonation. vraiment bien.",
+          "date": "il y a 3 mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Christel Chaineaud",
+          "note": 5,
+          "texte": "Propre et des machines pour couettes etc.....Top.",
+          "date": "il y a 2 mois",
+          "source": "Google Places"
+        }
+      ],
       "acces": {
         "parking": null,
         "arret_tc_a_moins_300m": null,
@@ -176,47 +317,71 @@
         "annuaires"
       ],
       "notes_terrain": "Note de 5,0 à prendre avec prudence : sans le nombre d'avis, une note parfaite repose souvent sur 1 ou 2 votes. Numéro de rue incertain (84 ou 101).",
-      "a_verifier": true
+      "a_verifier": true,
+      "google_maps_url": "https://maps.google.com/?cid=15757176016064880298&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "nom_google": "Laverie automatique de Pessac",
+      "adresse_google": "84 Av. Dr Nancel Penard, 33600 Pessac, France"
     },
     {
       "id": "laverie-de-saige",
       "nom": "Laverie de Saige",
       "adresse": "20 rue de l'Horloge, Centre Commercial Saige-Formanoir, 33600 Pessac",
-      "quartier": "Saige",
-      "lat": 44.7998,
-      "lon": -0.6178,
-      "coord_precision": "estimee",
+      "quartier": "Saige (Formanoir)",
+      "lat": 44.7911449,
+      "lon": -0.6324997,
+      "coord_precision": "google",
       "type": "independant",
       "enseigne": null,
       "statut": "actif",
       "telephone": "05 56 46 01 37",
       "site_web": null,
       "surface_m2": null,
-      "nb_lave_linge": null,
-      "nb_seche_linge": null,
+      "nb_lave_linge": 8,
+      "nb_seche_linge": 4,
       "prix_cycle_8kg": null,
-      "horaires": "Lun-Dim 8h30-20h",
+      "horaires": "lundi: 08:30 – 20:00 ; mardi: 08:30 – 20:00 ; mercredi: 08:30 – 20:00 ; jeudi: 08:30 – 20:00 ; vendredi: 08:30 – 20:00 ; samedi: 08:30 – 20:00 ; dimanche: 08:30 – 20:00",
       "ouvert_24_7": false,
-      "note_google": 2.0,
+      "note_google": 1.9,
       "nb_avis": 26,
-      "note_source": "annuaires reprenant Google (2,0 / 26 avis)",
-      "note_fiabilite": "bonne",
+      "note_source": "API Google Places (officiel)",
+      "note_fiabilite": "officielle",
       "place_id": "ChIJCd2wpt3YVA0R4m0CC3MFtAs",
       "photos": [],
       "avis": [
         {
-          "auteur": "avis repris par annuaire",
-          "note": null,
-          "texte": "Un bon endroit où l'on peut laver tranquillement, mais pas assez agréable, ça manque de couleur et les machines ne sont pas rénovées.",
-          "date": null,
-          "source": "obteniruncontact / GoWork"
+          "auteur": "aslihan doghan",
+          "note": 1,
+          "texte": "Ma couette blanche est sortie tachée avec de l’huile noire qui se trouve sur le join du hublot (machine 2 ou 3) sans parler du bruit qu’elle fait lors de l’essorage.\nL’incivilité des gens qui laissent leur linge dans la machine et viennent le récupérer une heure plus tard.\nUniquement 4 machines fonctionnent.\nEndroit sale.\nIl n’y a pas de banc pour s’assoir.",
+          "date": "il y a un an",
+          "source": "Google Places"
         },
         {
-          "auteur": "avis repris par annuaire",
-          "note": null,
-          "texte": "Propre et bien entretenu, prix raisonnables, machines de grande capacité disponibles ; cycles rapides d'environ 30 minutes et le gérant explique volontiers le fonctionnement.",
-          "date": null,
-          "source": "GoWork"
+          "auteur": "Dimitri Hourtiguet",
+          "note": 1,
+          "texte": "Très très sale c'est du jamais vu! Un coup de serpillère est NECESSAIRE!\nPas de paiement en carte bleue ?\nLes machines sont très vieilles, 4 machines sur 8 sont en pannes (dont 2 depuis au moins 2020), 2 sèche-linge sur 4 en panne (dont 1 depuis au moins 2020)\nLe service client est inexistant quand la machine tombe en panne : aucun remboursement alors que l'on a payé (pas de réponses aux numéros de téléphone inscrit en cas de besoin), cela m'est déjà arrivé ainsi qu'à d'autres clients lorsque j'ai eu l'occasion de discuter avec eux en attendant une machine vu que la moitié (littéralement) sont en panne)",
+          "date": "il y a un an",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Manon Denner",
+          "note": 1,
+          "texte": "Tout mon linge est ressorti avec des espèces de taches de cambouis. 300€ de vêtements facile à jeter à la poubelle, une horreur",
+          "date": "il y a un an",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Deen Ette",
+          "note": 1,
+          "texte": "Par où commencer...\nHygiène : immonde\nÉtat : des hublots qui ne ferment pas\nEt surtout, ne vous fiez pas à ce qui est écrit  : ça fermera quand le proprio le décidera, et non pas aux horaires indiqués sur Google ou sur la porte.\nFaut vraiment que la machine soit en panne pour aller là-bas !",
+          "date": "il y a 5 ans",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Ghislaine Lapeyre",
+          "note": 1,
+          "texte": "Laverie très sale\nOn ne peut même pas payer en CB\n2 lave linge en panne même pas réparé\nLes personnes qui s occupe de ce lieu ont tout à revoir\nHygiène devrait se déplacer et faire fermer cet endroit",
+          "date": "il y a un an",
+          "source": "Google Places"
         }
       ],
       "acces": {
@@ -236,35 +401,74 @@
         "annuaire-entreprises.data.gouv.fr (SIREN 500 349 790)",
         "waze (place_id)"
       ],
-      "notes_terrain": "FUSION de deux fiches doublons de l'inventaire initial (« Laverie Saige » et « Lavomatic Pessac Centre ») : même adresse, mêmes horaires, même établissement. SARL indépendante créée en 2007. Note de 2,0/5 sur 26 avis dans un quartier à forte demande (grand ensemble, tram B) : c'est le signal d'opportunité le plus net de la commune — machines non rénovées d'après les avis.",
-      "a_verifier": true
+      "notes_terrain": "FUSION de deux fiches doublons de l'inventaire initial (« Laverie Saige » et « Lavomatic Pessac Centre ») : même adresse, mêmes horaires, même établissement. SARL indépendante créée en 2007. Note de 2,0/5 sur 26 avis dans un quartier à forte demande (grand ensemble, tram B) : c'est le signal d'opportunité le plus net de la commune — machines non rénovées d'après les avis. Parc déduit des avis Google (déc. 2024) : « 4 machines sur 8 sont en panne (dont 2 depuis au moins 2020), 2 sèche-linge sur 4 en panne ». Pas de paiement CB. Hygiène très dégradée, linge ressorti taché de cambouis (plusieurs avis concordants), service client injoignable, horaires non respectés.",
+      "a_verifier": true,
+      "google_maps_url": "https://maps.google.com/?cid=843305021889211874&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "nom_google": "Laverie de Saige",
+      "adresse_google": "20 Rue de l'Horloge, 33600 Pessac, France"
     },
     {
       "id": "laverie-leon-duguit",
-      "nom": "Laverie — 23 avenue Léon Duguit",
+      "nom": "Laverie Résidence Émile Durkheim (23 av. Léon Duguit)",
       "adresse": "23 avenue Léon Duguit, 33600 Pessac",
-      "quartier": "Brivazac / Candau",
-      "lat": 44.799,
-      "lon": -0.6138,
-      "coord_precision": "estimee",
-      "type": "independant",
-      "enseigne": null,
+      "quartier": "Campus",
+      "lat": 44.799405799999995,
+      "lon": -0.6141742,
+      "coord_precision": "google",
+      "type": "captif",
+      "enseigne": "CROUS",
       "statut": "actif",
       "telephone": "05 57 35 56 40",
       "site_web": null,
       "surface_m2": null,
       "nb_lave_linge": null,
       "nb_seche_linge": null,
-      "prix_cycle_8kg": null,
-      "horaires": "Lun-Dim 8h-22h",
+      "prix_cycle_8kg": 3.0,
+      "horaires": "lundi: 08:00 – 22:00 ; mardi: 08:00 – 22:00 ; mercredi: 08:00 – 22:00 ; jeudi: 08:00 – 22:00 ; vendredi: 08:00 – 22:00 ; samedi: 08:00 – 23:00 ; dimanche: 08:00 – 23:00",
       "ouvert_24_7": false,
-      "note_google": null,
-      "nb_avis": null,
-      "note_source": null,
-      "note_fiabilite": null,
-      "place_id": null,
+      "note_google": 2.6,
+      "nb_avis": 20,
+      "note_source": "API Google Places (officiel)",
+      "note_fiabilite": "officielle",
+      "place_id": "ChIJL7NdleTZVA0RVg1XjUupZXc",
       "photos": [],
-      "avis": [],
+      "avis": [
+        {
+          "auteur": "Jade Quintana",
+          "note": 5,
+          "texte": "Toute les machines marchent et les sèches linge sèche assez bien mais les jean reste légèrement humide sinon tout est bien et ça sent bon",
+          "date": "il y a 6 mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Armelle MOREAU",
+          "note": 3,
+          "texte": "3 euros c'est ok, la lessive sent souvent bon à la sortie. Mais le lavage est assez rude et peut vite abîmer les vêtement il faut penser à changer le programme de soi même ^^\nSinon y a du monde le dimanche et une machine de plus ne ferait de mal à personne",
+          "date": "il y a 10 mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Eva Ellora",
+          "note": 1,
+          "texte": "La laverie est censée être ouverte à 8h il est 9h et elle est fermée. J'ai un planning serré je sais pas où trouver le temps d'aller faire ma machine ou même si elle sera ouverte quand j'irai la prochaine fois.",
+          "date": "il y a 2 ans",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Paola Carrillo",
+          "note": 1,
+          "texte": "PAs du tout recommendable!! 2 machines en panne. Machine pour les payments fonctionne quand elle veut et personne qui repond au telephone.\nIl y a toujours des tas de vetements des personnes qui doivent revenir 2 et 3 fois pour ressayer de laver leurs linge.\nInconcevable.",
+          "date": "il y a 6 ans",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Mohamed Essaffani",
+          "note": 1,
+          "texte": "Horrible lavage totalement artificiel\nPourquoi les vetements ne sechent pas au bout de 2 sechages.",
+          "date": "il y a un an",
+          "source": "Google Places"
+        }
+      ],
       "acces": {
         "parking": true,
         "arret_tc_a_moins_300m": true,
@@ -274,21 +478,106 @@
         ]
       },
       "sources": [
-        "pagesjaunes.fr",
         "bottin.fr",
-        "france-streets.openalfa.com"
+        "france-streets.openalfa.com",
+        "mappy.com",
+        "pagesjaunes.fr",
+        "pressings.nosavis.com",
+        "ville-data.com"
       ],
-      "notes_terrain": "Située dans le quartier Brivazac-Candau (et non Saige comme initialement supposé). Stationnement PMR signalé. Aucune note trouvée : établissement peu référencé, à vérifier en priorité sur le terrain — il pourrait aussi s'agir d'un doublon avec la laverie de la résidence Durkheim, toute proche.",
-      "a_verifier": true
+      "notes_terrain": "FUSION : « 23 av. Léon Duguit » et « Résidence Émile Durkheim » pointent vers le même lieu Google (place_id identique) — c'est un seul établissement, la laverie de la résidence CROUS Durkheim. Les annuaires la référençaient sous deux noms. 2,6/5 sur 20 avis. Prix relevé dans un avis Google : « 3 euros c'est ok ». Affluence le dimanche, un avis réclame une machine supplémentaire. Ouverture pas toujours respectée.",
+      "a_verifier": true,
+      "google_maps_url": "https://maps.google.com/?cid=8603468805120134486&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "nom_google": "Laverie",
+      "adresse_google": "23 Av. Léon Duguit, 33600 Pessac, France"
     },
     {
       "id": "laverie-crous-bardanac",
       "nom": "Laverie CROUS — Bardanac (Village universitaire)",
       "adresse": "20 avenue de Bardanac, 33600 Pessac",
       "quartier": "Campus",
-      "lat": 44.7985,
-      "lon": -0.6088,
-      "coord_precision": "estimee",
+      "lat": 44.7940687,
+      "lon": -0.6128639,
+      "coord_precision": "google",
+      "type": "captif",
+      "enseigne": "CROUS",
+      "statut": "actif",
+      "telephone": null,
+      "site_web": null,
+      "surface_m2": null,
+      "nb_lave_linge": 8,
+      "nb_seche_linge": 2,
+      "prix_cycle_8kg": null,
+      "horaires": "lundi: 08:00 – 22:00 ; mardi: 08:00 – 22:00 ; mercredi: 08:00 – 22:00 ; jeudi: 08:00 – 22:00 ; vendredi: 08:00 – 22:00 ; samedi: 08:00 – 22:00 ; dimanche: 08:00 – 22:00",
+      "ouvert_24_7": false,
+      "note_google": 2.6,
+      "nb_avis": 50,
+      "note_source": "API Google Places (officiel)",
+      "note_fiabilite": "officielle",
+      "place_id": "ChIJpy7mdhXZVA0RVlhokkvmVdk",
+      "photos": [],
+      "avis": [
+        {
+          "auteur": "Nelson Nelson",
+          "note": 1,
+          "texte": "Expérience catastrophique. Les lave linge sont constamment en panne. Le service de la laverie est impossible à contacter. Il n'y a pas de numéro à appeler et ils répondent au mails avec plusieurs jours de délais.\nLa température à l'intérieur de la laverie est proche de celle d'un saunas.\nVraiment si vous avez une autre option allez-y.",
+          "date": "il y a 3 mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Hiba Idrissi",
+          "note": 1,
+          "texte": "C’est toujours nul. Des machines qui ne marchent pas et d’argent gaspillé pour refaire le linge dans une autre machine car malheureusement l’autre ne fonctionne pas et ils nous disent rien donc on finit par payer en double.",
+          "date": "il y a 3 mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Rosalie Gaillard",
+          "note": 2,
+          "texte": "généralement 1/3 des machines ne marchent pas ce qui est vraiment énervant en plus elle n’ouvre pas l’heure. Quand il fait beau il fait très chaud à l’intérieur puisque le soleil tape contre les vitres mais encore si il y aurait que ça je ne serai pas entrain de mettre un avis pourri sur cette laverie.😐",
+          "date": "il y a un an",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "elodie blairet",
+          "note": 4,
+          "texte": "Dans l'ensemble très pratique, lieu propre. Attention, il n'y a que deux sèches-linge donc selon la fréquentation, il faut attendre plusieurs minutes (voire dizaine de minutes). Mais il y a 8 machines à laver alors c'est très rare de devoir attendre. Il y a également un distributeur avec friandises et boissons froides ainsi qu'une machine à café qui fait plusieurs boissons chaudes. De plus, étant donné que c'est réservé aux étudiants, il n'y a la possibilité de payer que grâce à la carte Izly. Pour finir, il n'y a pas internet mais vous pouvez l'avoir en utilisant vos données mobiles, on capte bien.",
+          "date": "il y a 6 ans",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Ilan Cordeau",
+          "note": 4,
+          "texte": "Le lieu était propre, les machines pas odorantes cependant la dose de lessive avait l'air faible pour le cycle que j'ai choisi (30°). Ce que je trouve de négatif sont surtout la taille des machines à laver vraiment petite pour une semaine de linge.\nJe recommande quand même le lieu il assure globalement ses fonctions.",
+          "date": "il y a 3 ans",
+          "source": "Google Places"
+        }
+      ],
+      "acces": {
+        "parking": false,
+        "arret_tc_a_moins_300m": true,
+        "generateurs_flux": [
+          "résidences universitaires"
+        ]
+      },
+      "sources": [
+        "laverie24.fr",
+        "annuaires"
+      ],
+      "notes_terrain": "Usage principalement réservé aux résidents CROUS : absorbe une partie de la demande étudiante sans concurrencer frontalement une laverie de ville. Parc déduit des avis Google : « 8 machines à laver », « il n'y a que deux sèche-linge » — d'où l'attente signalée. Pannes fréquentes (1/3 des machines), local surchauffé l'été, paiement par carte étudiante uniquement.",
+      "a_verifier": true,
+      "google_maps_url": "https://maps.google.com/?cid=15660676491504015446&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "nom_google": "Laverie Crous",
+      "adresse_google": "20 Av. de Bardanac, 33600 Pessac, France"
+    },
+    {
+      "id": "google-r3m3cws0qqbi",
+      "nom": "Laverie CROUS — Henri Vizioz",
+      "adresse": "4 Av. Henri Vizioz, 33600 Pessac, France",
+      "quartier": "Saige / Campus",
+      "lat": 44.7952231,
+      "lon": -0.6215195,
+      "coord_precision": "google",
       "type": "captif",
       "enseigne": "CROUS",
       "statut": "actif",
@@ -304,31 +593,31 @@
       "nb_avis": null,
       "note_source": null,
       "note_fiabilite": null,
-      "place_id": null,
+      "place_id": "ChIJw8FvFQDZVA0R3M3cwS0qQbI",
       "photos": [],
       "avis": [],
       "acces": {
-        "parking": false,
-        "arret_tc_a_moins_300m": true,
-        "generateurs_flux": [
-          "résidences universitaires"
-        ]
+        "parking": null,
+        "arret_tc_a_moins_300m": null,
+        "generateurs_flux": []
       },
       "sources": [
-        "laverie24.fr",
-        "annuaires"
+        "Google Places"
       ],
-      "notes_terrain": "Usage principalement réservé aux résidents CROUS : absorbe une partie de la demande étudiante sans concurrencer frontalement une laverie de ville.",
-      "a_verifier": true
+      "notes_terrain": "Découverte via Google Places. Laverie de résidence universitaire : demande captive.",
+      "a_verifier": true,
+      "google_maps_url": "https://maps.google.com/?cid=12844593988251733468&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "nom_google": "Laverie crous",
+      "adresse_google": "4 Av. Henri Vizioz, 33600 Pessac, France"
     },
     {
-      "id": "laverie-residence-durkheim",
-      "nom": "Laverie Résidence Émile Durkheim (CROUS)",
-      "adresse": "Allée Ausone, avenue Léon Duguit, 33600 Pessac",
+      "id": "google-r2yowolwmuhw",
+      "nom": "Laverie CROUS — RU2",
+      "adresse": "Canton de Pessac-2, 33600 Pessac, France",
       "quartier": "Campus",
-      "lat": 44.7952,
-      "lon": -0.612,
-      "coord_precision": "estimee",
+      "lat": 44.800140899999995,
+      "lon": -0.6109214,
+      "coord_precision": "google",
       "type": "captif",
       "enseigne": "CROUS",
       "statut": "actif",
@@ -338,30 +627,57 @@
       "nb_lave_linge": null,
       "nb_seche_linge": null,
       "prix_cycle_8kg": null,
-      "horaires": "Lun-Ven 8h-22h, Sam-Dim 7h-23h",
+      "horaires": "lundi: 14:00 – 23:00 ; mardi: 14:00 – 23:00 ; mercredi: 14:00 – 23:00 ; jeudi: 14:00 – 23:00 ; vendredi: 14:00 – 23:00 ; samedi: 07:00 – 23:00 ; dimanche: 07:00 – 23:00",
       "ouvert_24_7": false,
-      "note_google": null,
-      "nb_avis": null,
-      "note_source": null,
-      "note_fiabilite": null,
-      "place_id": null,
+      "note_google": 1,
+      "nb_avis": 4,
+      "note_source": "API Google Places (officiel)",
+      "note_fiabilite": "officielle",
+      "place_id": "ChIJNc94bwDZVA0R2yowolWmuHw",
       "photos": [],
-      "avis": [],
+      "avis": [
+        {
+          "auteur": "Mohamed Essaffani",
+          "note": 1,
+          "texte": "Vous vous foutez le doigt dans l'oeil si vous pensez que vous allez me voler comme ça sans que je n'intervienne pas. REPONDEZ AU TELEPHONE !!!!!",
+          "date": "il y a un mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Téo GAUDIN",
+          "note": 1,
+          "texte": "Lave-linge et sèche-linge trop sou ent en panne !!! Je me demande à quoi sert l'argent de tous les étudiants qui viennent ! Il faudrait penser à changer les machines si elles tombent tout le temps en panne !!",
+          "date": "il y a un an",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "maxence hubert",
+          "note": 1,
+          "texte": "Littéralement le sèche linge du haut qui ne sèche pas le linge",
+          "date": "il y a 7 mois",
+          "source": "Google Places"
+        },
+        {
+          "auteur": "Iulian VLAS",
+          "note": 1,
+          "texte": "Souvent en panne",
+          "date": "il y a un an",
+          "source": "Google Places"
+        }
+      ],
       "acces": {
-        "parking": false,
-        "arret_tc_a_moins_300m": true,
-        "generateurs_flux": [
-          "résidences universitaires"
-        ]
+        "parking": null,
+        "arret_tc_a_moins_300m": null,
+        "generateurs_flux": []
       },
       "sources": [
-        "pagesjaunes.fr",
-        "pressings.nosavis.com",
-        "ville-data.com",
-        "mappy.com"
+        "Google Places"
       ],
-      "notes_terrain": "Résidence universitaire ouverte en septembre 2010. Amplitude horaire large, y compris le week-end. Demande captive.",
-      "a_verifier": true
+      "notes_terrain": "Découverte via Google Places. Laverie de résidence universitaire : demande captive.",
+      "a_verifier": true,
+      "google_maps_url": "https://maps.google.com/?cid=8987115943141321435&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
+      "nom_google": "Laverie CROUS - RU2",
+      "adresse_google": "Canton de Pessac-2, 33600 Pessac, France"
     }
   ]
 }

@@ -71,6 +71,7 @@ async function charger() {
       fetch('data/benchmarks.json').then(r => r.json()),
     ]);
   state.laveries = lav.laveries;
+  state.meta = lav.meta;            // conservé pour réécrire un fichier complet à l'export
   state.quartiers = qua.quartiers;
   state.benchmarks = bench;
   initCarte();
@@ -119,6 +120,7 @@ function rafraichir() {
   dessinerHeat();
   dessinerClassement();
   majStats();
+  majBarreExport();
 }
 
 function dessinerMarqueurs() {
@@ -231,6 +233,7 @@ function ficheLaverie(l) {
       <div class="fiche-actions">
         <a href="${urlMaps}" target="_blank" rel="noopener">🗺️ Google Maps</a>
         <a href="${urlStreet}" target="_blank" rel="noopener">👁️ Street View</a>
+        <a href="#" id="lien-editer">✏️ Compléter</a>
       </div>
       <div class="fiche-infos">
         ${ligneInfo('📍', l.adresse)}
@@ -253,6 +256,200 @@ function ficheLaverie(l) {
     </div>`;
 }
 
+// ---------- saisie manuelle depuis une fiche Google ----------
+//
+// Permet de recopier ce qu'on lit sur Google Maps sans clé API : note, avis,
+// horaires, téléphone, et photos (redimensionnées puis stockées en base64 dans
+// le JSON, ce qui garde l'application autonome et hors ligne).
+
+const PHOTO_LARGEUR_MAX = 900;
+const PHOTO_QUALITE = 0.72;
+
+function redimensionner(fichier) {
+  return new Promise((resolve, reject) => {
+    const lecteur = new FileReader();
+    lecteur.onerror = () => reject(new Error('lecture impossible'));
+    lecteur.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('image illisible'));
+      img.onload = () => {
+        const ratio = Math.min(1, PHOTO_LARGEUR_MAX / img.width);
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * ratio);
+        c.height = Math.round(img.height * ratio);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve({ fichier: c.toDataURL('image/jpeg', PHOTO_QUALITE),
+                  largeur: c.width, hauteur: c.height, attributions: [] });
+      };
+      img.src = lecteur.result;
+    };
+    lecteur.readAsDataURL(fichier);
+  });
+}
+
+function formulaireGoogle(l) {
+  const v = (x) => (x == null ? '' : String(x).replace(/"/g, '&quot;'));
+  return `<div class="form-google" id="form-google">
+    <div class="duo">
+      <div class="rangee"><label>Note Google (sur 5)</label>
+        <input type="number" id="fg-note" step="0.1" min="0" max="5" value="${v(l.note_google)}" placeholder="4.3"></div>
+      <div class="rangee"><label>Nombre d'avis</label>
+        <input type="number" id="fg-avis" min="0" value="${v(l.nb_avis)}" placeholder="59"></div>
+    </div>
+    <div class="rangee"><label>Téléphone</label>
+      <input type="text" id="fg-tel" value="${v(l.telephone)}" placeholder="07 83 28 67 93"></div>
+    <div class="rangee"><label>Horaires</label>
+      <input type="text" id="fg-horaires" value="${v(l.horaires)}" placeholder="Lun-Dim 6h-21h"></div>
+    <div class="duo">
+      <div class="rangee"><label>Machines (lave-linge)</label>
+        <input type="number" id="fg-ll" min="0" value="${v(l.nb_lave_linge)}" placeholder="8"></div>
+      <div class="rangee"><label>Sèche-linge</label>
+        <input type="number" id="fg-sl" min="0" value="${v(l.nb_seche_linge)}" placeholder="4"></div>
+    </div>
+    <div class="duo">
+      <div class="rangee"><label>Surface (m²)</label>
+        <input type="number" id="fg-surface" min="0" value="${v(l.surface_m2)}" placeholder="60"></div>
+      <div class="rangee"><label>Prix cycle 8 kg (€)</label>
+        <input type="number" id="fg-prix" step="0.1" min="0" value="${v(l.prix_cycle_8kg)}" placeholder="4.5"></div>
+    </div>
+    <div class="rangee"><label>Lien Google Maps (facultatif)</label>
+      <input type="text" id="fg-url" value="${v(l.google_maps_url)}" placeholder="https://maps.app.goo.gl/..."></div>
+    <div class="rangee"><label>Un avis marquant (facultatif)</label>
+      <textarea id="fg-avis-texte" placeholder="Collez ici le texte d'un avis Google"></textarea></div>
+    <div class="rangee"><label>Photos — glissez-déposez ou cliquez</label>
+      <div class="zone-photo" id="fg-zone">📷 Déposez les captures de la fiche Google<br>
+        <span style="font-size:0.68rem">redimensionnées automatiquement, stockées dans vos données</span></div>
+      <input type="file" id="fg-fichiers" accept="image/*" multiple hidden>
+      <div class="apercus" id="fg-apercus"></div>
+    </div>
+    <div class="form-boutons">
+      <button id="fg-enregistrer">✓ Enregistrer</button>
+      <button id="fg-annuler" class="btn-second">Annuler</button>
+    </div>
+  </div>`;
+}
+
+// Photos en cours d'édition (validées seulement à l'enregistrement)
+let photosEnCours = [];
+
+function rendreApercus() {
+  document.getElementById('fg-apercus').innerHTML = photosEnCours.map((p, i) =>
+    `<span class="vignette"><img src="${p.fichier}" alt="photo ${i + 1}">
+     <button data-i="${i}" title="Retirer">✕</button></span>`).join('');
+  for (const b of document.querySelectorAll('#fg-apercus button')) {
+    b.addEventListener('click', () => {
+      photosEnCours.splice(Number(b.dataset.i), 1);
+      rendreApercus();
+    });
+  }
+}
+
+async function ajouterPhotos(fichiers) {
+  for (const f of fichiers) {
+    if (!f.type.startsWith('image/')) continue;
+    try {
+      photosEnCours.push(await redimensionner(f));
+    } catch (e) {
+      console.warn('photo ignorée', f.name, e);
+    }
+  }
+  rendreApercus();
+}
+
+function brancherFormulaire(l) {
+  photosEnCours = [...(l.photos || [])];
+  rendreApercus();
+
+  const zone = document.getElementById('fg-zone');
+  const input = document.getElementById('fg-fichiers');
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => ajouterPhotos([...input.files]));
+  for (const ev of ['dragenter', 'dragover']) {
+    zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('survol'); });
+  }
+  for (const ev of ['dragleave', 'drop']) {
+    zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('survol'); });
+  }
+  zone.addEventListener('drop', (e) => ajouterPhotos([...e.dataTransfer.files]));
+
+  document.getElementById('fg-annuler').addEventListener('click', () => ouvrirFiche(l.id));
+  document.getElementById('fg-enregistrer').addEventListener('click', () => {
+    const nombre = (id) => {
+      const val = document.getElementById(id).value.trim();
+      return val === '' ? null : Number(val);
+    };
+    const texte = (id) => document.getElementById(id).value.trim() || null;
+
+    l.note_google = nombre('fg-note');
+    l.nb_avis = nombre('fg-avis');
+    l.telephone = texte('fg-tel');
+    l.horaires = texte('fg-horaires');
+    l.nb_lave_linge = nombre('fg-ll');
+    l.nb_seche_linge = nombre('fg-sl');
+    l.surface_m2 = nombre('fg-surface');
+    l.prix_cycle_8kg = nombre('fg-prix');
+    l.google_maps_url = texte('fg-url');
+    l.photos = photosEnCours;
+
+    if (l.note_google != null) {
+      l.note_source = 'Fiche Google Maps relevée à la main';
+      l.note_fiabilite = 'bonne';
+    }
+    const nouvelAvis = texte('fg-avis-texte');
+    if (nouvelAvis) {
+      l.avis = [...(l.avis || []), {
+        auteur: 'relevé sur Google', note: null, texte: nouvelAvis,
+        date: null, source: 'Google Maps (saisie manuelle)',
+      }];
+    }
+    l.a_verifier = l.surface_m2 == null || l.nb_lave_linge == null;
+
+    state.modifie = true;
+    rafraichir();
+    ouvrirFiche(l.id);
+  });
+}
+
+function ouvrirEdition(id) {
+  const l = state.laveries.find(x => x.id === id);
+  if (!l) return;
+  document.getElementById('fiche-contenu').innerHTML = `
+    <div class="fiche-corps">
+      <h2>Compléter « ${l.nom} »</h2>
+      <p class="hint">Recopiez ce que vous lisez sur la fiche Google Maps.
+      Les champs vides restent inchangés côté affichage.</p>
+      ${formulaireGoogle(l)}
+    </div>`;
+  document.getElementById('fiche').scrollTop = 0;
+  brancherFormulaire(l);
+}
+
+// ---------- export des données modifiées ----------
+
+function exporterDonnees() {
+  const contenu = {
+    meta: { ...(state.meta || {}), derniere_maj: new Date().toISOString().slice(0, 10) },
+    laveries: state.laveries,
+  };
+  const blob = new Blob([JSON.stringify(contenu, null, 2) + '\n'], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'laveries.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  state.modifie = false;
+  majBarreExport();
+}
+
+// La barre n'apparaît qu'en présence de modifications non exportées.
+function majBarreExport() {
+  const barre = document.getElementById('barre-export');
+  if (!barre) return;
+  barre.classList.toggle('hidden', !state.modifie);
+  document.getElementById('modifs-info').textContent =
+    state.modifie ? '⚠ Modifications non enregistrées' : '';
+}
+
 function ouvrirFiche(id) {
   const l = state.laveries.find(x => x.id === id);
   if (!l) return;
@@ -265,6 +462,10 @@ function ouvrirFiche(id) {
   for (const mini of document.querySelectorAll('.galerie-miniatures img')) {
     mini.addEventListener('click', () => { principale.src = mini.src; });
   }
+  document.getElementById('lien-editer').addEventListener('click', (e) => {
+    e.preventDefault();
+    ouvrirEdition(id);
+  });
   surlignerListe(id);
 }
 
@@ -568,6 +769,10 @@ function simuler(lat, lon) {
 function initUI() {
   document.getElementById('fiche-fermer').addEventListener('click', fermerFiche);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerFiche(); });
+  document.getElementById('btn-export').addEventListener('click', exporterDonnees);
+  window.addEventListener('beforeunload', (e) => {
+    if (state.modifie) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   for (const id of ['f-chaine', 'f-independant', 'f-captif', 'l-couverture', 'l-heat-offre', 'l-tension']) {
     document.getElementById(id).addEventListener('change', rafraichir);

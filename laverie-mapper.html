@@ -848,6 +848,48 @@ button.active { background: #f97316; color: #431407; }
 .encart b { color: var(--text); }
 .encart code { background: var(--panel-2); padding: 1px 4px; border-radius: 3px; font-size: 0.72rem; }
 
+/* ---- Formulaire de saisie manuelle ---- */
+.form-google { margin-top: 12px; }
+.form-google .rangee { margin-bottom: 8px; }
+.form-google label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 3px; }
+.form-google input, .form-google textarea, .form-google select {
+  width: 100%; background: var(--panel-2); border: 1px solid #3b4a63;
+  color: var(--text); border-radius: 6px; padding: 6px 8px;
+  font-size: 0.8rem; font-family: inherit;
+}
+.form-google input:focus, .form-google textarea:focus { outline: 1px solid var(--accent); }
+.form-google .duo { display: flex; gap: 6px; }
+.form-google .duo > * { flex: 1; }
+.form-google textarea { resize: vertical; min-height: 52px; }
+
+.zone-photo {
+  border: 2px dashed #3b4a63; border-radius: 8px; padding: 14px 10px;
+  text-align: center; font-size: 0.75rem; color: var(--muted); cursor: pointer;
+}
+.zone-photo.survol { border-color: var(--accent); background: rgba(56, 189, 248, 0.08); }
+.apercus { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.apercus .vignette { position: relative; }
+.apercus img { height: 50px; border-radius: 4px; display: block; }
+.apercus button {
+  position: absolute; top: -5px; right: -5px; width: 17px; height: 17px;
+  padding: 0; border-radius: 50%; background: #dc2626; color: #fff;
+  font-size: 0.65rem; line-height: 1;
+}
+.form-boutons { display: flex; gap: 6px; margin-top: 10px; }
+.form-boutons button { font-size: 0.78rem; padding: 8px; }
+.btn-second { background: var(--panel-2); color: var(--text); }
+
+/* Barre d'export flottante au-dessus de la carte : jamais masquée par la fiche. */
+#barre-export {
+  position: absolute; right: 16px; bottom: 26px; z-index: 1100;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--panel); border: 1px solid #475569; border-radius: 10px;
+  padding: 9px 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+#barre-export.hidden { display: none; }
+#barre-export button { width: auto; font-size: 0.78rem; padding: 7px 12px; }
+#modifs-info { font-size: 0.75rem; color: #fbbf24; }
+
 .classement { list-style: none; counter-reset: rang; }
 .classement li {
   counter-increment: rang;
@@ -979,6 +1021,10 @@ footer { font-size: 0.7rem; color: #64748b; padding: 8px 4px 20px; line-height: 
       </footer>
     </aside>
     <div id="map"></div>
+    <div id="barre-export" class="hidden">
+      <span id="modifs-info"></span>
+      <button id="btn-export">💾 Exporter laveries.json</button>
+    </div>
   </div>
 
   <script>
@@ -1003,7 +1049,7 @@ footer { font-size: 0.7rem; color: #64748b; padding: 8px 4px 20px; line-height: 
 L.HeatLayer=(L.Layer?L.Layer:L.Class).extend({initialize:function(t,i){this._latlngs=t,L.setOptions(this,i)},setLatLngs:function(t){return this._latlngs=t,this.redraw()},addLatLng:function(t){return this._latlngs.push(t),this.redraw()},setOptions:function(t){return L.setOptions(this,t),this._heat&&this._updateOptions(),this.redraw()},redraw:function(){return!this._heat||this._frame||this._map._animating||(this._frame=L.Util.requestAnimFrame(this._redraw,this)),this},onAdd:function(t){this._map=t,this._canvas||this._initCanvas(),t._panes.overlayPane.appendChild(this._canvas),t.on("moveend",this._reset,this),t.options.zoomAnimation&&L.Browser.any3d&&t.on("zoomanim",this._animateZoom,this),this._reset()},onRemove:function(t){t.getPanes().overlayPane.removeChild(this._canvas),t.off("moveend",this._reset,this),t.options.zoomAnimation&&t.off("zoomanim",this._animateZoom,this)},addTo:function(t){return t.addLayer(this),this},_initCanvas:function(){var t=this._canvas=L.DomUtil.create("canvas","leaflet-heatmap-layer leaflet-layer"),i=L.DomUtil.testProp(["transformOrigin","WebkitTransformOrigin","msTransformOrigin"]);t.style[i]="50% 50%";var a=this._map.getSize();t.width=a.x,t.height=a.y;var s=this._map.options.zoomAnimation&&L.Browser.any3d;L.DomUtil.addClass(t,"leaflet-zoom-"+(s?"animated":"hide")),this._heat=simpleheat(t),this._updateOptions()},_updateOptions:function(){this._heat.radius(this.options.radius||this._heat.defaultRadius,this.options.blur),this.options.gradient&&this._heat.gradient(this.options.gradient),this.options.max&&this._heat.max(this.options.max)},_reset:function(){var t=this._map.containerPointToLayerPoint([0,0]);L.DomUtil.setPosition(this._canvas,t);var i=this._map.getSize();this._heat._width!==i.x&&(this._canvas.width=this._heat._width=i.x),this._heat._height!==i.y&&(this._canvas.height=this._heat._height=i.y),this._redraw()},_redraw:function(){var t,i,a,s,e,n,h,o,r,d=[],_=this._heat._r,l=this._map.getSize(),m=new L.Bounds(L.point([-_,-_]),l.add([_,_])),c=void 0===this.options.max?1:this.options.max,u=void 0===this.options.maxZoom?this._map.getMaxZoom():this.options.maxZoom,f=1/Math.pow(2,Math.max(0,Math.min(u-this._map.getZoom(),12))),g=_/2,p=[],v=this._map._getMapPanePos(),w=v.x%g,y=v.y%g;for(t=0,i=this._latlngs.length;i>t;t++)if(a=this._map.latLngToContainerPoint(this._latlngs[t]),m.contains(a)){e=Math.floor((a.x-w)/g)+2,n=Math.floor((a.y-y)/g)+2;var x=void 0!==this._latlngs[t].alt?this._latlngs[t].alt:void 0!==this._latlngs[t][2]?+this._latlngs[t][2]:1;r=x*f,p[n]=p[n]||[],s=p[n][e],s?(s[0]=(s[0]*s[2]+a.x*r)/(s[2]+r),s[1]=(s[1]*s[2]+a.y*r)/(s[2]+r),s[2]+=r):p[n][e]=[a.x,a.y,r]}for(t=0,i=p.length;i>t;t++)if(p[t])for(h=0,o=p[t].length;o>h;h++)s=p[t][h],s&&d.push([Math.round(s[0]),Math.round(s[1]),Math.min(s[2],c)]);this._heat.data(d).draw(this.options.minOpacity),this._frame=null},_animateZoom:function(t){var i=this._map.getZoomScale(t.zoom),a=this._map._getCenterOffset(t.center)._multiplyBy(-i).subtract(this._map._getMapPanePos());L.DomUtil.setTransform?L.DomUtil.setTransform(this._canvas,a,i):this._canvas.style[L.DomUtil.TRANSFORM]=L.DomUtil.getTranslateString(a)+" scale("+i+")"}}),L.heatLayer=function(t,i){return new L.HeatLayer(t,i)};
 </script>
   <script>
-window.__DATA__ = {"laveries": {"meta": {"ville": "Pessac", "code_insee": "33318", "code_postal": "33600", "derniere_maj": "2026-07-30", "methode": "Inventaire constitué par recherche web (PagesJaunes, Justacoté, Bottin, Yelp, laverie24, GoWork, SIRENE/annuaire-entreprises). Notes et nombres d'avis relevés sur des annuaires qui republient les notes Google.", "avertissement": "Les notes proviennent d'annuaires tiers, PAS de l'API Google officielle : elles peuvent être périmées ou mal attribuées. Lancer scripts/enrich_google_places.py avec une clé API pour obtenir les notes, avis et photos officiels.", "sources_contradictoires": ["Le téléphone 05 57 35 56 40 est attribué tantôt au 35 av. Pasteur, tantôt au 23 av. Léon Duguit selon les annuaires.", "La laverie Nancel Pénard est référencée au n°84 ou au n°101 selon les sources.", "Un annuaire annonce 5 laveries à Pessac, un autre 4 : aucun ne recense les laveries captives des résidences universitaires."]}, "laveries": [{"id": "au-fil-du-linge-cap-de-bos", "nom": "Au Fil du Linge — Cap de Bos", "adresse": "Centre Commercial Cap de Bos, 14 rue d'Artois, 33600 Pessac", "quartier": "Cap de Bos", "lat": 44.7889, "lon": -0.6712, "coord_precision": "estimee", "type": "chaine", "enseigne": "Au Fil du Linge", "statut": "actif", "telephone": "06 50 74 16 94", "site_web": "https://aufildulinge.com/laverie/laverie-automatique-bordeaux-pessac-cap-de-bos/", "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Dim 6h-21h", "ouvert_24_7": false, "note_google": 4.5, "nb_avis": 50, "note_source": "justacote / annuaires (env. 50 avis)", "note_fiabilite": "moyenne", "place_id": null, "photos": [], "avis": [], "acces": {"parking": true, "arret_tc_a_moins_300m": null, "generateurs_flux": ["centre commercial"]}, "sources": ["justacote.com", "aufildulinge.com", "facebook.com/laverieaufildulingecapdebos", "laverie24.fr"], "notes_terrain": "Équipement Electrolux récent, lessive professionnelle incluse, paiement sans contact. Sert aussi de point relais Mondial Relay et Vinted Go — flux additionnel intéressant.", "a_verifier": true}, {"id": "au-fil-du-linge-pasteur", "nom": "Au Fil du Linge — Pessac Centre", "adresse": "35 avenue Pasteur, 33600 Pessac", "quartier": "Centre / Bourg", "lat": 44.8046, "lon": -0.6295, "coord_precision": "estimee", "type": "chaine", "enseigne": "Au Fil du Linge", "statut": "actif", "telephone": "05 57 35 56 40", "site_web": "https://aufildulinge.com/", "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Dim 6h-21h (certains annuaires indiquent 8h-22h)", "ouvert_24_7": false, "note_google": 4.3, "nb_avis": 20, "note_source": "annuaires (plus de 20 votes)", "note_fiabilite": "moyenne", "place_id": null, "photos": [], "avis": [], "acces": {"parking": null, "arret_tc_a_moins_300m": true, "generateurs_flux": ["centre-ville"]}, "sources": ["pagesjaunes.fr", "bottin.fr", "facebook.com/laverieaufildulingepessac"], "notes_terrain": "Second site du réseau Au Fil du Linge à Pessac. Téléphone possiblement erroné : le même numéro est attribué au 23 av. Léon Duguit par d'autres annuaires.", "a_verifier": true}, {"id": "laverie-compostelle", "nom": "Laverie Pessac-Compostelle", "adresse": "Centre Commercial Compostelle, rue de Compostelle, 33600 Pessac", "quartier": "France / Alouette", "lat": 44.7952, "lon": -0.6558, "coord_precision": "estimee", "type": "independant", "enseigne": null, "statut": "actif", "telephone": "05 56 20 69 72", "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Dim 7h-22h", "ouvert_24_7": false, "note_google": 4.3, "nb_avis": 70, "note_source": "annuaires (plus de 70 votes)", "note_fiabilite": "moyenne", "place_id": null, "photos": [], "avis": [], "acces": {"parking": true, "arret_tc_a_moins_300m": null, "generateurs_flux": ["centre commercial"]}, "sources": ["justacote.com", "bottin.fr", "guide-bordeaux-gironde.com", "helpmecovid.com"], "notes_terrain": "La laverie la mieux notée avec le plus grand volume d'avis (~70) : établissement bien installé. Retours positifs sur la propreté et la simplicité d'usage.", "a_verifier": true}, {"id": "laverie-nancel-penard", "nom": "Laverie Automatique de Pessac", "adresse": "84 (ou 101) avenue du Docteur Nancel Pénard, 33600 Pessac", "quartier": "Noès / Verthamon", "lat": 44.8083, "lon": -0.6438, "coord_precision": "estimee", "type": "independant", "enseigne": null, "statut": "actif", "telephone": null, "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": null, "ouvert_24_7": false, "note_google": 5.0, "nb_avis": null, "note_source": "annuaire (note 5,0 — nombre d'avis inconnu, probablement très faible)", "note_fiabilite": "faible", "place_id": null, "photos": [], "avis": [], "acces": {"parking": null, "arret_tc_a_moins_300m": null, "generateurs_flux": []}, "sources": ["laveriesfrance.fr", "laverie24.fr", "annuaires"], "notes_terrain": "Note de 5,0 à prendre avec prudence : sans le nombre d'avis, une note parfaite repose souvent sur 1 ou 2 votes. Numéro de rue incertain (84 ou 101).", "a_verifier": true}, {"id": "laverie-de-saige", "nom": "Laverie de Saige", "adresse": "20 rue de l'Horloge, Centre Commercial Saige-Formanoir, 33600 Pessac", "quartier": "Saige", "lat": 44.7998, "lon": -0.6178, "coord_precision": "estimee", "type": "independant", "enseigne": null, "statut": "actif", "telephone": "05 56 46 01 37", "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Dim 8h30-20h", "ouvert_24_7": false, "note_google": 2.0, "nb_avis": 26, "note_source": "annuaires reprenant Google (2,0 / 26 avis)", "note_fiabilite": "bonne", "place_id": "ChIJCd2wpt3YVA0R4m0CC3MFtAs", "photos": [], "avis": [{"auteur": "avis repris par annuaire", "note": null, "texte": "Un bon endroit où l'on peut laver tranquillement, mais pas assez agréable, ça manque de couleur et les machines ne sont pas rénovées.", "date": null, "source": "obteniruncontact / GoWork"}, {"auteur": "avis repris par annuaire", "note": null, "texte": "Propre et bien entretenu, prix raisonnables, machines de grande capacité disponibles ; cycles rapides d'environ 30 minutes et le gérant explique volontiers le fonctionnement.", "date": null, "source": "GoWork"}], "acces": {"parking": true, "arret_tc_a_moins_300m": true, "generateurs_flux": ["centre commercial", "grand ensemble Saige", "tram B"]}, "sources": ["pagesjaunes.fr", "yelp.fr", "gowork.fr", "laverie24.fr", "annuaire-entreprises.data.gouv.fr (SIREN 500 349 790)", "waze (place_id)"], "notes_terrain": "FUSION de deux fiches doublons de l'inventaire initial (« Laverie Saige » et « Lavomatic Pessac Centre ») : même adresse, mêmes horaires, même établissement. SARL indépendante créée en 2007. Note de 2,0/5 sur 26 avis dans un quartier à forte demande (grand ensemble, tram B) : c'est le signal d'opportunité le plus net de la commune — machines non rénovées d'après les avis.", "a_verifier": true}, {"id": "laverie-leon-duguit", "nom": "Laverie — 23 avenue Léon Duguit", "adresse": "23 avenue Léon Duguit, 33600 Pessac", "quartier": "Brivazac / Candau", "lat": 44.799, "lon": -0.6138, "coord_precision": "estimee", "type": "independant", "enseigne": null, "statut": "actif", "telephone": "05 57 35 56 40", "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Dim 8h-22h", "ouvert_24_7": false, "note_google": null, "nb_avis": null, "note_source": null, "note_fiabilite": null, "place_id": null, "photos": [], "avis": [], "acces": {"parking": true, "arret_tc_a_moins_300m": true, "generateurs_flux": ["campus universitaire", "tram B"]}, "sources": ["pagesjaunes.fr", "bottin.fr", "france-streets.openalfa.com"], "notes_terrain": "Située dans le quartier Brivazac-Candau (et non Saige comme initialement supposé). Stationnement PMR signalé. Aucune note trouvée : établissement peu référencé, à vérifier en priorité sur le terrain — il pourrait aussi s'agir d'un doublon avec la laverie de la résidence Durkheim, toute proche.", "a_verifier": true}, {"id": "laverie-crous-bardanac", "nom": "Laverie CROUS — Bardanac (Village universitaire)", "adresse": "20 avenue de Bardanac, 33600 Pessac", "quartier": "Campus", "lat": 44.7985, "lon": -0.6088, "coord_precision": "estimee", "type": "captif", "enseigne": "CROUS", "statut": "actif", "telephone": null, "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": null, "ouvert_24_7": false, "note_google": null, "nb_avis": null, "note_source": null, "note_fiabilite": null, "place_id": null, "photos": [], "avis": [], "acces": {"parking": false, "arret_tc_a_moins_300m": true, "generateurs_flux": ["résidences universitaires"]}, "sources": ["laverie24.fr", "annuaires"], "notes_terrain": "Usage principalement réservé aux résidents CROUS : absorbe une partie de la demande étudiante sans concurrencer frontalement une laverie de ville.", "a_verifier": true}, {"id": "laverie-residence-durkheim", "nom": "Laverie Résidence Émile Durkheim (CROUS)", "adresse": "Allée Ausone, avenue Léon Duguit, 33600 Pessac", "quartier": "Campus", "lat": 44.7952, "lon": -0.612, "coord_precision": "estimee", "type": "captif", "enseigne": "CROUS", "statut": "actif", "telephone": null, "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Ven 8h-22h, Sam-Dim 7h-23h", "ouvert_24_7": false, "note_google": null, "nb_avis": null, "note_source": null, "note_fiabilite": null, "place_id": null, "photos": [], "avis": [], "acces": {"parking": false, "arret_tc_a_moins_300m": true, "generateurs_flux": ["résidences universitaires"]}, "sources": ["pagesjaunes.fr", "pressings.nosavis.com", "ville-data.com", "mappy.com"], "notes_terrain": "Résidence universitaire ouverte en septembre 2010. Amplitude horaire large, y compris le week-end. Demande captive.", "a_verifier": true}]}, "quartiers": {"meta": {"ville": "Pessac", "population_totale_estimee": 66000, "source": "Estimations d'ordre de grandeur par quartier (population municipale INSEE ~66 000 hab. répartie d'après la structure urbaine). À REMPLACER par les données carroyées INSEE Filosofi 200m (gratuites, insee.fr) via scripts/import_insee.py — voir README.", "avertissement": "Ces chiffres servent uniquement à faire tourner le modèle en attendant les vraies données INSEE. Ne pas fonder une décision d'investissement dessus."}, "quartiers": [{"id": "centre-bourg", "nom": "Centre / Bourg", "lat": 44.8068, "lon": -0.6315, "population": 6000, "part_locataires_est": 0.55, "part_petits_logements_est": 0.3, "densite": "forte", "commentaire": "Centre-ville, gare SNCF, tram B (terminus zone), commerces. Habitat mixte collectif/ancien."}, {"id": "le-monteil", "nom": "Le Monteil", "lat": 44.8095, "lon": -0.6225, "population": 5500, "part_locataires_est": 0.45, "part_petits_logements_est": 0.2, "densite": "moyenne", "commentaire": "Proche Talence, habitat mixte, étudiants en diffus."}, {"id": "verthamon", "nom": "Verthamon / Haut-Brion", "lat": 44.8108, "lon": -0.6115, "population": 4000, "part_locataires_est": 0.35, "part_petits_logements_est": 0.08, "densite": "moyenne", "commentaire": "Résidentiel aisé, vignobles. Demande laverie faible."}, {"id": "brivazac-candau", "nom": "Brivazac / Candau", "lat": 44.8028, "lon": -0.6152, "population": 4500, "part_locataires_est": 0.5, "part_petits_logements_est": 0.25, "densite": "moyenne", "commentaire": "Proche campus, locatif étudiant en diffus."}, {"id": "saige", "nom": "Saige (Formanoir)", "lat": 44.7997, "lon": -0.618, "population": 6500, "part_locataires_est": 0.8, "part_petits_logements_est": 0.4, "densite": "tres_forte", "commentaire": "Grand ensemble, forte part de logement social. Demande laverie structurellement élevée. Tram B."}, {"id": "campus", "nom": "Campus universitaire (partie Pessac)", "lat": 44.797, "lon": -0.61, "population": 3500, "part_locataires_est": 0.95, "part_petits_logements_est": 0.9, "densite": "forte", "commentaire": "~3 500 lits en résidences (CROUS + privées) côté Pessac ; ~15-20 000 étudiants fréquentent le site en journée. Deux laveries captives CROUS."}, {"id": "casino", "nom": "Casino / Sardine", "lat": 44.801, "lon": -0.626, "population": 3500, "part_locataires_est": 0.45, "part_petits_logements_est": 0.2, "densite": "moyenne", "commentaire": "Entre centre et Saige."}, {"id": "noes", "nom": "Noès", "lat": 44.809, "lon": -0.644, "population": 3000, "part_locataires_est": 0.4, "part_petits_logements_est": 0.15, "densite": "moyenne", "commentaire": "Pavillonnaire + collectifs récents."}, {"id": "arago-chataigneraie", "nom": "Arago / La Châtaigneraie", "lat": 44.8005, "lon": -0.6395, "population": 5000, "part_locataires_est": 0.5, "part_petits_logements_est": 0.25, "densite": "forte", "commentaire": "Collectifs denses, proximité rocade."}, {"id": "france-alouette", "nom": "France / Alouette", "lat": 44.7925, "lon": -0.647, "population": 6500, "part_locataires_est": 0.45, "part_petits_logements_est": 0.2, "densite": "moyenne", "commentaire": "Pôle Alouette : gare, clinique, commerces. Terminus tram B Alouette-France."}, {"id": "3m-bourgailh", "nom": "3M / Bourgailh", "lat": 44.7975, "lon": -0.657, "population": 3000, "part_locataires_est": 0.45, "part_petits_logements_est": 0.2, "densite": "moyenne", "commentaire": "Habitat social et pavillonnaire, forêt du Bourgailh."}, {"id": "cap-de-bos", "nom": "Cap de Bos", "lat": 44.7885, "lon": -0.671, "population": 5500, "part_locataires_est": 0.3, "part_petits_logements_est": 0.08, "densite": "faible", "commentaire": "Pavillonnaire. Centre commercial de proximité."}, {"id": "magonty", "nom": "Magonty", "lat": 44.7825, "lon": -0.6905, "population": 5500, "part_locataires_est": 0.25, "part_petits_logements_est": 0.07, "densite": "faible", "commentaire": "Pavillonnaire excentré."}, {"id": "toctoucau", "nom": "Toctoucau", "lat": 44.766, "lon": -0.728, "population": 2500, "part_locataires_est": 0.3, "part_petits_logements_est": 0.07, "densite": "faible", "commentaire": "Bourg excentré, limite Cestas."}, {"id": "bersol", "nom": "Bersol (zone d'activités)", "lat": 44.79, "lon": -0.636, "population": 1000, "part_locataires_est": 0.4, "part_petits_logements_est": 0.15, "densite": "faible", "commentaire": "Zone économique, peu résidentielle mais flux salariés important."}]}, "benchmarks": {"meta": {"source": "Benchmarks publics du secteur des laveries automatiques en France (fédérations professionnelles, réseaux de franchise, presse spécialisée). Fourchettes indicatives 2024-2026 — à recaler dès que des données réelles (comptoirs, exploitants) sont disponibles.", "avertissement": "Toutes les valeurs sont des FOURCHETTES. Le simulateur produit des ordres de grandeur, pas des prévisions."}, "prix": {"lavage_6_8kg_eur": [3.5, 5.0], "lavage_10_12kg_eur": [5.0, 7.5], "lavage_16_18kg_eur": [8.0, 11.0], "sechage_10min_eur": [1.0, 2.0], "panier_moyen_visite_eur": [7.0, 10.0]}, "exploitation": {"ca_annuel_laverie_eur": [50000, 120000], "ca_annuel_par_machine_eur": [5000, 9000], "nb_machines_typique": [8, 14], "surface_typique_m2": [40, 80], "marge_ebe_pct": [30, 45], "investissement_initial_eur": [80000, 200000], "loyer_max_conseille_pct_ca": 10, "besoin_electrique": "24-36 kVA triphasé + arrivée d'eau gros débit + évacuation — vérifier la faisabilité du local avant tout engagement"}, "demande": {"_commentaire": "La clientèle d'une laverie se compose de DEUX populations distinctes qu'il faut modéliser séparément — les confondre fausse totalement l'estimation de CA.", "clientele_reguliere": {"definition": "Ménages sans lave-linge à domicile : viennent chaque semaine ou tous les 15 jours. Cœur du chiffre d'affaires.", "_note_part": "La part varie fortement selon le type d'habitat : ~2 % en secteur pavillonnaire (tout le monde est équipé), ~10 % là où dominent studios et T1. Le modèle interpole entre ces deux bornes en fonction de la part de petits logements du quartier (borne haute atteinte à 50 % de petits logements).", "part_menages_pct": [2, 10], "seuil_petits_logements_borne_haute": 0.5, "depense_annuelle_eur": [300, 700]}, "clientele_ponctuelle": {"definition": "Ménages équipés d'un lave-linge qui viennent 1 à 3 fois par an pour les gros volumes (couettes, couvertures, sacs de couchage). Représente typiquement 20-40 % du CA d'une laverie moderne équipée de grosses machines.", "part_menages_concernes_pct": [15, 25], "depense_annuelle_eur": [20, 45]}, "habitants_par_laverie_zone_urbaine": [8000, 15000]}, "chalandise": {"rayon_pieton_m": [400, 800], "rayon_voiture_min": [5, 10], "regle": "En zone dense, 80% de la clientèle habite à moins de 800 m ou à moins de 5 min en voiture avec parking facile."}}};
+window.__DATA__ = {"laveries": {"meta": {"ville": "Pessac", "code_insee": "33318", "code_postal": "33600", "derniere_maj": "2026-07-30", "methode": "Inventaire constitué par recherche web (PagesJaunes, Justacoté, Bottin, Yelp, laverie24, GoWork, SIRENE/annuaire-entreprises). Notes et nombres d'avis relevés sur des annuaires qui republient les notes Google.", "avertissement": "Les notes proviennent d'annuaires tiers, PAS de l'API Google officielle : elles peuvent être périmées ou mal attribuées. Lancer scripts/enrich_google_places.py avec une clé API pour obtenir les notes, avis et photos officiels.", "sources_contradictoires": ["Le téléphone 05 57 35 56 40 est attribué tantôt au 35 av. Pasteur, tantôt au 23 av. Léon Duguit selon les annuaires.", "La laverie Nancel Pénard est référencée au n°84 ou au n°101 selon les sources.", "Un annuaire annonce 5 laveries à Pessac, un autre 4 : aucun ne recense les laveries captives des résidences universitaires.", "Les deux Au Fil du Linge ont été recalés sur les fiches Google fournies par l'utilisateur : l'attribution marqueur→adresse (A=Cap de Bos, B=centre) est déduite de la position sur la carte, à confirmer."]}, "laveries": [{"id": "au-fil-du-linge-cap-de-bos", "nom": "Au Fil du Linge — Cap de Bos", "adresse": "Centre Commercial Cap de Bos, 14 rue d'Artois, 33600 Pessac", "quartier": "Cap de Bos", "lat": 44.7889, "lon": -0.6712, "coord_precision": "estimee", "type": "chaine", "enseigne": "Au Fil du Linge", "statut": "actif", "telephone": "07 83 28 67 93", "site_web": "https://aufildulinge.com/laverie/laverie-automatique-bordeaux-pessac-cap-de-bos/", "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Dim 6h-21h (ferme à 21h d'après Google)", "ouvert_24_7": false, "note_google": 4.3, "nb_avis": 59, "note_source": "Fiche Google Maps relevée par l'utilisateur (30/07/2026)", "note_fiabilite": "bonne", "place_id": null, "photos": [], "avis": [], "acces": {"parking": true, "arret_tc_a_moins_300m": null, "generateurs_flux": ["centre commercial"]}, "sources": ["justacote.com", "aufildulinge.com", "facebook.com/laverieaufildulingecapdebos", "laverie24.fr"], "notes_terrain": "Équipement Electrolux récent, lessive professionnelle incluse, paiement sans contact. Sert aussi de point relais Mondial Relay et Vinted Go — flux additionnel intéressant.", "a_verifier": true}, {"id": "au-fil-du-linge-pasteur", "nom": "Au Fil du Linge — Pessac Centre", "adresse": "35 avenue Pasteur, 33600 Pessac", "quartier": "Centre / Bourg", "lat": 44.8046, "lon": -0.6295, "coord_precision": "estimee", "type": "chaine", "enseigne": "Au Fil du Linge", "statut": "actif", "telephone": "06 50 74 16 94", "site_web": "https://aufildulinge.com/", "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Dim 6h-21h (ferme à 21h d'après Google)", "ouvert_24_7": false, "note_google": 4.3, "nb_avis": 30, "note_source": "Fiche Google Maps relevée par l'utilisateur (30/07/2026)", "note_fiabilite": "bonne", "place_id": null, "photos": [], "avis": [], "acces": {"parking": null, "arret_tc_a_moins_300m": true, "generateurs_flux": ["centre-ville"]}, "sources": ["pagesjaunes.fr", "bottin.fr", "facebook.com/laverieaufildulingepessac"], "notes_terrain": "Second site du réseau Au Fil du Linge à Pessac. Téléphone possiblement erroné : le même numéro est attribué au 23 av. Léon Duguit par d'autres annuaires.", "a_verifier": true}, {"id": "laverie-compostelle", "nom": "Laverie Pessac-Compostelle", "adresse": "Centre Commercial Compostelle, rue de Compostelle, 33600 Pessac", "quartier": "France / Alouette", "lat": 44.7952, "lon": -0.6558, "coord_precision": "estimee", "type": "independant", "enseigne": null, "statut": "actif", "telephone": "05 56 20 69 72", "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Dim 7h-22h", "ouvert_24_7": false, "note_google": 4.3, "nb_avis": 70, "note_source": "annuaires (plus de 70 votes)", "note_fiabilite": "moyenne", "place_id": null, "photos": [], "avis": [], "acces": {"parking": true, "arret_tc_a_moins_300m": null, "generateurs_flux": ["centre commercial"]}, "sources": ["justacote.com", "bottin.fr", "guide-bordeaux-gironde.com", "helpmecovid.com"], "notes_terrain": "La laverie la mieux notée avec le plus grand volume d'avis (~70) : établissement bien installé. Retours positifs sur la propreté et la simplicité d'usage.", "a_verifier": true}, {"id": "laverie-nancel-penard", "nom": "Laverie Automatique de Pessac", "adresse": "84 (ou 101) avenue du Docteur Nancel Pénard, 33600 Pessac", "quartier": "Noès / Verthamon", "lat": 44.8083, "lon": -0.6438, "coord_precision": "estimee", "type": "independant", "enseigne": null, "statut": "actif", "telephone": null, "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": null, "ouvert_24_7": false, "note_google": 5.0, "nb_avis": null, "note_source": "annuaire (note 5,0 — nombre d'avis inconnu, probablement très faible)", "note_fiabilite": "faible", "place_id": null, "photos": [], "avis": [], "acces": {"parking": null, "arret_tc_a_moins_300m": null, "generateurs_flux": []}, "sources": ["laveriesfrance.fr", "laverie24.fr", "annuaires"], "notes_terrain": "Note de 5,0 à prendre avec prudence : sans le nombre d'avis, une note parfaite repose souvent sur 1 ou 2 votes. Numéro de rue incertain (84 ou 101).", "a_verifier": true}, {"id": "laverie-de-saige", "nom": "Laverie de Saige", "adresse": "20 rue de l'Horloge, Centre Commercial Saige-Formanoir, 33600 Pessac", "quartier": "Saige", "lat": 44.7998, "lon": -0.6178, "coord_precision": "estimee", "type": "independant", "enseigne": null, "statut": "actif", "telephone": "05 56 46 01 37", "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Dim 8h30-20h", "ouvert_24_7": false, "note_google": 2.0, "nb_avis": 26, "note_source": "annuaires reprenant Google (2,0 / 26 avis)", "note_fiabilite": "bonne", "place_id": "ChIJCd2wpt3YVA0R4m0CC3MFtAs", "photos": [], "avis": [{"auteur": "avis repris par annuaire", "note": null, "texte": "Un bon endroit où l'on peut laver tranquillement, mais pas assez agréable, ça manque de couleur et les machines ne sont pas rénovées.", "date": null, "source": "obteniruncontact / GoWork"}, {"auteur": "avis repris par annuaire", "note": null, "texte": "Propre et bien entretenu, prix raisonnables, machines de grande capacité disponibles ; cycles rapides d'environ 30 minutes et le gérant explique volontiers le fonctionnement.", "date": null, "source": "GoWork"}], "acces": {"parking": true, "arret_tc_a_moins_300m": true, "generateurs_flux": ["centre commercial", "grand ensemble Saige", "tram B"]}, "sources": ["pagesjaunes.fr", "yelp.fr", "gowork.fr", "laverie24.fr", "annuaire-entreprises.data.gouv.fr (SIREN 500 349 790)", "waze (place_id)"], "notes_terrain": "FUSION de deux fiches doublons de l'inventaire initial (« Laverie Saige » et « Lavomatic Pessac Centre ») : même adresse, mêmes horaires, même établissement. SARL indépendante créée en 2007. Note de 2,0/5 sur 26 avis dans un quartier à forte demande (grand ensemble, tram B) : c'est le signal d'opportunité le plus net de la commune — machines non rénovées d'après les avis.", "a_verifier": true}, {"id": "laverie-leon-duguit", "nom": "Laverie — 23 avenue Léon Duguit", "adresse": "23 avenue Léon Duguit, 33600 Pessac", "quartier": "Brivazac / Candau", "lat": 44.799, "lon": -0.6138, "coord_precision": "estimee", "type": "independant", "enseigne": null, "statut": "actif", "telephone": "05 57 35 56 40", "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Dim 8h-22h", "ouvert_24_7": false, "note_google": null, "nb_avis": null, "note_source": null, "note_fiabilite": null, "place_id": null, "photos": [], "avis": [], "acces": {"parking": true, "arret_tc_a_moins_300m": true, "generateurs_flux": ["campus universitaire", "tram B"]}, "sources": ["pagesjaunes.fr", "bottin.fr", "france-streets.openalfa.com"], "notes_terrain": "Située dans le quartier Brivazac-Candau (et non Saige comme initialement supposé). Stationnement PMR signalé. Aucune note trouvée : établissement peu référencé, à vérifier en priorité sur le terrain — il pourrait aussi s'agir d'un doublon avec la laverie de la résidence Durkheim, toute proche.", "a_verifier": true}, {"id": "laverie-crous-bardanac", "nom": "Laverie CROUS — Bardanac (Village universitaire)", "adresse": "20 avenue de Bardanac, 33600 Pessac", "quartier": "Campus", "lat": 44.7985, "lon": -0.6088, "coord_precision": "estimee", "type": "captif", "enseigne": "CROUS", "statut": "actif", "telephone": null, "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": null, "ouvert_24_7": false, "note_google": null, "nb_avis": null, "note_source": null, "note_fiabilite": null, "place_id": null, "photos": [], "avis": [], "acces": {"parking": false, "arret_tc_a_moins_300m": true, "generateurs_flux": ["résidences universitaires"]}, "sources": ["laverie24.fr", "annuaires"], "notes_terrain": "Usage principalement réservé aux résidents CROUS : absorbe une partie de la demande étudiante sans concurrencer frontalement une laverie de ville.", "a_verifier": true}, {"id": "laverie-residence-durkheim", "nom": "Laverie Résidence Émile Durkheim (CROUS)", "adresse": "Allée Ausone, avenue Léon Duguit, 33600 Pessac", "quartier": "Campus", "lat": 44.7952, "lon": -0.612, "coord_precision": "estimee", "type": "captif", "enseigne": "CROUS", "statut": "actif", "telephone": null, "site_web": null, "surface_m2": null, "nb_lave_linge": null, "nb_seche_linge": null, "prix_cycle_8kg": null, "horaires": "Lun-Ven 8h-22h, Sam-Dim 7h-23h", "ouvert_24_7": false, "note_google": null, "nb_avis": null, "note_source": null, "note_fiabilite": null, "place_id": null, "photos": [], "avis": [], "acces": {"parking": false, "arret_tc_a_moins_300m": true, "generateurs_flux": ["résidences universitaires"]}, "sources": ["pagesjaunes.fr", "pressings.nosavis.com", "ville-data.com", "mappy.com"], "notes_terrain": "Résidence universitaire ouverte en septembre 2010. Amplitude horaire large, y compris le week-end. Demande captive.", "a_verifier": true}]}, "quartiers": {"meta": {"ville": "Pessac", "population_totale_estimee": 66000, "source": "Estimations d'ordre de grandeur par quartier (population municipale INSEE ~66 000 hab. répartie d'après la structure urbaine). À REMPLACER par les données carroyées INSEE Filosofi 200m (gratuites, insee.fr) via scripts/import_insee.py — voir README.", "avertissement": "Ces chiffres servent uniquement à faire tourner le modèle en attendant les vraies données INSEE. Ne pas fonder une décision d'investissement dessus."}, "quartiers": [{"id": "centre-bourg", "nom": "Centre / Bourg", "lat": 44.8068, "lon": -0.6315, "population": 6000, "part_locataires_est": 0.55, "part_petits_logements_est": 0.3, "densite": "forte", "commentaire": "Centre-ville, gare SNCF, tram B (terminus zone), commerces. Habitat mixte collectif/ancien."}, {"id": "le-monteil", "nom": "Le Monteil", "lat": 44.8095, "lon": -0.6225, "population": 5500, "part_locataires_est": 0.45, "part_petits_logements_est": 0.2, "densite": "moyenne", "commentaire": "Proche Talence, habitat mixte, étudiants en diffus."}, {"id": "verthamon", "nom": "Verthamon / Haut-Brion", "lat": 44.8108, "lon": -0.6115, "population": 4000, "part_locataires_est": 0.35, "part_petits_logements_est": 0.08, "densite": "moyenne", "commentaire": "Résidentiel aisé, vignobles. Demande laverie faible."}, {"id": "brivazac-candau", "nom": "Brivazac / Candau", "lat": 44.8028, "lon": -0.6152, "population": 4500, "part_locataires_est": 0.5, "part_petits_logements_est": 0.25, "densite": "moyenne", "commentaire": "Proche campus, locatif étudiant en diffus."}, {"id": "saige", "nom": "Saige (Formanoir)", "lat": 44.7997, "lon": -0.618, "population": 6500, "part_locataires_est": 0.8, "part_petits_logements_est": 0.4, "densite": "tres_forte", "commentaire": "Grand ensemble, forte part de logement social. Demande laverie structurellement élevée. Tram B."}, {"id": "campus", "nom": "Campus universitaire (partie Pessac)", "lat": 44.797, "lon": -0.61, "population": 3500, "part_locataires_est": 0.95, "part_petits_logements_est": 0.9, "densite": "forte", "commentaire": "~3 500 lits en résidences (CROUS + privées) côté Pessac ; ~15-20 000 étudiants fréquentent le site en journée. Deux laveries captives CROUS."}, {"id": "casino", "nom": "Casino / Sardine", "lat": 44.801, "lon": -0.626, "population": 3500, "part_locataires_est": 0.45, "part_petits_logements_est": 0.2, "densite": "moyenne", "commentaire": "Entre centre et Saige."}, {"id": "noes", "nom": "Noès", "lat": 44.809, "lon": -0.644, "population": 3000, "part_locataires_est": 0.4, "part_petits_logements_est": 0.15, "densite": "moyenne", "commentaire": "Pavillonnaire + collectifs récents."}, {"id": "arago-chataigneraie", "nom": "Arago / La Châtaigneraie", "lat": 44.8005, "lon": -0.6395, "population": 5000, "part_locataires_est": 0.5, "part_petits_logements_est": 0.25, "densite": "forte", "commentaire": "Collectifs denses, proximité rocade."}, {"id": "france-alouette", "nom": "France / Alouette", "lat": 44.7925, "lon": -0.647, "population": 6500, "part_locataires_est": 0.45, "part_petits_logements_est": 0.2, "densite": "moyenne", "commentaire": "Pôle Alouette : gare, clinique, commerces. Terminus tram B Alouette-France."}, {"id": "3m-bourgailh", "nom": "3M / Bourgailh", "lat": 44.7975, "lon": -0.657, "population": 3000, "part_locataires_est": 0.45, "part_petits_logements_est": 0.2, "densite": "moyenne", "commentaire": "Habitat social et pavillonnaire, forêt du Bourgailh."}, {"id": "cap-de-bos", "nom": "Cap de Bos", "lat": 44.7885, "lon": -0.671, "population": 5500, "part_locataires_est": 0.3, "part_petits_logements_est": 0.08, "densite": "faible", "commentaire": "Pavillonnaire. Centre commercial de proximité."}, {"id": "magonty", "nom": "Magonty", "lat": 44.7825, "lon": -0.6905, "population": 5500, "part_locataires_est": 0.25, "part_petits_logements_est": 0.07, "densite": "faible", "commentaire": "Pavillonnaire excentré."}, {"id": "toctoucau", "nom": "Toctoucau", "lat": 44.766, "lon": -0.728, "population": 2500, "part_locataires_est": 0.3, "part_petits_logements_est": 0.07, "densite": "faible", "commentaire": "Bourg excentré, limite Cestas."}, {"id": "bersol", "nom": "Bersol (zone d'activités)", "lat": 44.79, "lon": -0.636, "population": 1000, "part_locataires_est": 0.4, "part_petits_logements_est": 0.15, "densite": "faible", "commentaire": "Zone économique, peu résidentielle mais flux salariés important."}]}, "benchmarks": {"meta": {"source": "Benchmarks publics du secteur des laveries automatiques en France (fédérations professionnelles, réseaux de franchise, presse spécialisée). Fourchettes indicatives 2024-2026 — à recaler dès que des données réelles (comptoirs, exploitants) sont disponibles.", "avertissement": "Toutes les valeurs sont des FOURCHETTES. Le simulateur produit des ordres de grandeur, pas des prévisions."}, "prix": {"lavage_6_8kg_eur": [3.5, 5.0], "lavage_10_12kg_eur": [5.0, 7.5], "lavage_16_18kg_eur": [8.0, 11.0], "sechage_10min_eur": [1.0, 2.0], "panier_moyen_visite_eur": [7.0, 10.0]}, "exploitation": {"ca_annuel_laverie_eur": [50000, 120000], "ca_annuel_par_machine_eur": [5000, 9000], "nb_machines_typique": [8, 14], "surface_typique_m2": [40, 80], "marge_ebe_pct": [30, 45], "investissement_initial_eur": [80000, 200000], "loyer_max_conseille_pct_ca": 10, "besoin_electrique": "24-36 kVA triphasé + arrivée d'eau gros débit + évacuation — vérifier la faisabilité du local avant tout engagement"}, "demande": {"_commentaire": "La clientèle d'une laverie se compose de DEUX populations distinctes qu'il faut modéliser séparément — les confondre fausse totalement l'estimation de CA.", "clientele_reguliere": {"definition": "Ménages sans lave-linge à domicile : viennent chaque semaine ou tous les 15 jours. Cœur du chiffre d'affaires.", "_note_part": "La part varie fortement selon le type d'habitat : ~2 % en secteur pavillonnaire (tout le monde est équipé), ~10 % là où dominent studios et T1. Le modèle interpole entre ces deux bornes en fonction de la part de petits logements du quartier (borne haute atteinte à 50 % de petits logements).", "part_menages_pct": [2, 10], "seuil_petits_logements_borne_haute": 0.5, "depense_annuelle_eur": [300, 700]}, "clientele_ponctuelle": {"definition": "Ménages équipés d'un lave-linge qui viennent 1 à 3 fois par an pour les gros volumes (couettes, couvertures, sacs de couchage). Représente typiquement 20-40 % du CA d'une laverie moderne équipée de grosses machines.", "part_menages_concernes_pct": [15, 25], "depense_annuelle_eur": [20, 45]}, "habitants_par_laverie_zone_urbaine": [8000, 15000]}, "chalandise": {"rayon_pieton_m": [400, 800], "rayon_voiture_min": [5, 10], "regle": "En zone dense, 80% de la clientèle habite à moins de 800 m ou à moins de 5 min en voiture avec parking facile."}}};
 </script>
 <script>
 /* Laverie Mapper — Phase 1 (ville pilote : Pessac)
@@ -1079,6 +1125,7 @@ async function charger() {
       fetch('data/benchmarks.json').then(r => r.json()),
     ]);
   state.laveries = lav.laveries;
+  state.meta = lav.meta;            // conservé pour réécrire un fichier complet à l'export
   state.quartiers = qua.quartiers;
   state.benchmarks = bench;
   initCarte();
@@ -1127,6 +1174,7 @@ function rafraichir() {
   dessinerHeat();
   dessinerClassement();
   majStats();
+  majBarreExport();
 }
 
 function dessinerMarqueurs() {
@@ -1239,6 +1287,7 @@ function ficheLaverie(l) {
       <div class="fiche-actions">
         <a href="${urlMaps}" target="_blank" rel="noopener">🗺️ Google Maps</a>
         <a href="${urlStreet}" target="_blank" rel="noopener">👁️ Street View</a>
+        <a href="#" id="lien-editer">✏️ Compléter</a>
       </div>
       <div class="fiche-infos">
         ${ligneInfo('📍', l.adresse)}
@@ -1261,6 +1310,200 @@ function ficheLaverie(l) {
     </div>`;
 }
 
+// ---------- saisie manuelle depuis une fiche Google ----------
+//
+// Permet de recopier ce qu'on lit sur Google Maps sans clé API : note, avis,
+// horaires, téléphone, et photos (redimensionnées puis stockées en base64 dans
+// le JSON, ce qui garde l'application autonome et hors ligne).
+
+const PHOTO_LARGEUR_MAX = 900;
+const PHOTO_QUALITE = 0.72;
+
+function redimensionner(fichier) {
+  return new Promise((resolve, reject) => {
+    const lecteur = new FileReader();
+    lecteur.onerror = () => reject(new Error('lecture impossible'));
+    lecteur.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('image illisible'));
+      img.onload = () => {
+        const ratio = Math.min(1, PHOTO_LARGEUR_MAX / img.width);
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * ratio);
+        c.height = Math.round(img.height * ratio);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve({ fichier: c.toDataURL('image/jpeg', PHOTO_QUALITE),
+                  largeur: c.width, hauteur: c.height, attributions: [] });
+      };
+      img.src = lecteur.result;
+    };
+    lecteur.readAsDataURL(fichier);
+  });
+}
+
+function formulaireGoogle(l) {
+  const v = (x) => (x == null ? '' : String(x).replace(/"/g, '&quot;'));
+  return `<div class="form-google" id="form-google">
+    <div class="duo">
+      <div class="rangee"><label>Note Google (sur 5)</label>
+        <input type="number" id="fg-note" step="0.1" min="0" max="5" value="${v(l.note_google)}" placeholder="4.3"></div>
+      <div class="rangee"><label>Nombre d'avis</label>
+        <input type="number" id="fg-avis" min="0" value="${v(l.nb_avis)}" placeholder="59"></div>
+    </div>
+    <div class="rangee"><label>Téléphone</label>
+      <input type="text" id="fg-tel" value="${v(l.telephone)}" placeholder="07 83 28 67 93"></div>
+    <div class="rangee"><label>Horaires</label>
+      <input type="text" id="fg-horaires" value="${v(l.horaires)}" placeholder="Lun-Dim 6h-21h"></div>
+    <div class="duo">
+      <div class="rangee"><label>Machines (lave-linge)</label>
+        <input type="number" id="fg-ll" min="0" value="${v(l.nb_lave_linge)}" placeholder="8"></div>
+      <div class="rangee"><label>Sèche-linge</label>
+        <input type="number" id="fg-sl" min="0" value="${v(l.nb_seche_linge)}" placeholder="4"></div>
+    </div>
+    <div class="duo">
+      <div class="rangee"><label>Surface (m²)</label>
+        <input type="number" id="fg-surface" min="0" value="${v(l.surface_m2)}" placeholder="60"></div>
+      <div class="rangee"><label>Prix cycle 8 kg (€)</label>
+        <input type="number" id="fg-prix" step="0.1" min="0" value="${v(l.prix_cycle_8kg)}" placeholder="4.5"></div>
+    </div>
+    <div class="rangee"><label>Lien Google Maps (facultatif)</label>
+      <input type="text" id="fg-url" value="${v(l.google_maps_url)}" placeholder="https://maps.app.goo.gl/..."></div>
+    <div class="rangee"><label>Un avis marquant (facultatif)</label>
+      <textarea id="fg-avis-texte" placeholder="Collez ici le texte d'un avis Google"></textarea></div>
+    <div class="rangee"><label>Photos — glissez-déposez ou cliquez</label>
+      <div class="zone-photo" id="fg-zone">📷 Déposez les captures de la fiche Google<br>
+        <span style="font-size:0.68rem">redimensionnées automatiquement, stockées dans vos données</span></div>
+      <input type="file" id="fg-fichiers" accept="image/*" multiple hidden>
+      <div class="apercus" id="fg-apercus"></div>
+    </div>
+    <div class="form-boutons">
+      <button id="fg-enregistrer">✓ Enregistrer</button>
+      <button id="fg-annuler" class="btn-second">Annuler</button>
+    </div>
+  </div>`;
+}
+
+// Photos en cours d'édition (validées seulement à l'enregistrement)
+let photosEnCours = [];
+
+function rendreApercus() {
+  document.getElementById('fg-apercus').innerHTML = photosEnCours.map((p, i) =>
+    `<span class="vignette"><img src="${p.fichier}" alt="photo ${i + 1}">
+     <button data-i="${i}" title="Retirer">✕</button></span>`).join('');
+  for (const b of document.querySelectorAll('#fg-apercus button')) {
+    b.addEventListener('click', () => {
+      photosEnCours.splice(Number(b.dataset.i), 1);
+      rendreApercus();
+    });
+  }
+}
+
+async function ajouterPhotos(fichiers) {
+  for (const f of fichiers) {
+    if (!f.type.startsWith('image/')) continue;
+    try {
+      photosEnCours.push(await redimensionner(f));
+    } catch (e) {
+      console.warn('photo ignorée', f.name, e);
+    }
+  }
+  rendreApercus();
+}
+
+function brancherFormulaire(l) {
+  photosEnCours = [...(l.photos || [])];
+  rendreApercus();
+
+  const zone = document.getElementById('fg-zone');
+  const input = document.getElementById('fg-fichiers');
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => ajouterPhotos([...input.files]));
+  for (const ev of ['dragenter', 'dragover']) {
+    zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('survol'); });
+  }
+  for (const ev of ['dragleave', 'drop']) {
+    zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('survol'); });
+  }
+  zone.addEventListener('drop', (e) => ajouterPhotos([...e.dataTransfer.files]));
+
+  document.getElementById('fg-annuler').addEventListener('click', () => ouvrirFiche(l.id));
+  document.getElementById('fg-enregistrer').addEventListener('click', () => {
+    const nombre = (id) => {
+      const val = document.getElementById(id).value.trim();
+      return val === '' ? null : Number(val);
+    };
+    const texte = (id) => document.getElementById(id).value.trim() || null;
+
+    l.note_google = nombre('fg-note');
+    l.nb_avis = nombre('fg-avis');
+    l.telephone = texte('fg-tel');
+    l.horaires = texte('fg-horaires');
+    l.nb_lave_linge = nombre('fg-ll');
+    l.nb_seche_linge = nombre('fg-sl');
+    l.surface_m2 = nombre('fg-surface');
+    l.prix_cycle_8kg = nombre('fg-prix');
+    l.google_maps_url = texte('fg-url');
+    l.photos = photosEnCours;
+
+    if (l.note_google != null) {
+      l.note_source = 'Fiche Google Maps relevée à la main';
+      l.note_fiabilite = 'bonne';
+    }
+    const nouvelAvis = texte('fg-avis-texte');
+    if (nouvelAvis) {
+      l.avis = [...(l.avis || []), {
+        auteur: 'relevé sur Google', note: null, texte: nouvelAvis,
+        date: null, source: 'Google Maps (saisie manuelle)',
+      }];
+    }
+    l.a_verifier = l.surface_m2 == null || l.nb_lave_linge == null;
+
+    state.modifie = true;
+    rafraichir();
+    ouvrirFiche(l.id);
+  });
+}
+
+function ouvrirEdition(id) {
+  const l = state.laveries.find(x => x.id === id);
+  if (!l) return;
+  document.getElementById('fiche-contenu').innerHTML = `
+    <div class="fiche-corps">
+      <h2>Compléter « ${l.nom} »</h2>
+      <p class="hint">Recopiez ce que vous lisez sur la fiche Google Maps.
+      Les champs vides restent inchangés côté affichage.</p>
+      ${formulaireGoogle(l)}
+    </div>`;
+  document.getElementById('fiche').scrollTop = 0;
+  brancherFormulaire(l);
+}
+
+// ---------- export des données modifiées ----------
+
+function exporterDonnees() {
+  const contenu = {
+    meta: { ...(state.meta || {}), derniere_maj: new Date().toISOString().slice(0, 10) },
+    laveries: state.laveries,
+  };
+  const blob = new Blob([JSON.stringify(contenu, null, 2) + '\n'], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'laveries.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  state.modifie = false;
+  majBarreExport();
+}
+
+// La barre n'apparaît qu'en présence de modifications non exportées.
+function majBarreExport() {
+  const barre = document.getElementById('barre-export');
+  if (!barre) return;
+  barre.classList.toggle('hidden', !state.modifie);
+  document.getElementById('modifs-info').textContent =
+    state.modifie ? '⚠ Modifications non enregistrées' : '';
+}
+
 function ouvrirFiche(id) {
   const l = state.laveries.find(x => x.id === id);
   if (!l) return;
@@ -1273,6 +1516,10 @@ function ouvrirFiche(id) {
   for (const mini of document.querySelectorAll('.galerie-miniatures img')) {
     mini.addEventListener('click', () => { principale.src = mini.src; });
   }
+  document.getElementById('lien-editer').addEventListener('click', (e) => {
+    e.preventDefault();
+    ouvrirEdition(id);
+  });
   surlignerListe(id);
 }
 
@@ -1576,6 +1823,10 @@ function simuler(lat, lon) {
 function initUI() {
   document.getElementById('fiche-fermer').addEventListener('click', fermerFiche);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerFiche(); });
+  document.getElementById('btn-export').addEventListener('click', exporterDonnees);
+  window.addEventListener('beforeunload', (e) => {
+    if (state.modifie) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   for (const id of ['f-chaine', 'f-independant', 'f-captif', 'l-couverture', 'l-heat-offre', 'l-tension']) {
     document.getElementById(id).addEventListener('change', rafraichir);

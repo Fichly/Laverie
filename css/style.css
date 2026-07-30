@@ -177,6 +177,48 @@ button.active { background: #f97316; color: #431407; }
 .encart b { color: var(--text); }
 .encart code { background: var(--panel-2); padding: 1px 4px; border-radius: 3px; font-size: 0.72rem; }
 
+/* ---- Formulaire de saisie manuelle ---- */
+.form-google { margin-top: 12px; }
+.form-google .rangee { margin-bottom: 8px; }
+.form-google label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 3px; }
+.form-google input, .form-google textarea, .form-google select {
+  width: 100%; background: var(--panel-2); border: 1px solid #3b4a63;
+  color: var(--text); border-radius: 6px; padding: 6px 8px;
+  font-size: 0.8rem; font-family: inherit;
+}
+.form-google input:focus, .form-google textarea:focus { outline: 1px solid var(--accent); }
+.form-google .duo { display: flex; gap: 6px; }
+.form-google .duo > * { flex: 1; }
+.form-google textarea { resize: vertical; min-height: 52px; }
+
+.zone-photo {
+  border: 2px dashed #3b4a63; border-radius: 8px; padding: 14px 10px;
+  text-align: center; font-size: 0.75rem; color: var(--muted); cursor: pointer;
+}
+.zone-photo.survol { border-color: var(--accent); background: rgba(56, 189, 248, 0.08); }
+.apercus { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.apercus .vignette { position: relative; }
+.apercus img { height: 50px; border-radius: 4px; display: block; }
+.apercus button {
+  position: absolute; top: -5px; right: -5px; width: 17px; height: 17px;
+  padding: 0; border-radius: 50%; background: #dc2626; color: #fff;
+  font-size: 0.65rem; line-height: 1;
+}
+.form-boutons { display: flex; gap: 6px; margin-top: 10px; }
+.form-boutons button { font-size: 0.78rem; padding: 8px; }
+.btn-second { background: var(--panel-2); color: var(--text); }
+
+/* Barre d'export flottante au-dessus de la carte : jamais masquée par la fiche. */
+#barre-export {
+  position: absolute; right: 16px; bottom: 26px; z-index: 1100;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--panel); border: 1px solid #475569; border-radius: 10px;
+  padding: 9px 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+#barre-export.hidden { display: none; }
+#barre-export button { width: auto; font-size: 0.78rem; padding: 7px 12px; }
+#modifs-info { font-size: 0.75rem; color: #fbbf24; }
+
 .classement { list-style: none; counter-reset: rang; }
 .classement li {
   counter-increment: rang;

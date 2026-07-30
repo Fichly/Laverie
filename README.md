@@ -75,11 +75,30 @@ scripts/sync_osm.py          Synchronisation de l'inventaire avec OpenStreetMap
 scripts/build_standalone.py  Génère laverie-mapper.html
 ```
 
-## Récupérer les notes, avis et photos Google
+## Récupérer les infos d'une fiche Google — deux méthodes
 
-L'application affiche déjà les notes collectées sur des annuaires qui republient
-Google. Pour obtenir les données **officielles** (note exacte, avis complets,
-photos, horaires, coordonnées GPS précises) :
+### A. Saisie manuelle dans l'application (aucune clé, immédiat)
+
+C'est la méthode la plus rapide pour quelques établissements :
+
+1. Ouvrez la fiche Google Maps de la laverie dans un onglet.
+2. Dans l'outil, cliquez la laverie puis **✏️ Compléter**.
+3. Recopiez note, nombre d'avis, téléphone, horaires — et pendant que vous y
+   êtes, le nombre de machines, la surface et le prix du cycle 8 kg.
+4. **Glissez-déposez les photos** (captures de la fiche, photos de terrain) :
+   elles sont redimensionnées à 900 px et stockées directement dans vos données.
+5. Cliquez **Enregistrer**, puis **💾 Exporter laveries.json** (bouton flottant
+   en bas à droite, visible dès qu'il y a des modifications).
+6. Remplacez `data/laveries.json` par le fichier téléchargé, puis relancez
+   `python3 scripts/build_standalone.py`.
+
+Les modifications vivent en mémoire tant que vous n'avez pas exporté — l'onglet
+vous avertit si vous le fermez avant.
+
+### B. API Google Places (automatique, officiel, photos incluses)
+
+Pour obtenir les données **officielles** (note exacte, avis complets, photos,
+horaires, coordonnées GPS précises) sur tout l'inventaire d'un coup :
 
 ```bash
 export GOOGLE_MAPS_API_KEY="votre_cle"     # console.cloud.google.com → Places API (New)
@@ -104,8 +123,8 @@ script plutôt que de traiter le cache comme une base pérenne.
 | Donnée | État actuel | Cible |
 |---|---|---|
 | Liste des laveries | 8 établissements — recherche web (annuaires, PagesJaunes, Justacoté, SIRENE) | Croiser OSM (`scripts/sync_osm.py`) + Google Places + **visite terrain** |
-| Notes et avis | Relevés sur des annuaires republiant Google — 5 laveries notées sur 8 | `scripts/enrich_google_places.py` (API officielle) |
-| Photos | Aucune | `scripts/enrich_google_places.py` (avec attribution) |
+| Notes et avis | 5 laveries notées sur 8 — les 2 Au Fil du Linge relevées sur Google, les autres via annuaires | Saisie manuelle (**✏️ Compléter**) ou `scripts/enrich_google_places.py` |
+| Photos | Aucune | Glisser-déposer dans la fiche, ou `scripts/enrich_google_places.py` (avec attribution) |
 | Coordonnées | Estimées depuis l'adresse (±50–300 m) | Géocodage BAN (api-adresse.data.gouv.fr), Google Places ou relevé GPS |
 | Taille / machines / prix | Non renseignés (`null`) | **Relevé terrain obligatoire** (Street View puis visite) |
 | Population par quartier | Estimations d'ordre de grandeur | Carroyage INSEE Filosofi 200 m (gratuit) |

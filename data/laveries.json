@@ -9,7 +9,8 @@
     "sources_contradictoires": [
       "Le téléphone 05 57 35 56 40 est attribué tantôt au 35 av. Pasteur, tantôt au 23 av. Léon Duguit selon les annuaires.",
       "La laverie Nancel Pénard est référencée au n°84 ou au n°101 selon les sources.",
-      "Un annuaire annonce 5 laveries à Pessac, un autre 4 : aucun ne recense les laveries captives des résidences universitaires."
+      "Un annuaire annonce 5 laveries à Pessac, un autre 4 : aucun ne recense les laveries captives des résidences universitaires.",
+      "Les deux Au Fil du Linge ont été recalés sur les fiches Google fournies par l'utilisateur : l'attribution marqueur→adresse (A=Cap de Bos, B=centre) est déduite de la position sur la carte, à confirmer."
     ]
   },
   "laveries": [
@@ -24,23 +25,34 @@
       "type": "chaine",
       "enseigne": "Au Fil du Linge",
       "statut": "actif",
-      "telephone": "06 50 74 16 94",
+      "telephone": "07 83 28 67 93",
       "site_web": "https://aufildulinge.com/laverie/laverie-automatique-bordeaux-pessac-cap-de-bos/",
       "surface_m2": null,
       "nb_lave_linge": null,
       "nb_seche_linge": null,
       "prix_cycle_8kg": null,
-      "horaires": "Lun-Dim 6h-21h",
+      "horaires": "Lun-Dim 6h-21h (ferme à 21h d'après Google)",
       "ouvert_24_7": false,
-      "note_google": 4.5,
-      "nb_avis": 50,
-      "note_source": "justacote / annuaires (env. 50 avis)",
-      "note_fiabilite": "moyenne",
+      "note_google": 4.3,
+      "nb_avis": 59,
+      "note_source": "Fiche Google Maps relevée par l'utilisateur (30/07/2026)",
+      "note_fiabilite": "bonne",
       "place_id": null,
       "photos": [],
       "avis": [],
-      "acces": { "parking": true, "arret_tc_a_moins_300m": null, "generateurs_flux": ["centre commercial"] },
-      "sources": ["justacote.com", "aufildulinge.com", "facebook.com/laverieaufildulingecapdebos", "laverie24.fr"],
+      "acces": {
+        "parking": true,
+        "arret_tc_a_moins_300m": null,
+        "generateurs_flux": [
+          "centre commercial"
+        ]
+      },
+      "sources": [
+        "justacote.com",
+        "aufildulinge.com",
+        "facebook.com/laverieaufildulingecapdebos",
+        "laverie24.fr"
+      ],
       "notes_terrain": "Équipement Electrolux récent, lessive professionnelle incluse, paiement sans contact. Sert aussi de point relais Mondial Relay et Vinted Go — flux additionnel intéressant.",
       "a_verifier": true
     },
@@ -55,23 +67,33 @@
       "type": "chaine",
       "enseigne": "Au Fil du Linge",
       "statut": "actif",
-      "telephone": "05 57 35 56 40",
+      "telephone": "06 50 74 16 94",
       "site_web": "https://aufildulinge.com/",
       "surface_m2": null,
       "nb_lave_linge": null,
       "nb_seche_linge": null,
       "prix_cycle_8kg": null,
-      "horaires": "Lun-Dim 6h-21h (certains annuaires indiquent 8h-22h)",
+      "horaires": "Lun-Dim 6h-21h (ferme à 21h d'après Google)",
       "ouvert_24_7": false,
       "note_google": 4.3,
-      "nb_avis": 20,
-      "note_source": "annuaires (plus de 20 votes)",
-      "note_fiabilite": "moyenne",
+      "nb_avis": 30,
+      "note_source": "Fiche Google Maps relevée par l'utilisateur (30/07/2026)",
+      "note_fiabilite": "bonne",
       "place_id": null,
       "photos": [],
       "avis": [],
-      "acces": { "parking": null, "arret_tc_a_moins_300m": true, "generateurs_flux": ["centre-ville"] },
-      "sources": ["pagesjaunes.fr", "bottin.fr", "facebook.com/laverieaufildulingepessac"],
+      "acces": {
+        "parking": null,
+        "arret_tc_a_moins_300m": true,
+        "generateurs_flux": [
+          "centre-ville"
+        ]
+      },
+      "sources": [
+        "pagesjaunes.fr",
+        "bottin.fr",
+        "facebook.com/laverieaufildulingepessac"
+      ],
       "notes_terrain": "Second site du réseau Au Fil du Linge à Pessac. Téléphone possiblement erroné : le même numéro est attribué au 23 av. Léon Duguit par d'autres annuaires.",
       "a_verifier": true
     },
@@ -101,8 +123,19 @@
       "place_id": null,
       "photos": [],
       "avis": [],
-      "acces": { "parking": true, "arret_tc_a_moins_300m": null, "generateurs_flux": ["centre commercial"] },
-      "sources": ["justacote.com", "bottin.fr", "guide-bordeaux-gironde.com", "helpmecovid.com"],
+      "acces": {
+        "parking": true,
+        "arret_tc_a_moins_300m": null,
+        "generateurs_flux": [
+          "centre commercial"
+        ]
+      },
+      "sources": [
+        "justacote.com",
+        "bottin.fr",
+        "guide-bordeaux-gironde.com",
+        "helpmecovid.com"
+      ],
       "notes_terrain": "La laverie la mieux notée avec le plus grand volume d'avis (~70) : établissement bien installé. Retours positifs sur la propreté et la simplicité d'usage.",
       "a_verifier": true
     },
@@ -132,8 +165,16 @@
       "place_id": null,
       "photos": [],
       "avis": [],
-      "acces": { "parking": null, "arret_tc_a_moins_300m": null, "generateurs_flux": [] },
-      "sources": ["laveriesfrance.fr", "laverie24.fr", "annuaires"],
+      "acces": {
+        "parking": null,
+        "arret_tc_a_moins_300m": null,
+        "generateurs_flux": []
+      },
+      "sources": [
+        "laveriesfrance.fr",
+        "laverie24.fr",
+        "annuaires"
+      ],
       "notes_terrain": "Note de 5,0 à prendre avec prudence : sans le nombre d'avis, une note parfaite repose souvent sur 1 ou 2 votes. Numéro de rue incertain (84 ou 101).",
       "a_verifier": true
     },
@@ -178,8 +219,23 @@
           "source": "GoWork"
         }
       ],
-      "acces": { "parking": true, "arret_tc_a_moins_300m": true, "generateurs_flux": ["centre commercial", "grand ensemble Saige", "tram B"] },
-      "sources": ["pagesjaunes.fr", "yelp.fr", "gowork.fr", "laverie24.fr", "annuaire-entreprises.data.gouv.fr (SIREN 500 349 790)", "waze (place_id)"],
+      "acces": {
+        "parking": true,
+        "arret_tc_a_moins_300m": true,
+        "generateurs_flux": [
+          "centre commercial",
+          "grand ensemble Saige",
+          "tram B"
+        ]
+      },
+      "sources": [
+        "pagesjaunes.fr",
+        "yelp.fr",
+        "gowork.fr",
+        "laverie24.fr",
+        "annuaire-entreprises.data.gouv.fr (SIREN 500 349 790)",
+        "waze (place_id)"
+      ],
       "notes_terrain": "FUSION de deux fiches doublons de l'inventaire initial (« Laverie Saige » et « Lavomatic Pessac Centre ») : même adresse, mêmes horaires, même établissement. SARL indépendante créée en 2007. Note de 2,0/5 sur 26 avis dans un quartier à forte demande (grand ensemble, tram B) : c'est le signal d'opportunité le plus net de la commune — machines non rénovées d'après les avis.",
       "a_verifier": true
     },
@@ -188,7 +244,7 @@
       "nom": "Laverie — 23 avenue Léon Duguit",
       "adresse": "23 avenue Léon Duguit, 33600 Pessac",
       "quartier": "Brivazac / Candau",
-      "lat": 44.7990,
+      "lat": 44.799,
       "lon": -0.6138,
       "coord_precision": "estimee",
       "type": "independant",
@@ -209,8 +265,19 @@
       "place_id": null,
       "photos": [],
       "avis": [],
-      "acces": { "parking": true, "arret_tc_a_moins_300m": true, "generateurs_flux": ["campus universitaire", "tram B"] },
-      "sources": ["pagesjaunes.fr", "bottin.fr", "france-streets.openalfa.com"],
+      "acces": {
+        "parking": true,
+        "arret_tc_a_moins_300m": true,
+        "generateurs_flux": [
+          "campus universitaire",
+          "tram B"
+        ]
+      },
+      "sources": [
+        "pagesjaunes.fr",
+        "bottin.fr",
+        "france-streets.openalfa.com"
+      ],
       "notes_terrain": "Située dans le quartier Brivazac-Candau (et non Saige comme initialement supposé). Stationnement PMR signalé. Aucune note trouvée : établissement peu référencé, à vérifier en priorité sur le terrain — il pourrait aussi s'agir d'un doublon avec la laverie de la résidence Durkheim, toute proche.",
       "a_verifier": true
     },
@@ -240,8 +307,17 @@
       "place_id": null,
       "photos": [],
       "avis": [],
-      "acces": { "parking": false, "arret_tc_a_moins_300m": true, "generateurs_flux": ["résidences universitaires"] },
-      "sources": ["laverie24.fr", "annuaires"],
+      "acces": {
+        "parking": false,
+        "arret_tc_a_moins_300m": true,
+        "generateurs_flux": [
+          "résidences universitaires"
+        ]
+      },
+      "sources": [
+        "laverie24.fr",
+        "annuaires"
+      ],
       "notes_terrain": "Usage principalement réservé aux résidents CROUS : absorbe une partie de la demande étudiante sans concurrencer frontalement une laverie de ville.",
       "a_verifier": true
     },
@@ -251,7 +327,7 @@
       "adresse": "Allée Ausone, avenue Léon Duguit, 33600 Pessac",
       "quartier": "Campus",
       "lat": 44.7952,
-      "lon": -0.6120,
+      "lon": -0.612,
       "coord_precision": "estimee",
       "type": "captif",
       "enseigne": "CROUS",
@@ -271,8 +347,19 @@
       "place_id": null,
       "photos": [],
       "avis": [],
-      "acces": { "parking": false, "arret_tc_a_moins_300m": true, "generateurs_flux": ["résidences universitaires"] },
-      "sources": ["pagesjaunes.fr", "pressings.nosavis.com", "ville-data.com", "mappy.com"],
+      "acces": {
+        "parking": false,
+        "arret_tc_a_moins_300m": true,
+        "generateurs_flux": [
+          "résidences universitaires"
+        ]
+      },
+      "sources": [
+        "pagesjaunes.fr",
+        "pressings.nosavis.com",
+        "ville-data.com",
+        "mappy.com"
+      ],
       "notes_terrain": "Résidence universitaire ouverte en septembre 2010. Amplitude horaire large, y compris le week-end. Demande captive.",
       "a_verifier": true
     }

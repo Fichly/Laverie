@@ -24,7 +24,7 @@ const state = {
   // Hypothèses ajustables par l'utilisateur. null = valeur du secteur
   // (data/benchmarks.json). Les bouger permet de vérifier si le classement
   // résiste à l'incertitude, qui est ici la principale limite.
-  hyp: { depenseMediane: null, facteurDemande: 1, caReference: null },
+  hyp: { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4 },
 };
 
 let map;
@@ -83,7 +83,7 @@ function attractivite(l) {
     taille = Math.max(0.25, enService / 11);
   }
 
-  const acces = l.type === 'captif' ? 0.4 : 1.0;
+  const acces = l.type === 'captif' ? state.hyp.poidsCaptif : 1.0;
   return qualite * taille * acces;
 }
 
@@ -158,11 +158,14 @@ function laveriesVisibles() {
 }
 
 function rafraichir() {
+  state._coefCal = null;   // le calibrage dépend des hypothèses courantes
   dessinerMarqueurs();
   dessinerListe();
   dessinerCouverture();
   dessinerTension();
   dessinerHeat();
+  dessinerHeatPotentiel();
+  dessinerFiabilite();
   dessinerClassement();
   dessinerCandidats();
   majStats();
@@ -715,8 +718,9 @@ function depenseReguliere() {
 // CA maximal encaissable par une laverie de grand format, déduit du parc type et
 // du rendement par machine (benchmarks secteur).
 function plafondCapacite() {
-  const e = state.benchmarks.exploitation;
-  return e.nb_machines_typique[1] * e.ca_annuel_par_machine_eur[1];
+  // Borne haute observée toutes zones confondues (Wash'N Dry) : c'est le CA
+  // maximal qu'un très bon emplacement peut produire, machines comprises.
+  return state.benchmarks.exploitation.ca_annuel_fourchette_large_eur[1];
 }
 
 function caReference() {
@@ -792,6 +796,55 @@ function offreAccessible(lat, lon, R) {
   return { pression, concurrents };
 }
 
+// CALIBRAGE SUR LE MARCHÉ LOCAL
+//
+// La demande est reconstituée à partir de populations de quartiers estimées : en
+// valeur absolue, elle n'a aucune raison d'être juste. On cale donc l'échelle sur
+// ce qu'on observe : les laveries grand public de Pessac doivent totaliser, selon
+// le modèle, le CA que les benchmarks prêtent à ce nombre d'établissements.
+//
+// Conséquence importante et voulue : l'indice devient le rapport entre ce que
+// ferait une nouvelle laverie et ce que fait une laverie moyenne de Pessac.
+// Indice 1,3 = « 30 % de mieux que la moyenne locale ». Une erreur uniforme sur
+// mes estimations de population s'annule donc au numérateur et au dénominateur —
+// seuls les écarts RELATIFS entre zones subsistent, et ce sont les seuls dont on
+// ait besoin pour choisir un emplacement.
+function caBrut(lat, lon, R, laverieExistante) {
+  const b = state.benchmarks;
+  const dem = demandeAccessible(lat, lon, R);
+  const { pression } = offreAccessible(lat, lon, R);
+
+  // Une laverie existante se partage le marché avec les autres selon son propre
+  // poids ; un nouvel entrant arrive avec une attractivité de référence de 1.
+  const partMarche = laverieExistante
+    ? attractivite(laverieExistante) / Math.max(pression, 1e-6)
+    : 1 / (1 + pression);
+
+  const [regMin, regMax] = depenseReguliere();
+  const [ponMin, ponMax] = b.demande.clientele_ponctuelle.depense_annuelle_eur;
+  const reg = dem.reguliers * partMarche;
+  const pon = dem.ponctuels * partMarche;
+  return {
+    ...dem, pression, partMarche, regCaptes: reg, ponCaptes: pon,
+    caMin: reg * regMin + pon * ponMin,
+    caMax: reg * regMax + pon * ponMax,
+  };
+}
+
+function coefficientCalibrage() {
+  if (state._coefCal != null) return state._coefCal;
+  const publiques = state.laveries.filter(l => l.type !== 'captif' && l.statut === 'actif');
+  if (!publiques.length) return (state._coefCal = 1);
+  let predit = 0;
+  for (const l of publiques) {
+    const e = caBrut(l.lat, l.lon, RAYON_TENSION, l);
+    predit += (e.caMin + e.caMax) / 2;
+  }
+  const attendu = publiques.length * caReference();
+  state._coefCal = predit > 0 ? attendu / predit : 1;
+  return state._coefCal;
+}
+
 // CŒUR DU MODÈLE : estime ce que réaliserait une laverie implantée en (lat, lon).
 //
 // Une seule fonction alimente à la fois le diagnostic par quartier et le
@@ -801,18 +854,15 @@ function offreAccessible(lat, lon, R) {
 //   2. la part de marché face aux laveries existantes (Huff simplifié) ;
 //   3. les dépenses annuelles par type de clientèle, en fourchette.
 function estimerCA(lat, lon, R) {
-  const b = state.benchmarks;
-  const dem = demandeAccessible(lat, lon, R);
-  const { pression, concurrents } = offreAccessible(lat, lon, R);
-  const partMarche = 1 / (1 + pression);
+  const { concurrents } = offreAccessible(lat, lon, R);
+  const brut = caBrut(lat, lon, R, null);
+  const { pression, partMarche, regCaptes, ponCaptes } = brut;
 
-  const [regMin, regMax] = depenseReguliere();
-  const [ponMin, ponMax] = b.demande.clientele_ponctuelle.depense_annuelle_eur;
-  const regCaptes = dem.reguliers * partMarche;
-  const ponCaptes = dem.ponctuels * partMarche;
-
-  const caBrutMin = regCaptes * regMin + ponCaptes * ponMin;
-  const caBrutMax = regCaptes * regMax + ponCaptes * ponMax;
+  // Mise à l'échelle sur le marché local observé (voir coefficientCalibrage).
+  const coef = coefficientCalibrage();
+  const caBrutMin = brut.caMin * coef;
+  const caBrutMax = brut.caMax * coef;
+  const dem = { pop: brut.pop, reguliers: brut.reguliers, ponctuels: brut.ponctuels };
 
   // PLAFOND DE CAPACITÉ — une laverie ne peut pas encaisser plus que ce que ses
   // machines produisent. Sans ce plafond, une zone très demandeuse affiche un CA
@@ -951,7 +1001,7 @@ function simuler(lat, lon) {
   else if (caMax >= viabMin) { verdictCls = 'moyen'; verdictTxt = '🟡 Zone à étudier : viable seulement en hypothèse haute. À valider par comptage terrain et vraies données INSEE.'; }
   else { verdictCls = 'faible'; verdictTxt = '❌ Zone insuffisante : la demande captée ne couvre pas le seuil de viabilité (' + fmtEur(viabMin) + '/an).'; }
 
-  const [margeMin, margeMax] = b.exploitation.marge_ebe_pct;
+  const [margeMin, margeMax] = b.exploitation.marge_nette_pct;
   const listeConc = concurrents.length
     ? concurrents.sort((a, c) => a.d - c.d).map(c => `• ${c.nom} (${c.d} m)`).join('<br>')
     : 'Aucun concurrent significatif dans la zone.';
@@ -979,9 +1029,157 @@ function simuler(lat, lon) {
       (${e.plafond.toLocaleString('fr-FR')} €). La demande de la zone en supporterait
       <b>${e.laveriesPortables.toFixed(1)}</b> — un très grand local ou deux
       implantations sont envisageables.</span><br>` : ''}
-    EBE indicatif (${margeMin}–${margeMax} % du CA) : ${fmtEur(caMin * margeMin / 100)} – ${fmtEur(caMax * margeMax / 100)}
+    Résultat net indicatif (${margeMin}–${margeMax} % du CA) : ${fmtEur(caMin * margeMin / 100)} – ${fmtEur(caMax * margeMax / 100)}
     <div class="verdict ${verdictCls}">${verdictTxt}</div>
-    <p class="hint">Modèle simplifié (centroïdes de quartier, rayon ${R} m, Huff à attractivité égale). Les hypothèses sont dans data/benchmarks.json.</p>`;
+    <p class="hint">Modèle de Huff pondéré par l'attractivité, rayon ${R} m, demande étalée par quartier. Les hypothèses sont dans data/benchmarks.json.</p>`;
+}
+
+// ---------- CONTRÔLE DE FIABILITÉ DU MODÈLE ----------
+//
+// Un modèle qui ne sait pas expliquer les laveries DÉJÀ là n'a aucune raison de
+// bien prédire les emplacements futurs. On le confronte donc à la seule mesure
+// de fréquentation dont on dispose : le nombre d'avis Google, proxy imparfait
+// mais indépendant du modèle.
+//
+// La comparaison se fait en rangs (Spearman) et non en valeurs : on ne cherche
+// pas à prédire un CA, seulement à vérifier que le classement va dans le bon sens.
+function correlationRangs(a, b) {
+  const n = a.length;
+  if (n < 3) return null;
+  const rangs = (v) => {
+    const ordre = v.map((x, i) => i).sort((i, j) => v[i] - v[j]);
+    const r = new Array(n);
+    ordre.forEach((i, k) => { r[i] = k + 1; });
+    return r;
+  };
+  const ra = rangs(a), rb = rangs(b);
+  const d2 = ra.reduce((s, x, i) => s + (x - rb[i]) ** 2, 0);
+  return 1 - (6 * d2) / (n * (n * n - 1));
+}
+
+function controleFiabilite() {
+  const publiques = state.laveries.filter(
+    l => l.type !== 'captif' && l.statut === 'actif' && l.nb_avis != null);
+  if (publiques.length < 3) return null;
+  const coef = coefficientCalibrage();
+  const lignes = publiques.map(l => {
+    const e = caBrut(l.lat, l.lon, RAYON_TENSION, l);
+    return { nom: l.nom, ca: ((e.caMin + e.caMax) / 2) * coef, avis: l.nb_avis };
+  });
+  const rho = correlationRangs(lignes.map(x => x.ca), lignes.map(x => x.avis));
+  return {
+    lignes: lignes.sort((a, b) => b.ca - a.ca),
+    rho,
+    verdict: rho >= 0.6 ? 'bon' : rho >= 0.2 ? 'faible' : 'nul',
+  };
+}
+
+const VERDICT_FIABILITE = {
+  bon: ['✅ Le modèle suit la fréquentation observée',
+        'Les zones proposées reposent sur une mécanique qui explique déjà l\'existant.', '#16a34a'],
+  faible: ['🟡 Lien ténu avec la fréquentation observée',
+           'Le classement des zones est à prendre comme une piste, pas comme un résultat.', '#eab308'],
+  nul: ['❌ Le modèle ne reproduit PAS la fréquentation observée',
+        'Il ne parvient pas à expliquer les laveries déjà en place. Le classement des zones et la '
+        + 'heatmap sont à considérer comme des hypothèses de travail, non comme une aide à la '
+        + 'décision. Cause la plus probable : les populations par quartier sont estimées et mal '
+        + 'localisées. Correctif : import du carroyage INSEE 200 m.', '#dc2626'],
+};
+
+function dessinerFiabilite() {
+  const zone = document.getElementById('fiabilite');
+  if (!zone) return;
+  const f = controleFiabilite();
+  if (!f) { zone.innerHTML = '<p class="hint">Pas assez de laveries notées pour tester.</p>'; return; }
+  const [titre, texte, couleur] = VERDICT_FIABILITE[f.verdict];
+  zone.innerHTML = `
+    <div class="encart" style="border-left-color:${couleur};margin-top:0">
+      <b style="color:${couleur}">${titre}</b><br>
+      Corrélation de rang entre CA modélisé et nombre d'avis :
+      <b>${f.rho >= 0 ? '+' : ''}${f.rho.toFixed(2)}</b><br>${texte}
+    </div>
+    <table class="tab-fiabilite" style="margin-top:8px">
+      <thead><tr><th>Laverie existante</th><th>CA modélisé</th><th>Avis</th></tr></thead>
+      <tbody>${f.lignes.map(l => `<tr><td>${l.nom}</td>
+        <td class="ca">${fmtEur(l.ca)}</td><td>${l.avis}</td></tr>`).join('')}</tbody>
+    </table>
+    <p class="hint">Le nombre d'avis est un proxy imparfait de la fréquentation, mais il a
+    l'avantage d'être indépendant du modèle. Si les deux colonnes ne vont pas dans le
+    même sens, le modèle décrit mal le terrain.</p>`;
+}
+
+// ---------- HEATMAP DU POTENTIEL ----------
+//
+// Une surface continue plutôt que 15 pastilles de quartier : on évalue le modèle
+// sur une grille et on peint chaque maille. C'est la lecture qu'attend un
+// investisseur — où sont les zones chaudes, sans se soucier des frontières
+// administratives.
+//
+// Échelle DIVERGENTE et non séquentielle : la valeur a un point de bascule
+// significatif (indice 1 = aussi bien qu'une laverie moyenne de Pessac). Bleu en
+// dessous, gris au seuil, rouge au-dessus. Jamais d'arc-en-ciel : les teintes
+// n'auraient plus d'ordre lisible.
+const PALETTE_POTENTIEL = [
+  { seuil: 0.60, couleur: [28, 92, 171],  libelle: 'Très en dessous' },
+  { seuil: 0.85, couleur: [85, 152, 231], libelle: 'En dessous' },
+  { seuil: 1.05, couleur: [110, 110, 105], libelle: 'Au niveau du marché local' },
+  { seuil: 1.40, couleur: [230, 103, 103], libelle: 'Au-dessus' },
+  { seuil: Infinity, couleur: [208, 59, 59], libelle: 'Nettement au-dessus' },
+];
+
+function couleurPotentiel(indice) {
+  for (const p of PALETTE_POTENTIEL) if (indice < p.seuil) return p.couleur;
+  return PALETTE_POTENTIEL[PALETTE_POTENTIEL.length - 1].couleur;
+}
+
+const GRILLE_PAS_M = 140;   // résolution de la maille
+
+function dessinerHeatPotentiel() {
+  if (state.layers.potentiel) {
+    map.removeLayer(state.layers.potentiel);
+    state.layers.potentiel = null;
+  }
+  if (!document.getElementById('l-heat-potentiel')?.checked) return;
+
+  // Emprise : les quartiers connus, élargis d'une marge.
+  const lats = state.quartiers.map(q => q.lat);
+  const lons = state.quartiers.map(q => q.lon);
+  const marge = 0.012;
+  const sud = Math.min(...lats) - marge, nord = Math.max(...lats) + marge;
+  const ouest = Math.min(...lons) - marge, est = Math.max(...lons) + marge;
+
+  const pasLat = GRILLE_PAS_M / 111320;
+  const pasLon = GRILLE_PAS_M / (111320 * Math.cos(((sud + nord) / 2) * Math.PI / 180));
+  const nY = Math.ceil((nord - sud) / pasLat);
+  const nX = Math.ceil((est - ouest) / pasLon);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = nX; canvas.height = nY;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(nX, nY);
+  const R = state.rayon;
+
+  for (let y = 0; y < nY; y++) {
+    // L'image se dessine du haut (nord) vers le bas.
+    const lat = nord - y * pasLat;
+    for (let x = 0; x < nX; x++) {
+      const lon = ouest + x * pasLon;
+      const e = estimerCA(lat, lon, R);
+      const i = (y * nX + x) * 4;
+      // Hors de toute demande, on laisse transparent plutôt que d'afficher
+      // un « très en dessous » qui n'aurait aucun sens (forêt, vignes).
+      if (e.pop < 150) { img.data[i + 3] = 0; continue; }
+      const [r, g, b] = couleurPotentiel(e.indice);
+      img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b;
+      img.data[i + 3] = 190;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+
+  state.layers.potentiel = L.imageOverlay(canvas.toDataURL(),
+    [[sud, ouest], [nord, est]], { opacity: 0.75, interactive: false, zIndex: 250 });
+  state.layers.potentiel.addTo(map);
+  state.layers.potentiel.bringToFront?.();
 }
 
 // ---------- localiser un local précis ----------
@@ -1125,7 +1323,8 @@ function initUI() {
     if (state.modifie) { e.preventDefault(); e.returnValue = ''; }
   });
 
-  for (const id of ['f-chaine', 'f-independant', 'f-captif', 'l-couverture', 'l-heat-offre', 'l-tension']) {
+  for (const id of ['f-chaine', 'f-independant', 'f-captif', 'l-couverture',
+                    'l-heat-offre', 'l-heat-potentiel', 'l-tension']) {
     document.getElementById(id).addEventListener('change', rafraichir);
   }
   const slider = document.getElementById('rayon');
@@ -1133,6 +1332,7 @@ function initUI() {
     state.rayon = parseInt(slider.value, 10);
     document.getElementById('rayon-val').textContent = state.rayon;
     dessinerCouverture();
+    dessinerHeatPotentiel();
   });
 
   // Localiser un local précis
@@ -1161,7 +1361,7 @@ function initUI() {
     });
   }
   document.getElementById('btn-reset-hyp').addEventListener('click', () => {
-    state.hyp = { depenseMediane: null, facteurDemande: 1, caReference: null };
+    state.hyp = { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4 };
     const [dMin, dMax] = state.benchmarks.demande.clientele_reguliere.depense_annuelle_eur;
     const [cMin, cMax] = state.benchmarks.exploitation.ca_annuel_laverie_eur;
     document.getElementById('h-depense').value = (dMin + dMax) / 2;
@@ -1187,10 +1387,11 @@ function initUI() {
 
   const b = state.benchmarks;
   document.getElementById('benchmarks').innerHTML = `
-    Lavage 8 kg : <b>${b.prix.lavage_6_8kg_eur[0]}–${b.prix.lavage_6_8kg_eur[1]} €</b> ·
-    18 kg : <b>${b.prix.lavage_16_18kg_eur[0]}–${b.prix.lavage_16_18kg_eur[1]} €</b><br>
-    CA annuel type : <b>${fmtEur(b.exploitation.ca_annuel_laverie_eur[0])} – ${fmtEur(b.exploitation.ca_annuel_laverie_eur[1])}</b><br>
-    Marge EBE : <b>${b.exploitation.marge_ebe_pct[0]}–${b.exploitation.marge_ebe_pct[1]} %</b> ·
+    Lavage : <b>${b.prix.lavage_eur[0]}–${b.prix.lavage_eur[1]} €</b> ·
+    séchage : <b>${b.prix.sechage_eur[0]}–${b.prix.sechage_eur[1]} €</b><br>
+    CA annuel type : <b>${fmtEur(b.exploitation.ca_annuel_laverie_eur[0])} – ${fmtEur(b.exploitation.ca_annuel_laverie_eur[1])}</b>
+    (jusqu'à ${fmtEur(b.exploitation.ca_annuel_fourchette_large_eur[1])} en très bon emplacement)<br>
+    Marge nette : <b>${b.exploitation.marge_nette_pct[0]}–${b.exploitation.marge_nette_pct[1]} %</b> ·
     Invest. : <b>${fmtEur(b.exploitation.investissement_initial_eur[0])} – ${fmtEur(b.exploitation.investissement_initial_eur[1])}</b><br>
     Machines : <b>${b.exploitation.nb_machines_typique[0]}–${b.exploitation.nb_machines_typique[1]}</b> ·
     Surface : <b>${b.exploitation.surface_typique_m2[0]}–${b.exploitation.surface_typique_m2[1]} m²</b><br>

@@ -230,13 +230,13 @@ button.active { background: #f97316; color: #431407; }
 #adresse-erreur:empty { display: none; }
 #adresse-erreur { color: #fca5a5; }
 
-.tab-candidats { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-.tab-candidats th {
+.tab-candidats, .tab-fiabilite { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.tab-candidats th, .tab-fiabilite th {
   text-align: left; color: var(--muted); font-weight: 600; font-size: 0.68rem;
   text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 4px 6px;
   border-bottom: 1px solid #334155;
 }
-.tab-candidats td { padding: 6px 4px; border-bottom: 1px solid #26334a; vertical-align: top; }
+.tab-candidats td, .tab-fiabilite td { padding: 6px 4px; border-bottom: 1px solid #26334a; vertical-align: top; }
 .tab-candidats tr { cursor: pointer; }
 .tab-candidats tr:hover td { background: var(--panel-2); }
 .tab-candidats .nom-cand { font-weight: 600; }

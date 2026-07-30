@@ -55,14 +55,28 @@
           <label for="rayon">Rayon piéton : <strong><span id="rayon-val">800</span> m</strong></label>
           <input type="range" id="rayon" min="300" max="1000" step="50" value="800">
         </div>
+        <label class="check"><input type="checkbox" id="l-heat-potentiel" checked> <strong>🔥 Heatmap du potentiel</strong></label>
+        <div class="legend" id="legende-potentiel">
+          <span class="lg"><i style="background:#1c5cab"></i> Très en dessous</span>
+          <span class="lg"><i style="background:#5598e7"></i> En dessous</span>
+          <span class="lg"><i style="background:#6e6e69"></i> Au niveau</span>
+          <span class="lg"><i style="background:#e66767"></i> Au-dessus</span>
+          <span class="lg"><i style="background:#d03b3b"></i> Nettement au-dessus</span>
+          <span style="flex-basis:100%;margin-top:4px">Chaque maille de 140 m est évaluée par le modèle. Référence : le CA d'une laverie moyenne de Pessac. Rouge = une nouvelle laverie y ferait mieux.</span>
+        </div>
         <label class="check"><input type="checkbox" id="l-heat-offre"> Carte de chaleur — concentration de l'offre</label>
         <label class="check"><input type="checkbox" id="l-tension" checked> Potentiel par quartier (demande vs concurrence)</label>
         <div class="legend" id="legende-tension">
           <span class="lg"><i style="background:#dc2626"></i> Place pour une laverie</span>
           <span class="lg"><i style="background:#eab308"></i> Limite</span>
           <span class="lg"><i style="background:#15803d"></i> Pas de place</span>
-          <span style="flex-basis:100%;margin-top:4px">Rouge = une nouvelle laverie y dégagerait plus que le CA médian du secteur (85 000 €). Rayon de référence : 800 m.</span>
+          <span style="flex-basis:100%;margin-top:4px">Rouge = une nouvelle laverie y ferait mieux qu'une laverie moyenne de Pessac. Rayon de référence : 800 m.</span>
         </div>
+      </section>
+
+      <section class="panel">
+        <h2>Fiabilité du modèle</h2>
+        <div id="fiabilite"></div>
       </section>
 
       <section class="panel">
@@ -92,7 +106,7 @@
 
       <section class="panel">
         <h2>Hypothèses du modèle</h2>
-        <p class="hint">Le classement dépend de ces trois hypothèses. Bougez-les pour vérifier qu'il tient.</p>
+        <p class="hint">Le modèle est calé sur le marché local : les euros affichés dépendent du CA moyen constaté à Pessac. Les deux autres curseurs testent la robustesse — s'ils ne changent presque rien au classement, c'est bon signe, cela veut dire qu'une erreur uniforme sur mes estimations de population n'affecte pas le choix de zone.</p>
         <div class="slider-row">
           <label>Dépense annuelle d'un ménage sans lave-linge : <strong><span id="h-depense-val">500</span> €</strong></label>
           <input type="range" id="h-depense" min="250" max="800" step="25" value="500">
@@ -102,8 +116,8 @@
           <input type="range" id="h-demande" min="50" max="150" step="5" value="100">
         </div>
         <div class="slider-row">
-          <label>CA de référence d'une laverie viable : <strong><span id="h-caref-val">85 000</span> €</strong></label>
-          <input type="range" id="h-caref" min="50000" max="120000" step="5000" value="85000">
+          <label>CA moyen constaté d'une laverie à Pessac : <strong><span id="h-caref-val">50 000</span> €</strong></label>
+          <input type="range" id="h-caref" min="25000" max="90000" step="2500" value="50000">
         </div>
         <button id="btn-reset-hyp" class="btn-second hidden">↺ Rétablir les valeurs du secteur</button>
       </section>

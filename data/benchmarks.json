@@ -1,44 +1,100 @@
 {
   "meta": {
-    "source": "Benchmarks publics du secteur des laveries automatiques en France (fédérations professionnelles, réseaux de franchise, presse spécialisée). Fourchettes indicatives 2024-2026 — à recaler dès que des données réelles (comptoirs, exploitants) sont disponibles.",
-    "avertissement": "Toutes les valeurs sont des FOURCHETTES. Le simulateur produit des ordres de grandeur, pas des prévisions."
+    "version": "2026-07-30 — refonte sur le dossier de marché sourcé",
+    "avertissement": "Chaque valeur porte sa source. Les fourchettes sont des fourchettes : le simulateur produit des ordres de grandeur, jamais une prévision.",
+    "incoherences_relevees": [
+      "Le dossier donne à la fois un CA de 35–65 k€/an et un volume de 1 500–4 000 cycles/mois. À 5 € le cycle, ce volume représente 90 000 à 240 000 €/an, soit 3 à 4 fois le CA annoncé. Idem pour les 240–450 cycles/machine/mois (144 000 à 324 000 €/an sur 10-12 machines).",
+      "Le point mort annoncé (1 486 cycles/mois) correspondrait à 89 000 €/an de CA, donc au-dessus du CA moyen annoncé. Un point mort ne peut pas dépasser la moyenne du secteur.",
+      "CONSÉQUENCE : le modèle s'appuie sur les données de CA (recoupées par trois sources indépendantes : L'Express Franchise, Modeles de Business Plan en mensuel, et INSEE 66 403 €/établissement) et traite les volumes de cycles comme des hypothèses hautes non retenues. À vérifier dans les sources d'origine avant présentation bancaire."
+    ]
   },
+
+  "marche_national": {
+    "ca_naf_9601b_eur": 861000000,
+    "ca_naf_9601b_croissance_2024_pct": 8.9,
+    "croissance_annuelle_moyenne_2015_2024_pct": 3.5,
+    "nb_etablissements_naf_2023": 11903,
+    "nb_etablissements_naf_2026": 14243,
+    "ca_moyen_par_etablissement_eur": 66403,
+    "nb_laveries_france": 5000,
+    "ouvertures_par_an": 100,
+    "cycles_france_2024_millions": 10,
+    "cycles_france_2020_millions": 4.5,
+    "part_franchises_pct": [30, 40],
+    "_perimetre": "Le code NAF 96.01B inclut les pressings : les 861 M€ ne sont PAS le marché des seules laveries, estimé entre 120 et 600 M€ selon les périmètres. Toujours préciser lequel on cite.",
+    "_sources": "INSEE séries NAF 96.01B ; synthèse Epsimas ; Made in FR / MSI Reports ; L'Express Franchise ; Businesscoot fév. 2025"
+  },
+
   "prix": {
-    "lavage_6_8kg_eur": [3.5, 5.0],
-    "lavage_10_12kg_eur": [5.0, 7.5],
-    "lavage_16_18kg_eur": [8.0, 11.0],
-    "sechage_10min_eur": [1.0, 2.0],
-    "panier_moyen_visite_eur": [7.0, 10.0]
+    "lavage_eur": [4, 8],
+    "sechage_eur": [2, 4],
+    "panier_moyen_visite_eur": [6, 12],
+    "marge_brute_par_cycle_pct": [78, 85],
+    "cout_variable_par_cycle_eur": 0.75,
+    "_sources": "MonPetitBusinessPlan ; Modeles de Business Plan"
   },
+
   "exploitation": {
-    "ca_annuel_laverie_eur": [50000, 120000],
-    "ca_annuel_par_machine_eur": [5000, 9000],
-    "nb_machines_typique": [8, 14],
-    "surface_typique_m2": [40, 80],
-    "marge_ebe_pct": [30, 45],
-    "investissement_initial_eur": [80000, 200000],
+    "ca_annuel_laverie_eur": [35000, 65000],
+    "_ca_annuel_commentaire": "Laverie standard de 50 m² avec 10 à 12 machines (L'Express Franchise). Recoupé par le CA mensuel urbain de 3 000 à 7 000 € (Modeles de Business Plan) et par le CA INSEE moyen par établissement de 66 403 €.",
+    "ca_annuel_fourchette_large_eur": [20000, 120000],
+    "_ca_large_commentaire": "Toutes zones confondues, du rural au très bon emplacement urbain (Wash'N Dry). Sert de plafond de capacité au modèle.",
+    "ca_annuel_par_machine_eur": [3200, 6500],
+    "_ca_machine_commentaire": "Déduit du CA standard rapporté au parc de 10-12 machines. Volontairement PAS repris des 240-450 cycles/machine/mois du dossier, incohérents avec les CA (voir meta).",
+    "nb_machines_typique": [10, 12],
+    "ratio_seche_linge_conseille": 1.0,
+    "_ratio_commentaire": "Au moins 1 sèche-linge pour 1 lave-linge : seuls 36 % des foyers français ont un sèche-linge, c'est le vrai moteur de la demande.",
+    "surface_typique_m2": [50, 80],
+    "marge_nette_pct": [20, 35],
+    "marge_nette_moyenne_pct": 30,
+    "investissement_initial_eur": [80000, 150000],
+    "detail_capex": {
+      "machines_eur": [40000, 80000],
+      "travaux_techniques_eur": [15000, 30000]
+    },
+    "charges_fixes_mensuelles_eur": [1800, 5600],
+    "charges_fixes_urbaines_eur": [2560, 4440],
+    "roi_annees": [3, 5],
     "loyer_max_conseille_pct_ca": 10,
-    "besoin_electrique": "24-36 kVA triphasé + arrivée d'eau gros débit + évacuation — vérifier la faisabilité du local avant tout engagement"
+    "besoin_electrique": "Électricité renforcée, ventilation et évacuation des eaux à anticiper en CAPEX (15 000 à 30 000 € de travaux techniques). Assurance multirisque pro souvent exigée par le bailleur, dégâts des eaux fréquents.",
+    "_sources": "L'Express Franchise ; Wash'N Dry ; Propulse by Crédit Agricole ; Modeles de Business Plan ; Speed Queen"
   },
+
   "demande": {
-    "_commentaire": "La clientèle d'une laverie se compose de DEUX populations distinctes qu'il faut modéliser séparément — les confondre fausse totalement l'estimation de CA.",
+    "_commentaire": "La clientèle se compose de DEUX populations distinctes qu'il faut modéliser séparément — les confondre fausse totalement l'estimation de CA.",
     "clientele_reguliere": {
       "definition": "Ménages sans lave-linge à domicile : viennent chaque semaine ou tous les 15 jours. Cœur du chiffre d'affaires.",
-      "_note_part": "La part varie fortement selon le type d'habitat : ~2 % en secteur pavillonnaire (tout le monde est équipé), ~10 % là où dominent studios et T1. Le modèle interpole entre ces deux bornes en fonction de la part de petits logements du quartier (borne haute atteinte à 50 % de petits logements).",
-      "part_menages_pct": [2, 10],
+      "_note_part": "94 à 96 % des ménages français sont équipés d'un lave-linge, soit 4 à 6 % sans. Mais la part monte à 13,7 % chez les moins de 30 ans (Businesscoot), d'où la forte sensibilité au type d'habitat : le modèle interpole entre 2 % en secteur pavillonnaire et 14 % là où dominent studios et T1.",
+      "part_menages_pct": [2, 14],
       "seuil_petits_logements_borne_haute": 0.5,
-      "depense_annuelle_eur": [300, 700]
+      "depense_annuelle_eur": [300, 700],
+      "_depense_commentaire": "Un ménage sans lave-linge lave environ 52 fois par an. À 4-8 € le lavage et 2-4 € le séchage, cela donne 310 à 620 €/an — cohérent avec la fourchette retenue."
     },
     "clientele_ponctuelle": {
-      "definition": "Ménages équipés d'un lave-linge qui viennent 1 à 3 fois par an pour les gros volumes (couettes, couvertures, sacs de couchage). Représente typiquement 20-40 % du CA d'une laverie moderne équipée de grosses machines.",
+      "definition": "Ménages équipés qui viennent 1 à 3 fois par an pour les gros volumes (couettes, couvertures) ou le séchage express. Seuls 36 % des foyers ont un sèche-linge, ce qui alimente durablement ce segment.",
       "part_menages_concernes_pct": [15, 25],
       "depense_annuelle_eur": [20, 45]
     },
-    "habitants_par_laverie_zone_urbaine": [8000, 15000]
+    "frequentation_clients_par_jour": [20, 50],
+    "habitants_par_laverie_zone_urbaine": [8000, 15000],
+    "_sources": "Businesscoot fév. 2025 ; Propulse by Crédit Agricole ; Epsimas"
   },
+
   "chalandise": {
     "rayon_pieton_m": [400, 800],
     "rayon_voiture_min": [5, 10],
-    "regle": "En zone dense, 80% de la clientèle habite à moins de 800 m ou à moins de 5 min en voiture avec parking facile."
+    "regle": "Toutes les sources convergent : l'emplacement est le facteur de risque numéro un, le CA variant du simple au sextuple selon la zone. Prévoir une étude de chalandise chiffrée sur 500 à 1 000 m.",
+    "_sources": "Dossier marché, point de vigilance n°2"
+  },
+
+  "concurrence_indirecte": {
+    "kiosques_parking": {
+      "operateur_principal": "Wash Me (ex Revolution Laundry, groupe KIS/Photo-Me)",
+      "parc_france": 3000,
+      "parc_europe": [5000, 6000],
+      "implantation": "Parkings de supermarchés (Leclerc, Intermarché, Super U, Carrefour Market), stations-service, campings",
+      "ecart_tarifaire_pct": -12,
+      "_commentaire": "Tarifs 10 à 15 % inférieurs aux laveries de centre-ville. Des exploitants rapportent que les kiosques ne cannibalisent pas leur CA et créeraient plutôt de la demande — signal qualitatif de forum, à ne pas surinterpréter. Aucun kiosque recensé à Pessac à ce jour."
+    }
   }
 }

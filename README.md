@@ -101,10 +101,15 @@ Pour obtenir les données **officielles** (note exacte, avis complets, photos,
 horaires, coordonnées GPS précises) sur tout l'inventaire d'un coup :
 
 ```bash
-export GOOGLE_MAPS_API_KEY="votre_cle"     # console.cloud.google.com → Places API (New)
-python3 scripts/enrich_google_places.py --decouverte
-python3 scripts/build_standalone.py        # régénère le fichier autonome
+export GOOGLE_MAPS_API_KEY="votre_cle"
+python3 scripts/enrich_google_places.py --test         # vérifie la clé
+python3 scripts/enrich_google_places.py --decouverte   # récupère tout
+python3 scripts/build_standalone.py                    # régénère le fichier autonome
 ```
+
+📖 **Marche à suivre complète pour créer la clé : [GOOGLE_API.md](GOOGLE_API.md)**
+(création du projet, facturation, restrictions, garde-fou budget, erreurs
+courantes). Compter 15 minutes la première fois.
 
 `--decouverte` cherche en plus les laveries absentes de l'inventaire.
 `--id laverie-de-saige` ne traite qu'un établissement. `--sans-photos` évite

@@ -43,6 +43,12 @@ VILLE = "Pessac 33600 France"
 MAX_PHOTOS = 4          # photos téléchargées par laverie
 LARGEUR_PHOTO = 800     # px
 
+# Biais géographique : sans lui, une recherche « Laverie de Saige » peut renvoyer
+# un établissement d'une autre ville. On contraint les résultats autour de Pessac.
+CENTRE_VILLE = {"latitude": 44.806, "longitude": -0.631}
+RAYON_BIAIS_M = 8000.0
+BIAIS = {"circle": {"center": CENTRE_VILLE, "radius": RAYON_BIAIS_M}}
+
 CHAMPS_RECHERCHE = "places.id,places.displayName,places.formattedAddress,places.location"
 CHAMPS_DETAIL = ",".join([
     "id", "displayName", "formattedAddress", "location", "rating",
@@ -50,6 +56,29 @@ CHAMPS_DETAIL = ",".join([
     "regularOpeningHours", "reviews", "photos", "googleMapsUri",
     "businessStatus", "primaryTypeDisplayName",
 ])
+
+
+# Messages d'aide pour les erreurs qui bloquent le plus souvent au premier essai.
+DIAGNOSTICS = {
+    "SERVICE_DISABLED": "L'API « Places API (New) » n'est pas activée sur ce projet.\n"
+                        "     → console.cloud.google.com → API et services → Bibliothèque →\n"
+                        "       chercher « Places API (New) » → Activer.",
+    "API key not valid": "Clé invalide ou mal copiée (attention aux espaces).",
+    "REQUEST_DENIED": "Clé refusée : vérifiez les restrictions de la clé.",
+    "billing": "La facturation n'est pas activée sur le projet. Elle est obligatoire\n"
+               "     même pour rester dans le quota gratuit — aucune somme ne sera\n"
+               "     prélevée à l'échelle d'une ville.",
+    "referer": "Votre clé est restreinte à des sites web (HTTP referrer).\n"
+               "     Un script n'envoie pas de referrer : créez une clé sans restriction\n"
+               "     d'application, ou restreinte par adresse IP.",
+}
+
+
+def diagnostiquer(detail):
+    for motif, aide in DIAGNOSTICS.items():
+        if motif.lower() in detail.lower():
+            return aide
+    return None
 
 
 def appel(url, cle, corps=None, entetes_sup=None):
@@ -62,24 +91,48 @@ def appel(url, cle, corps=None, entetes_sup=None):
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
-        detail = e.read().decode(errors="replace")[:400]
+        detail = e.read().decode(errors="replace")[:600]
         print(f"    ⚠ HTTP {e.code} : {detail}", file=sys.stderr)
+        aide = diagnostiquer(detail)
+        if aide:
+            print(f"     ↳ {aide}", file=sys.stderr)
         return None
+    except urllib.error.URLError as e:
+        print(f"    ⚠ réseau indisponible : {e.reason}", file=sys.stderr)
+        return None
+
+
+def tester_cle(cle):
+    """Valide la clé avec un seul appel, avant de lancer tout l'inventaire."""
+    print("🔑 Test de la clé API…")
+    res = appel(f"{API}/places:searchText", cle,
+                {"textQuery": f"laverie {VILLE}", "languageCode": "fr",
+                 "maxResultCount": 1, "locationBias": BIAIS},
+                {"X-Goog-FieldMask": CHAMPS_RECHERCHE})
+    if res is None:
+        print("❌ La clé ne fonctionne pas — voir le diagnostic ci-dessus.")
+        return False
+    trouves = res.get("places") or []
+    print(f"✅ Clé valide. Exemple de résultat : "
+          f"{(trouves[0].get('displayName') or {}).get('text') if trouves else 'aucun'}")
+    return True
 
 
 def chercher_place(nom, adresse, cle):
     """Retrouve l'identifiant Google d'une laverie à partir de son nom et adresse."""
-    corps = {"textQuery": f"{nom} {adresse}", "languageCode": "fr", "maxResultCount": 1}
-    res = appel(f"{API}/places:searchText", cle, corps,
-                {"X-Goog-FieldMask": CHAMPS_RECHERCHE})
-    places = (res or {}).get("places") or []
-    if not places:
-        # Repli : recherche sur la seule adresse, le nom d'annuaire étant parfois faux
-        corps = {"textQuery": f"laverie {adresse}", "languageCode": "fr", "maxResultCount": 1}
-        res = appel(f"{API}/places:searchText", cle, corps,
+    essais = [
+        f"{nom} {adresse}",
+        f"laverie {adresse}",   # le nom d'annuaire est parfois faux, l'adresse rarement
+    ]
+    for requete in essais:
+        res = appel(f"{API}/places:searchText", cle,
+                    {"textQuery": requete, "languageCode": "fr",
+                     "maxResultCount": 1, "locationBias": BIAIS},
                     {"X-Goog-FieldMask": CHAMPS_RECHERCHE})
         places = (res or {}).get("places") or []
-    return places[0] if places else None
+        if places:
+            return places[0]
+    return None
 
 
 def detail_place(place_id, cle):
@@ -189,12 +242,25 @@ def enrichir(laverie, cle, telecharger=True):
 def decouvrir(inventaire, cle):
     """Cherche des laveries de Pessac absentes de l'inventaire."""
     connus = {l.get("place_id") for l in inventaire["laveries"] if l.get("place_id")}
-    corps = {"textQuery": f"laverie automatique {VILLE}", "languageCode": "fr",
-             "maxResultCount": 20}
-    res = appel(f"{API}/places:searchText", cle, corps,
-                {"X-Goog-FieldMask": CHAMPS_RECHERCHE})
+    # Plusieurs formulations : Google ne renvoie pas les mêmes résultats selon les mots.
+    requetes = [
+        f"laverie automatique {VILLE}",
+        f"laverie libre service {VILLE}",
+        f"lavomatic {VILLE}",
+        f"blanchisserie libre service {VILLE}",
+    ]
+    trouves = {}
+    for requete in requetes:
+        res = appel(f"{API}/places:searchText", cle,
+                    {"textQuery": requete, "languageCode": "fr",
+                     "maxResultCount": 20, "locationBias": BIAIS,
+                     "includedType": "laundry"},
+                    {"X-Goog-FieldMask": CHAMPS_RECHERCHE})
+        for p in (res or {}).get("places", []):
+            trouves.setdefault(p["id"], p)
+
     nouveaux = []
-    for p in (res or {}).get("places", []):
+    for p in trouves.values():
         if p["id"] in connus:
             continue
         nouveaux.append({
@@ -234,13 +300,23 @@ def main():
     ap.add_argument("--decouverte", action="store_true",
                     help="chercher aussi les laveries absentes de l'inventaire")
     ap.add_argument("--sans-photos", action="store_true", help="ne pas télécharger les photos")
+    ap.add_argument("--test", action="store_true",
+                    help="vérifier seulement que la clé fonctionne (1 seul appel)")
     args = ap.parse_args()
 
     cle = os.environ.get("GOOGLE_MAPS_API_KEY")
     if not cle:
         sys.exit("❌ Variable GOOGLE_MAPS_API_KEY absente.\n"
                  "   export GOOGLE_MAPS_API_KEY=\"votre_cle\"\n"
-                 "   Clé à créer sur https://console.cloud.google.com (activer « Places API (New) »).")
+                 "   Clé à créer sur https://console.cloud.google.com (activer « Places API (New) »).\n"
+                 "   Voir le pas-à-pas complet dans GOOGLE_API.md.")
+
+    if not tester_cle(cle):
+        sys.exit(1)
+    if args.test:
+        print("\n✅ Tout est prêt. Lancez maintenant :\n"
+              "   python3 scripts/enrich_google_places.py --decouverte")
+        return
 
     inventaire = json.loads(DATA.read_text(encoding="utf-8"))
 

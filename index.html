@@ -73,9 +73,39 @@
 
       <section class="panel">
         <h2>Simulateur d'implantation</h2>
-        <p class="hint">Activez puis <strong>cliquez sur la carte</strong> pour tester un emplacement : zone de chalandise, population captée, concurrence et fourchette de CA potentiel.</p>
-        <button id="btn-simu">📍 Activer le mode simulation</button>
+        <p class="hint">Testez un local précis : collez son lien Google Maps ou ses coordonnées, ou cliquez directement sur la carte.</p>
+        <div class="rangee-adresse">
+          <input type="text" id="adresse-input" placeholder="Lien Google Maps, ou 44.7911, -0.6325">
+          <button id="btn-aller">Aller</button>
+        </div>
+        <p class="hint" id="adresse-erreur"></p>
+        <button id="btn-simu">📍 Activer le clic sur la carte</button>
         <div id="simu-result" class="hidden"></div>
+        <button id="btn-garder" class="hidden btn-second">➕ Garder cet emplacement</button>
+      </section>
+
+      <section class="panel">
+        <h2>Emplacements candidats <span id="candidats-count" class="badge"></span></h2>
+        <p class="hint" id="candidats-vide">Aucun emplacement gardé. Lancez une simulation puis cliquez « Garder cet emplacement » pour les comparer ici.</p>
+        <div id="candidats-tableau"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Hypothèses du modèle</h2>
+        <p class="hint">Le classement dépend de ces trois hypothèses. Bougez-les pour vérifier qu'il tient.</p>
+        <div class="slider-row">
+          <label>Dépense annuelle d'un ménage sans lave-linge : <strong><span id="h-depense-val">500</span> €</strong></label>
+          <input type="range" id="h-depense" min="250" max="800" step="25" value="500">
+        </div>
+        <div class="slider-row">
+          <label>Niveau de demande : <strong><span id="h-demande-val">100</span> %</strong></label>
+          <input type="range" id="h-demande" min="50" max="150" step="5" value="100">
+        </div>
+        <div class="slider-row">
+          <label>CA de référence d'une laverie viable : <strong><span id="h-caref-val">85 000</span> €</strong></label>
+          <input type="range" id="h-caref" min="50000" max="120000" step="5000" value="85000">
+        </div>
+        <button id="btn-reset-hyp" class="btn-second hidden">↺ Rétablir les valeurs du secteur</button>
       </section>
 
       <section class="panel">

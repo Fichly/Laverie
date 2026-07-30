@@ -20,6 +20,11 @@ const state = {
   rayon: RAYON_TENSION,
   simulation: false,
   layers: {},
+  candidats: [],
+  // Hypothèses ajustables par l'utilisateur. null = valeur du secteur
+  // (data/benchmarks.json). Les bouger permet de vérifier si le classement
+  // résiste à l'incertitude, qui est ici la principale limite.
+  hyp: { depenseMediane: null, facteurDemande: 1, caReference: null },
 };
 
 let map;
@@ -110,6 +115,7 @@ async function charger() {
     ]);
   state.laveries = lav.laveries;
   state.meta = lav.meta;            // conservé pour réécrire un fichier complet à l'export
+  state.candidats = lav.candidats || [];
   state.quartiers = qua.quartiers;
   state.benchmarks = bench;
   initCarte();
@@ -130,6 +136,7 @@ function initCarte() {
   state.layers.couverture = L.layerGroup().addTo(map);
   state.layers.tension = L.layerGroup().addTo(map);
   state.layers.simulation = L.layerGroup().addTo(map);
+  state.layers.candidats = L.layerGroup().addTo(map);
   state.layers.heat = null;
 
   map.on('click', (e) => {
@@ -157,6 +164,7 @@ function rafraichir() {
   dessinerTension();
   dessinerHeat();
   dessinerClassement();
+  dessinerCandidats();
   majStats();
   majBarreExport();
 }
@@ -197,6 +205,50 @@ function etoiles(note) {
   return '★'.repeat(pleines + bonus) + (demi ? '⯨' : '') +
          '☆'.repeat(5 - pleines - bonus - (demi ? 1 : 0));
 }
+
+// TENDANCE DES AVIS
+//
+// La note moyenne masque l'évolution : une laverie à 4,3 dont tous les avis
+// récents sont à 1★ est une laverie en train de se dégrader — donc une
+// opportunité que la note seule ne montre pas.
+//
+// Attention : Google ne renvoie que 5 avis par établissement, sélectionnés par
+// ses soins. L'échantillon est petit et non aléatoire : c'est un signal à
+// vérifier en lisant les avis complets, pas une mesure.
+function ancienneteAnnees(date) {
+  if (!date) return null;
+  const t = date.toLowerCase();
+  const n = parseInt((t.match(/(\d+)/) || [null, '1'])[1], 10);
+  if (t.includes('jour')) return n / 365;
+  if (t.includes('semaine')) return n / 52;
+  if (t.includes('mois')) return n / 12;
+  if (t.includes('an')) return n;
+  return null;
+}
+
+function tendanceAvis(l) {
+  const pts = (l.avis || [])
+    .map(a => ({ note: a.note, age: ancienneteAnnees(a.date) }))
+    .filter(p => p.note != null && p.age != null);
+  const recents = pts.filter(p => p.age <= 2).map(p => p.note);
+  const anciens = pts.filter(p => p.age > 2).map(p => p.note);
+  if (recents.length < 2 || anciens.length < 1) return null;
+  const moy = (t) => t.reduce((s, x) => s + x, 0) / t.length;
+  const mRec = moy(recents), mAnc = moy(anciens);
+  const delta = mRec - mAnc;
+  return {
+    mRec, mAnc, delta, nRec: recents.length, nAnc: anciens.length,
+    sens: delta <= -1 ? 'degradation' : delta < -0.3 ? 'baisse'
+        : delta > 0.3 ? 'amelioration' : 'stable',
+  };
+}
+
+const LIBELLE_TENDANCE = {
+  degradation: ['⬇ Se dégrade nettement', '#dc2626'],
+  baisse: ['⬊ En baisse', '#eab308'],
+  stable: ['→ Stable', '#64748b'],
+  amelioration: ['⬈ S\'améliore', '#16a34a'],
+};
 
 const LIBELLE_FIABILITE = {
   officielle: 'Google officiel',
@@ -322,6 +374,18 @@ function ficheLaverie(l) {
         ${l.site_web ? ligneInfo('🌐', `<a href="${l.site_web}" target="_blank" rel="noopener" style="color:var(--accent)">site web</a>`) : ''}
       </div>
       ${forceBloc}
+      ${(() => {
+        const t = tendanceAvis(l);
+        if (!t) return '';
+        const [libelle, couleur] = LIBELLE_TENDANCE[t.sens];
+        return `<div class="encart" style="border-left-color:${couleur}">
+          <b style="color:${couleur}">${libelle}</b><br>
+          Avis de moins de 2 ans : <b>${t.mRec.toFixed(1)}★</b> (${t.nRec}) ·
+          plus anciens : <b>${t.mAnc.toFixed(1)}★</b> (${t.nAnc})
+          <br><span style="font-size:0.72rem">Sur les 5 avis que Google communique,
+          choisis par lui : à confirmer en lisant les avis complets.</span>
+        </div>`;
+      })()}
       ${l.notes_terrain ? `<div class="encart"><b>Note d'analyse</b><br>${l.notes_terrain}</div>` : ''}
       ${avisBloc}
       <div class="encart" style="border-left-color:#64748b">
@@ -507,6 +571,8 @@ function exporterDonnees() {
   const contenu = {
     meta: { ...(state.meta || {}), derniere_maj: new Date().toISOString().slice(0, 10) },
     laveries: state.laveries,
+    // Les emplacements étudiés font partie du travail : on les conserve.
+    candidats: state.candidats,
   };
   const blob = new Blob([JSON.stringify(contenu, null, 2) + '\n'], { type: 'application/json' });
   const a = document.createElement('a');
@@ -633,11 +699,28 @@ function partClienteleReguliere(q) {
   const c = state.benchmarks.demande.clientele_reguliere;
   const [pMin, pMax] = c.part_menages_pct;
   const facteur = Math.min(1, q.part_petits_logements_est / c.seuil_petits_logements_borne_haute);
-  return (pMin + (pMax - pMin) * facteur) / 100;
+  return (pMin + (pMax - pMin) * facteur) / 100 * state.hyp.facteurDemande;
+}
+
+// Fourchette de dépense de la clientèle régulière, recentrée sur la médiane
+// choisie par l'utilisateur (l'amplitude relative du secteur est conservée).
+function depenseReguliere() {
+  const [min, max] = state.benchmarks.demande.clientele_reguliere.depense_annuelle_eur;
+  if (state.hyp.depenseMediane == null) return [min, max];
+  const ratio = state.hyp.depenseMediane / ((min + max) / 2);
+  return [min * ratio, max * ratio];
 }
 
 // CA médian d'une laverie du secteur : référence à laquelle on compare une zone.
+// CA maximal encaissable par une laverie de grand format, déduit du parc type et
+// du rendement par machine (benchmarks secteur).
+function plafondCapacite() {
+  const e = state.benchmarks.exploitation;
+  return e.nb_machines_typique[1] * e.ca_annuel_par_machine_eur[1];
+}
+
 function caReference() {
+  if (state.hyp.caReference != null) return state.hyp.caReference;
   const [min, max] = state.benchmarks.exploitation.ca_annuel_laverie_eur;
   return (min + max) / 2;
 }
@@ -723,18 +806,30 @@ function estimerCA(lat, lon, R) {
   const { pression, concurrents } = offreAccessible(lat, lon, R);
   const partMarche = 1 / (1 + pression);
 
-  const [regMin, regMax] = b.demande.clientele_reguliere.depense_annuelle_eur;
+  const [regMin, regMax] = depenseReguliere();
   const [ponMin, ponMax] = b.demande.clientele_ponctuelle.depense_annuelle_eur;
   const regCaptes = dem.reguliers * partMarche;
   const ponCaptes = dem.ponctuels * partMarche;
 
-  const caMin = regCaptes * regMin + ponCaptes * ponMin;
-  const caMax = regCaptes * regMax + ponCaptes * ponMax;
+  const caBrutMin = regCaptes * regMin + ponCaptes * ponMin;
+  const caBrutMax = regCaptes * regMax + ponCaptes * ponMax;
+
+  // PLAFOND DE CAPACITÉ — une laverie ne peut pas encaisser plus que ce que ses
+  // machines produisent. Sans ce plafond, une zone très demandeuse affiche un CA
+  // physiquement impossible, et un plan de financement bâti dessus est faux.
+  // Quand la demande dépasse ce plafond, ce n'est pas un CA plus élevé : c'est le
+  // signe que la zone peut porter un grand format ou deux implantations.
+  const plafond = plafondCapacite();
+  const caMin = Math.min(caBrutMin, plafond);
+  const caMax = Math.min(caBrutMax, plafond);
   const caMed = (caMin + caMax) / 2;
 
   return {
     ...dem, pression, concurrents, partMarche, regCaptes, ponCaptes,
-    caMin, caMax, caMed,
+    caMin, caMax, caMed, caBrutMax, plafond,
+    depasseCapacite: caBrutMax > plafond,
+    // Combien de laveries de taille normale la demande pourrait porter.
+    laveriesPortables: caBrutMax / plafond,
     // indice > 1 : la zone dégagerait plus que le CA médian du secteur
     indice: caMed / caReference(),
   };
@@ -861,6 +956,13 @@ function simuler(lat, lon) {
     ? concurrents.sort((a, c) => a.d - c.d).map(c => `• ${c.nom} (${c.d} m)`).join('<br>')
     : 'Aucun concurrent significatif dans la zone.';
 
+  // Mémorisé pour pouvoir enregistrer l'emplacement comme candidat.
+  state.derniereSimulation = {
+    lat, lon, rayon: R, caMin, caMax, pop: popCouverte,
+    partMarche, indice: e.indice,
+  };
+  document.getElementById('btn-garder').classList.remove('hidden');
+
   const el = document.getElementById('simu-result');
   el.classList.remove('hidden');
   el.innerHTML = `
@@ -872,9 +974,145 @@ function simuler(lat, lon) {
     → <b>${fmtInt(regCaptes)}</b> réguliers + <b>${fmtInt(ponCaptes)}</b> ponctuels captés<br>
     <br><b>Concurrence dans la zone :</b><br>${listeConc}<br><br>
     CA potentiel annuel : <span class="ca">${fmtEur(caMin)} – ${fmtEur(caMax)}</span><br>
+    ${e.depasseCapacite ? `<span style="color:#38bdf8;font-size:0.76rem">
+      ⓘ Plafonné à la capacité d'une laverie de grand format
+      (${e.plafond.toLocaleString('fr-FR')} €). La demande de la zone en supporterait
+      <b>${e.laveriesPortables.toFixed(1)}</b> — un très grand local ou deux
+      implantations sont envisageables.</span><br>` : ''}
     EBE indicatif (${margeMin}–${margeMax} % du CA) : ${fmtEur(caMin * margeMin / 100)} – ${fmtEur(caMax * margeMax / 100)}
     <div class="verdict ${verdictCls}">${verdictTxt}</div>
     <p class="hint">Modèle simplifié (centroïdes de quartier, rayon ${R} m, Huff à attractivité égale). Les hypothèses sont dans data/benchmarks.json.</p>`;
+}
+
+// ---------- localiser un local précis ----------
+
+// Extrait des coordonnées d'un lien Google Maps ou d'une saisie « lat, lon ».
+// On évite volontairement d'appeler un géocodeur : cela imposerait d'embarquer
+// une clé API dans le fichier HTML distribué, donc de l'exposer.
+function extraireCoordonnees(texte) {
+  const t = (texte || '').trim();
+  if (!t) return null;
+
+  // Liens Google Maps : .../@44.7911,-0.6325,17z  ou  !3d44.7911!4d-0.6325
+  const motifs = [
+    /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+    /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
+    /[?&]q=(-?\d+\.\d+),\s*(-?\d+\.\d+)/,
+    /[?&]query=(-?\d+\.\d+),\s*(-?\d+\.\d+)/,
+    /^(-?\d+[.,]?\d*)\s*[,;]\s*(-?\d+[.,]?\d*)$/,
+  ];
+  for (const m of motifs) {
+    const r = t.match(m);
+    if (r) {
+      const lat = parseFloat(r[1].replace(',', '.'));
+      const lon = parseFloat(r[2].replace(',', '.'));
+      if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+    }
+  }
+  return null;
+}
+
+function allerAAdresse() {
+  const champ = document.getElementById('adresse-input');
+  const err = document.getElementById('adresse-erreur');
+  const c = extraireCoordonnees(champ.value);
+  if (!c) {
+    err.textContent = "Format non reconnu. Sur Google Maps, faites un clic droit sur le "
+      + "local puis « Copier les coordonnées », ou collez l'URL de la page.";
+    return;
+  }
+  if (c.lat < 44.6 || c.lat > 45.0 || c.lon < -0.9 || c.lon > -0.4) {
+    err.textContent = "Ce point est hors de la zone d'étude (Bordeaux Métropole).";
+    return;
+  }
+  err.textContent = '';
+  map.flyTo([c.lat, c.lon], 16, { duration: 0.8 });
+  simuler(c.lat, c.lon);
+}
+
+// ---------- emplacements candidats ----------
+
+function garderCandidat() {
+  const d = state.derniereSimulation;
+  if (!d) return;
+  const nom = prompt('Nom de cet emplacement :',
+    `Candidat ${state.candidats.length + 1}`);
+  if (nom === null) return;
+  state.candidats.push({
+    nom: nom.trim() || `Candidat ${state.candidats.length + 1}`,
+    lat: d.lat, lon: d.lon, rayon: d.rayon,
+    caMin: d.caMin, caMax: d.caMax, pop: d.pop,
+    partMarche: d.partMarche, indice: d.indice,
+  });
+  state.modifie = true;
+  dessinerCandidats();
+  majBarreExport();
+}
+
+function couleurIndice(i) {
+  return i >= 1 ? '#16a34a' : i >= 0.6 ? '#eab308' : '#dc2626';
+}
+
+function dessinerCandidats() {
+  const zone = document.getElementById('candidats-tableau');
+  const vide = document.getElementById('candidats-vide');
+  document.getElementById('candidats-count').textContent =
+    state.candidats.length || '';
+  state.layers.candidats.clearLayers();
+
+  if (!state.candidats.length) {
+    zone.innerHTML = '';
+    vide.classList.remove('hidden');
+    return;
+  }
+  vide.classList.add('hidden');
+
+  // Classés par CA médian décroissant : le meilleur en haut.
+  const tries = [...state.candidats]
+    .map((c, i) => ({ ...c, i }))
+    .sort((a, b) => (b.caMin + b.caMax) - (a.caMin + a.caMax));
+
+  zone.innerHTML = `<table class="tab-candidats">
+    <thead><tr><th>Emplacement</th><th>CA potentiel</th><th>Part</th><th></th></tr></thead>
+    <tbody>${tries.map(c => `
+      <tr data-i="${c.i}">
+        <td><span class="pastille" style="background:${couleurIndice(c.indice)}"></span>
+          <span class="nom-cand">${c.nom}</span>
+          <span class="sous">${fmtInt(c.pop)} hab. · indice ${c.indice.toFixed(2)}</span></td>
+        <td class="ca">${fmtEur(c.caMin)}<span class="sous">à ${fmtEur(c.caMax)}</span></td>
+        <td>${Math.round(c.partMarche * 100)} %</td>
+        <td><button class="sup" data-sup="${c.i}" title="Retirer">✕</button></td>
+      </tr>`).join('')}</tbody></table>`;
+
+  for (const tr of zone.querySelectorAll('tr[data-i]')) {
+    tr.addEventListener('click', (e) => {
+      if (e.target.dataset.sup !== undefined) return;
+      const c = state.candidats[Number(tr.dataset.i)];
+      map.flyTo([c.lat, c.lon], 16, { duration: 0.8 });
+      simuler(c.lat, c.lon);
+    });
+  }
+  for (const b of zone.querySelectorAll('[data-sup]')) {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.candidats.splice(Number(b.dataset.sup), 1);
+      state.modifie = true;
+      dessinerCandidats();
+    });
+  }
+
+  // Repères permanents sur la carte
+  for (const c of state.candidats) {
+    L.marker([c.lat, c.lon], {
+      icon: L.divIcon({
+        className: '',
+        html: `<div style="background:${couleurIndice(c.indice)};color:#fff;border:2px solid #fff;
+               border-radius:4px;padding:2px 6px;font-size:0.68rem;font-weight:700;
+               white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.5)">${c.nom}</div>`,
+        iconAnchor: [0, 28],
+      }),
+    }).addTo(state.layers.candidats);
+  }
 }
 
 // ---------- UI ----------
@@ -895,6 +1133,45 @@ function initUI() {
     state.rayon = parseInt(slider.value, 10);
     document.getElementById('rayon-val').textContent = state.rayon;
     dessinerCouverture();
+  });
+
+  // Localiser un local précis
+  document.getElementById('btn-aller').addEventListener('click', allerAAdresse);
+  document.getElementById('adresse-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') allerAAdresse();
+  });
+  document.getElementById('btn-garder').addEventListener('click', garderCandidat);
+
+  // Hypothèses ajustables : tout recalculer à chaque mouvement
+  const hyps = [
+    ['h-depense', 'h-depense-val', v => { state.hyp.depenseMediane = v; return fmtInt(v); }],
+    ['h-demande', 'h-demande-val', v => { state.hyp.facteurDemande = v / 100; return v; }],
+    ['h-caref', 'h-caref-val', v => { state.hyp.caReference = v; return fmtInt(v); }],
+  ];
+  for (const [id, idVal, appliquer] of hyps) {
+    const s = document.getElementById(id);
+    s.addEventListener('input', () => {
+      document.getElementById(idVal).textContent = appliquer(Number(s.value));
+      document.getElementById('btn-reset-hyp').classList.remove('hidden');
+      rafraichir();
+      if (state.derniereSimulation) {
+        const d = state.derniereSimulation;
+        simuler(d.lat, d.lon);
+      }
+    });
+  }
+  document.getElementById('btn-reset-hyp').addEventListener('click', () => {
+    state.hyp = { depenseMediane: null, facteurDemande: 1, caReference: null };
+    const [dMin, dMax] = state.benchmarks.demande.clientele_reguliere.depense_annuelle_eur;
+    const [cMin, cMax] = state.benchmarks.exploitation.ca_annuel_laverie_eur;
+    document.getElementById('h-depense').value = (dMin + dMax) / 2;
+    document.getElementById('h-depense-val').textContent = fmtInt((dMin + dMax) / 2);
+    document.getElementById('h-demande').value = 100;
+    document.getElementById('h-demande-val').textContent = 100;
+    document.getElementById('h-caref').value = (cMin + cMax) / 2;
+    document.getElementById('h-caref-val').textContent = fmtInt((cMin + cMax) / 2);
+    document.getElementById('btn-reset-hyp').classList.add('hidden');
+    rafraichir();
   });
 
   const btn = document.getElementById('btn-simu');

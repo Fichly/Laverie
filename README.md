@@ -38,9 +38,20 @@ python3 scripts/build_standalone.py
   que le CA médian du secteur, vert = pas de place.
 - **Classement des zones d'implantation** : les 6 meilleures zones triées par
   CA potentiel, cliquables pour lancer directement la simulation.
-- **Simulateur d'implantation** : cliquer sur la carte → population captée,
-  clientèle régulière et ponctuelle, concurrence, fourchette de CA et d'EBE,
-  verdict de viabilité.
+- **Simulateur d'implantation** : tester un local précis en collant son lien
+  Google Maps ou ses coordonnées (clic droit sur Maps → « Copier les
+  coordonnées »), ou en cliquant sur la carte → population captée, clientèle
+  régulière et ponctuelle, concurrence, fourchette de CA et d'EBE, verdict.
+- **Emplacements candidats** : garder plusieurs locaux étudiés, les comparer
+  dans un tableau trié par CA potentiel, les retrouver sur la carte. Ils sont
+  conservés dans le fichier exporté.
+- **Hypothèses ajustables** : trois curseurs (dépense annuelle d'un ménage sans
+  lave-linge, niveau de demande, CA de référence) recalculent tout en direct.
+  C'est le meilleur moyen de vérifier qu'un classement tient malgré
+  l'incertitude sur les données de population.
+- **Tendance des avis** : la note moyenne masque l'évolution. Une laverie à 4,3
+  dont tous les avis récents sont à 1★ se dégrade — donc une opportunité que la
+  note seule ne montre pas.
 - **Benchmarks secteur** intégrés (prix, CA, marges, investissement) —
   uniquement des fourchettes publiques, faute de données d'exploitants.
 
@@ -59,7 +70,12 @@ python3 scripts/build_standalone.py
    zone à reprendre.
 3. **La part de marché se dispute.** Chaque laverie réduit la part captable
    selon sa force et sa distance (modèle de Huff, décroissance gaussienne).
-4. **Un seul calcul pour deux affichages.** La fonction `estimerCA()` alimente
+4. **Le CA est plafonné par la capacité physique.** Une laverie ne peut pas
+   encaisser plus que ce que ses machines produisent (parc type × rendement par
+   machine, soit 126 000 €). Quand la demande dépasse ce plafond, l'outil ne
+   promet pas un CA impossible : il signale que la zone porterait un très grand
+   format ou deux implantations.
+5. **Un seul calcul pour deux affichages.** La fonction `estimerCA()` alimente
    à la fois la couleur des quartiers et le simulateur : les deux lectures de la
    carte ne peuvent pas se contredire.
 

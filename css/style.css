@@ -219,6 +219,32 @@ button.active { background: #f97316; color: #431407; }
 #barre-export button { width: auto; font-size: 0.78rem; padding: 7px 12px; }
 #modifs-info { font-size: 0.75rem; color: #fbbf24; }
 
+.rangee-adresse { display: flex; gap: 6px; margin-bottom: 6px; }
+.rangee-adresse input {
+  flex: 1; min-width: 0; background: var(--panel-2); border: 1px solid #3b4a63;
+  color: var(--text); border-radius: 6px; padding: 7px 8px; font-size: 0.78rem;
+  font-family: inherit;
+}
+.rangee-adresse input:focus { outline: 1px solid var(--accent); }
+.rangee-adresse button { width: auto; padding: 7px 12px; font-size: 0.78rem; }
+#adresse-erreur:empty { display: none; }
+#adresse-erreur { color: #fca5a5; }
+
+.tab-candidats { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.tab-candidats th {
+  text-align: left; color: var(--muted); font-weight: 600; font-size: 0.68rem;
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 4px 6px;
+  border-bottom: 1px solid #334155;
+}
+.tab-candidats td { padding: 6px 4px; border-bottom: 1px solid #26334a; vertical-align: top; }
+.tab-candidats tr { cursor: pointer; }
+.tab-candidats tr:hover td { background: var(--panel-2); }
+.tab-candidats .nom-cand { font-weight: 600; }
+.tab-candidats .sous { display: block; color: var(--muted); font-size: 0.68rem; }
+.tab-candidats .ca { white-space: nowrap; }
+.tab-candidats .sup { background: none; color: #fca5a5; width: 18px; padding: 0; font-size: 0.7rem; }
+.pastille { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+
 .classement { list-style: none; counter-reset: rang; }
 .classement li {
   counter-increment: rang;

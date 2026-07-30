@@ -9,68 +9,74 @@
     {
       "id": "centre-bourg",
       "nom": "Centre / Bourg",
-      "lat": 44.8068,
-      "lon": -0.6315,
+      "lat": 44.80555,
+      "lon": -0.63059,
       "population": 6000,
       "part_locataires_est": 0.55,
       "part_petits_logements_est": 0.3,
       "densite": "forte",
-      "commentaire": "Centre-ville, gare SNCF, tram B (terminus zone), commerces. Habitat mixte collectif/ancien."
+      "commentaire": "Centre-ville, gare SNCF, tram B (terminus zone), commerces. Habitat mixte collectif/ancien.",
+      "position_source": "Google Places"
     },
     {
       "id": "le-monteil",
       "nom": "Le Monteil",
-      "lat": 44.8095,
-      "lon": -0.6225,
+      "lat": 44.80021,
+      "lon": -0.64611,
       "population": 5500,
       "part_locataires_est": 0.45,
       "part_petits_logements_est": 0.2,
       "densite": "moyenne",
-      "commentaire": "Proche Talence, habitat mixte, étudiants en diffus."
+      "commentaire": "Proche Talence, habitat mixte, étudiants en diffus.",
+      "position_source": "Google Places"
     },
     {
       "id": "verthamon",
       "nom": "Verthamon / Haut-Brion",
-      "lat": 44.8108,
-      "lon": -0.6115,
+      "lat": 44.81665,
+      "lon": -0.60861,
       "population": 4000,
       "part_locataires_est": 0.35,
       "part_petits_logements_est": 0.08,
       "densite": "moyenne",
-      "commentaire": "Résidentiel aisé, vignobles. Demande laverie faible."
+      "commentaire": "Résidentiel aisé, vignobles. Demande laverie faible.",
+      "position_source": "Google Places"
     },
     {
       "id": "brivazac-candau",
       "nom": "Brivazac / Candau",
-      "lat": 44.8028,
-      "lon": -0.6152,
+      "lat": 44.80173,
+      "lon": -0.6148,
       "population": 4500,
       "part_locataires_est": 0.5,
       "part_petits_logements_est": 0.25,
       "densite": "moyenne",
-      "commentaire": "Proche campus, locatif étudiant en diffus."
+      "commentaire": "Proche campus, locatif étudiant en diffus.",
+      "position_source": "Google Places"
     },
     {
       "id": "saige",
       "nom": "Saige (Formanoir)",
-      "lat": 44.7911,
-      "lon": -0.6325,
+      "lat": 44.79073,
+      "lon": -0.63232,
       "population": 6500,
       "part_locataires_est": 0.8,
       "part_petits_logements_est": 0.4,
       "densite": "tres_forte",
-      "commentaire": "Grand ensemble, forte part de logement social. Demande laverie structurellement élevée. Tram B. Centroïde recalé sur le centre commercial Saige-Formanoir géolocalisé par Google."
+      "commentaire": "Grand ensemble, forte part de logement social. Demande laverie structurellement élevée. Tram B. Centroïde recalé sur le centre commercial Saige-Formanoir géolocalisé par Google.",
+      "position_source": "Google Places"
     },
     {
       "id": "campus",
       "nom": "Campus universitaire (partie Pessac)",
-      "lat": 44.797,
-      "lon": -0.61,
+      "lat": 44.79879,
+      "lon": -0.61541,
       "population": 3500,
       "part_locataires_est": 0.95,
       "part_petits_logements_est": 0.9,
       "densite": "forte",
-      "commentaire": "~3 500 lits en résidences (CROUS + privées) côté Pessac ; ~15-20 000 étudiants fréquentent le site en journée. Deux laveries captives CROUS."
+      "commentaire": "~3 500 lits en résidences (CROUS + privées) côté Pessac ; ~15-20 000 étudiants fréquentent le site en journée. Deux laveries captives CROUS.",
+      "position_source": "Google Places"
     },
     {
       "id": "casino",
@@ -86,35 +92,38 @@
     {
       "id": "noes",
       "nom": "Noès",
-      "lat": 44.809,
-      "lon": -0.644,
+      "lat": 44.81207,
+      "lon": -0.63656,
       "population": 3000,
       "part_locataires_est": 0.4,
       "part_petits_logements_est": 0.15,
       "densite": "moyenne",
-      "commentaire": "Pavillonnaire + collectifs récents."
+      "commentaire": "Pavillonnaire + collectifs récents.",
+      "position_source": "Google Places"
     },
     {
       "id": "arago-chataigneraie",
       "nom": "Arago / La Châtaigneraie",
-      "lat": 44.8005,
-      "lon": -0.6395,
+      "lat": 44.79639,
+      "lon": -0.64796,
       "population": 5000,
       "part_locataires_est": 0.5,
       "part_petits_logements_est": 0.25,
       "densite": "forte",
-      "commentaire": "Collectifs denses, proximité rocade."
+      "commentaire": "Collectifs denses, proximité rocade.",
+      "position_source": "Google Places"
     },
     {
       "id": "france-alouette",
       "nom": "France / Alouette",
-      "lat": 44.7925,
-      "lon": -0.647,
+      "lat": 44.79346,
+      "lon": -0.65946,
       "population": 6500,
       "part_locataires_est": 0.45,
       "part_petits_logements_est": 0.2,
       "densite": "moyenne",
-      "commentaire": "Pôle Alouette : gare, clinique, commerces. Terminus tram B Alouette-France."
+      "commentaire": "Pôle Alouette : gare, clinique, commerces. Terminus tram B Alouette-France.",
+      "position_source": "Google Places"
     },
     {
       "id": "3m-bourgailh",
@@ -141,35 +150,38 @@
     {
       "id": "magonty",
       "nom": "Magonty",
-      "lat": 44.7825,
-      "lon": -0.6905,
+      "lat": 44.79351,
+      "lon": -0.70458,
       "population": 5500,
       "part_locataires_est": 0.25,
       "part_petits_logements_est": 0.07,
       "densite": "faible",
-      "commentaire": "Pavillonnaire excentré."
+      "commentaire": "Pavillonnaire excentré.",
+      "position_source": "Google Places"
     },
     {
       "id": "toctoucau",
       "nom": "Toctoucau",
-      "lat": 44.766,
-      "lon": -0.728,
+      "lat": 44.75562,
+      "lon": -0.74015,
       "population": 2500,
       "part_locataires_est": 0.3,
       "part_petits_logements_est": 0.07,
       "densite": "faible",
-      "commentaire": "Bourg excentré, limite Cestas."
+      "commentaire": "Bourg excentré, limite Cestas.",
+      "position_source": "Google Places"
     },
     {
       "id": "bersol",
       "nom": "Bersol (zone d'activités)",
-      "lat": 44.79,
-      "lon": -0.636,
+      "lat": 44.78202,
+      "lon": -0.6453,
       "population": 1000,
       "part_locataires_est": 0.4,
       "part_petits_logements_est": 0.15,
       "densite": "faible",
-      "commentaire": "Zone économique, peu résidentielle mais flux salariés important."
+      "commentaire": "Zone économique, peu résidentielle mais flux salariés important.",
+      "position_source": "Google Places"
     }
   ]
 }

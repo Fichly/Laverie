@@ -46,10 +46,48 @@ function fmtInt(n) {
 const COULEURS = { chaine: '#2563eb', independant: '#16a34a', captif: '#6b7280' };
 const LIBELLES = { chaine: 'Chaîne / réseau', independant: 'Indépendant', captif: 'Captive (résidence)' };
 
-// Poids concurrentiel d'une laverie : les laveries captives (CROUS) ne captent
-// qu'une partie de la demande de leur zone, elles pèsent moins dans le modèle.
-function poidsConcurrence(laverie) {
-  return laverie.type === 'captif' ? 0.4 : 1.0;
+// ATTRACTIVITÉ D'UNE LAVERIE — le « A » du modèle de Huff.
+//
+// Toutes les laveries ne se valent pas : une enseigne notée 4,3/5 avec des
+// machines récentes capte bien plus qu'une adresse notée 1,9/5 dont la moitié
+// du parc est en panne. Trois facteurs, tous issus des données Google :
+//
+//   qualité — la note, pondérée par le nombre d'avis (une note parfaite sur
+//             3 avis ne prouve rien : on la ramène vers la moyenne) ;
+//   taille  — le nombre de machines EN SERVICE rapporté au parc type du secteur ;
+//   accès   — les laveries de résidence (CROUS) ne captent qu'une fraction de
+//             la demande de ville, leur usage étant réservé aux résidents.
+const NOTE_NEUTRE = 3.5;      // note supposée quand on ne sait pas
+const AVIS_CONFIANCE = 20;    // au-delà, la note est jugée représentative
+
+function attractivite(l) {
+  // Qualité : lissage bayésien vers la note neutre selon le volume d'avis.
+  let qualite = 0.7;
+  if (l.note_google != null) {
+    const n = l.nb_avis || 0;
+    const noteLissee = (l.note_google * n + NOTE_NEUTRE * AVIS_CONFIANCE)
+                     / (n + AVIS_CONFIANCE);
+    // 1★ → 0,40 ; 3,5★ → 0,77 ; 5★ → 1,00
+    qualite = 0.4 + 0.6 * Math.max(0, Math.min(1, (noteLissee - 1) / 4));
+  }
+
+  // Taille : machines réellement disponibles / parc type (11 machines).
+  let taille = 1.0;
+  if (l.nb_lave_linge != null) {
+    const enService = l.nb_lave_linge - (l.nb_lave_linge_hs || 0);
+    taille = Math.max(0.25, enService / 11);
+  }
+
+  const acces = l.type === 'captif' ? 0.4 : 1.0;
+  return qualite * taille * acces;
+}
+
+// Laverie vulnérable : mal notée sur un volume d'avis crédible, et grand public.
+// C'est la cible d'une implantation concurrente ou d'une reprise.
+function estVulnerable(l) {
+  return l.type !== 'captif'
+      && l.note_google != null && l.note_google < 3
+      && (l.nb_avis || 0) >= 10;
 }
 
 // Noyau de couverture : 1 sur place, ~0 au-delà du rayon (décroissance gaussienne).
@@ -127,6 +165,14 @@ function dessinerMarqueurs() {
   state.layers.marqueurs.clearLayers();
   state.marqueurs = {};
   for (const l of laveriesVisibles()) {
+    // Une laverie mal notée dans une zone qui a de la demande est une cible :
+    // on la cercle en orange pour qu'elle saute aux yeux sur la carte.
+    const vulnerable = estVulnerable(l);
+    if (vulnerable) {
+      L.circleMarker([l.lat, l.lon], {
+        radius: 17, color: '#f97316', weight: 3, fill: false, interactive: false,
+      }).addTo(state.layers.marqueurs);
+    }
     const m = L.circleMarker([l.lat, l.lon], {
       radius: 9,
       color: '#fff',
@@ -182,6 +228,17 @@ function galerie(l) {
   </div></div>`;
 }
 
+// Google renvoie les horaires jour par jour ; on condense quand la semaine est
+// uniforme, sinon on affiche une ligne par jour.
+function formaterHoraires(h) {
+  if (!h) return null;
+  if (!h.includes(' ; ')) return h;
+  const jours = h.split(' ; ').map(j => j.trim());
+  const plages = jours.map(j => j.split(': ').slice(1).join(': ').trim());
+  if (new Set(plages).size === 1) return `Tous les jours ${plages[0]}`;
+  return jours.map(j => `<span style="display:block">${j}</span>`).join('');
+}
+
 function ligneInfo(icone, valeur, manquantTexte) {
   const contenu = valeur
     ? `<span class="val">${valeur}</span>`
@@ -221,8 +278,27 @@ function ficheLaverie(l) {
        <code>scripts/enrich_google_places.py</code> pour récupérer les avis Google
        officiels de cette laverie.</div>`;
 
+  const hs = l.nb_lave_linge_hs || 0;
   const machines = l.nb_lave_linge != null
-    ? `${l.nb_lave_linge} lave-linge / ${l.nb_seche_linge ?? '?'} sèche-linge` : null;
+    ? `${l.nb_lave_linge} lave-linge / ${l.nb_seche_linge ?? '?'} sèche-linge`
+      + (hs ? ` <span style="color:#fca5a5">— dont ${hs} en panne</span>` : '')
+    : null;
+
+  // Décomposition de l'attractivité : le lecteur doit pouvoir contester le chiffre.
+  const a = attractivite(l);
+  const forceBloc = `
+    <div class="encart" style="border-left-color:${a >= 0.7 ? '#16a34a' : a >= 0.4 ? '#eab308' : '#dc2626'}">
+      <b>Force concurrentielle : ${(a * 100).toFixed(0)} / 100</b><br>
+      ${l.note_google != null
+        ? `Note ${l.note_google}/5 sur ${l.nb_avis ?? '?'} avis`
+        : 'Note inconnue (valeur moyenne retenue)'}
+      ${l.nb_lave_linge != null
+        ? ` · ${l.nb_lave_linge - hs} machine${l.nb_lave_linge - hs > 1 ? 's' : ''} en service`
+        : ' · parc inconnu'}
+      ${l.type === 'captif' ? ' · accès réservé aux résidents' : ''}
+      <br><span style="font-size:0.72rem">C'est ce poids qui détermine la part de marché
+      qu'elle retire à une nouvelle implantation voisine.</span>
+    </div>`;
 
   return `
     ${galerie(l)}
@@ -238,13 +314,14 @@ function ficheLaverie(l) {
       <div class="fiche-infos">
         ${ligneInfo('📍', l.adresse)}
         ${ligneInfo('🏘️', l.quartier, 'quartier à définir')}
-        ${ligneInfo('🕐', l.horaires, 'horaires à relever')}
+        ${ligneInfo('🕐', formaterHoraires(l.horaires), 'horaires à relever')}
         ${ligneInfo('📞', l.telephone, 'téléphone inconnu')}
         ${ligneInfo('🧺', machines, 'nombre de machines à relever sur place')}
         ${ligneInfo('📐', l.surface_m2 ? l.surface_m2 + ' m²' : null, 'surface à relever sur place')}
         ${ligneInfo('💶', l.prix_cycle_8kg ? l.prix_cycle_8kg + ' € le cycle 8 kg' : null, 'prix à relever sur place')}
         ${l.site_web ? ligneInfo('🌐', `<a href="${l.site_web}" target="_blank" rel="noopener" style="color:var(--accent)">site web</a>`) : ''}
       </div>
+      ${forceBloc}
       ${l.notes_terrain ? `<div class="encart"><b>Note d'analyse</b><br>${l.notes_terrain}</div>` : ''}
       ${avisBloc}
       <div class="encart" style="border-left-color:#64748b">
@@ -498,9 +575,11 @@ function dessinerListe() {
     const note = l.note_google != null
       ? `${l.note_google}★${l.nb_avis != null ? `<br><span style="font-weight:400;font-size:0.62rem">${l.nb_avis} avis</span>` : ''}`
       : 'n.c.';
+    const cible = estVulnerable(l)
+      ? '<span class="meta" style="color:#f97316">🎯 cible : mal notée, zone à reprendre</span>' : '';
     return `<li data-id="${l.id}">
       <span class="dot dot-${l.type}"></span>
-      <span class="nom">${l.nom}<span class="meta">${l.quartier ?? 'quartier à définir'}</span></span>
+      <span class="nom">${l.nom}<span class="meta">${l.quartier ?? 'quartier à définir'}</span>${cible}</span>
       <span class="note ${classeNote(l.note_google)}">${note}</span>
     </li>`;
   }).join('');
@@ -544,7 +623,7 @@ function dessinerCouverture() {
 function dessinerHeat() {
   if (state.layers.heat) { map.removeLayer(state.layers.heat); state.layers.heat = null; }
   if (!document.getElementById('l-heat-offre').checked) return;
-  const points = laveriesVisibles().map(l => [l.lat, l.lon, poidsConcurrence(l)]);
+  const points = laveriesVisibles().map(l => [l.lat, l.lon, attractivite(l)]);
   state.layers.heat = L.heatLayer(points, { radius: 45, blur: 30, maxZoom: 15, max: 1.5 }).addTo(map);
 }
 
@@ -563,19 +642,53 @@ function caReference() {
   return (min + max) / 2;
 }
 
-// Demande accessible depuis un point : agrège les quartiers voisins pondérés par
-// la distance. La demande ne s'arrête pas à la frontière d'un quartier, un
-// habitant du quartier d'à côté à 300 m est un client tout aussi probable.
+// ÉTALEMENT DE LA POPULATION
+//
+// Concentrer les habitants d'un quartier en un point crée de faux points chauds :
+// deux centroïdes voisins se cumulent et le modèle voit une densité qui n'existe
+// pas. On répartit donc chaque quartier sur un disque — un point central et une
+// couronne — ce qui lisse la surface de demande.
+//
+// Ce n'est qu'un pis-aller : le vrai correctif est le carroyage INSEE 200 m, qui
+// donne la population réellement observée maille par maille.
+const RAYON_ETALEMENT = 450;      // m
+const POIDS_CENTRE = 0.4;
+const POINTS_COURONNE = 6;
+
+function pointsDemande() {
+  if (state._pointsDemande) return state._pointsDemande;
+  const pts = [];
+  for (const q of state.quartiers) {
+    pts.push({ q, lat: q.lat, lon: q.lon, part: POIDS_CENTRE });
+    const partAnneau = (1 - POIDS_CENTRE) / POINTS_COURONNE;
+    // 1° de latitude ≈ 111 320 m ; la longitude se resserre avec la latitude.
+    const dLat = RAYON_ETALEMENT / 111320;
+    const dLon = RAYON_ETALEMENT / (111320 * Math.cos(q.lat * Math.PI / 180));
+    for (let i = 0; i < POINTS_COURONNE; i++) {
+      const a = (2 * Math.PI * i) / POINTS_COURONNE;
+      pts.push({ q, lat: q.lat + dLat * Math.sin(a),
+                 lon: q.lon + dLon * Math.cos(a), part: partAnneau });
+    }
+  }
+  state._pointsDemande = pts;
+  return pts;
+}
+
+// Demande accessible depuis un point : agrège les points de demande voisins
+// pondérés par la distance. La demande ne s'arrête pas à la frontière d'un
+// quartier — un habitant du quartier d'à côté à 300 m est un client tout aussi
+// probable.
 function demandeAccessible(lat, lon, R) {
   const [ppMin, ppMax] = state.benchmarks.demande.clientele_ponctuelle.part_menages_concernes_pct;
   const partPonctuelle = ((ppMin + ppMax) / 2) / 100;
   let pop = 0, reguliers = 0, ponctuels = 0;
-  for (const q of state.quartiers) {
-    const w = couverture(distanceM(lat, lon, q.lat, q.lon), R);
+  for (const p of pointsDemande()) {
+    const w = couverture(distanceM(lat, lon, p.lat, p.lon), R);
     if (w < 0.05) continue;
-    pop += q.population * w;
-    const menages = q.population * w / TAILLE_MENAGE;
-    const reg = menages * partClienteleReguliere(q);
+    const habitants = p.q.population * p.part * w;
+    pop += habitants;
+    const menages = habitants / TAILLE_MENAGE;
+    const reg = menages * partClienteleReguliere(p.q);
     reguliers += reg;
     ponctuels += (menages - reg) * partPonctuelle;
   }
@@ -588,7 +701,7 @@ function offreAccessible(lat, lon, R) {
   const concurrents = [];
   for (const l of state.laveries.filter(x => x.statut === 'actif')) {
     const d = distanceM(lat, lon, l.lat, l.lon);
-    const p = poidsConcurrence(l) * couverture(d, R);
+    const p = attractivite(l) * couverture(d, R);
     if (p < 0.01) continue;
     pression += p;
     if (p > 0.05) concurrents.push({ nom: l.nom, d: Math.round(d), type: l.type });

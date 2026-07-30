@@ -44,18 +44,28 @@ python3 scripts/build_standalone.py
 - **Benchmarks secteur** intégrés (prix, CA, marges, investissement) —
   uniquement des fourchettes publiques, faute de données d'exploitants.
 
-## Le modèle en trois idées
+## Le modèle en quatre idées
 
 1. **Deux clientèles, pas une.** Les ménages *sans lave-linge* (2 % en secteur
    pavillonnaire, jusqu'à 10 % là où dominent studios et T1) viennent chaque
    semaine et dépensent 300–700 €/an. Tous les autres viennent 1 à 3 fois par an
    pour les couettes : 20–45 €/an. Les confondre fausse totalement l'estimation.
-2. **La part de marché se dispute.** Chaque laverie existante réduit la part
-   captable selon sa distance (modèle de Huff simplifié, décroissance
-   gaussienne). Les laveries captives CROUS ne pèsent que 40 %.
-3. **Un seul calcul pour deux affichages.** La fonction `estimerCA()` alimente
+2. **Toutes les laveries ne se valent pas.** Chacune reçoit une *force
+   concurrentielle* de 0 à 100 (`attractivite()`), croisant sa note Google
+   lissée par le volume d'avis, son nombre de machines **en service** et son
+   accessibilité (une laverie de résidence CROUS ne pèse que 40 %). Une adresse
+   notée 1,9/5 avec la moitié du parc en panne ne bloque pas une zone comme une
+   enseigne moderne à 4,3/5 — c'est ce qui distingue une zone verrouillée d'une
+   zone à reprendre.
+3. **La part de marché se dispute.** Chaque laverie réduit la part captable
+   selon sa force et sa distance (modèle de Huff, décroissance gaussienne).
+4. **Un seul calcul pour deux affichages.** La fonction `estimerCA()` alimente
    à la fois la couleur des quartiers et le simulateur : les deux lectures de la
    carte ne peuvent pas se contredire.
+
+Les laveries mal notées sur un volume d'avis crédible sont cerclées d'orange sur
+la carte et marquées « 🎯 cible » dans la liste : ce sont les emplacements à
+concurrencer ou à reprendre.
 
 L'indice affiché est le rapport entre le CA médian estimé de la zone et le CA
 médian d'une laverie du secteur (85 000 €). Au-dessus de 1, la zone porte une
@@ -72,8 +82,24 @@ data/laveries.json           Inventaire des laveries (source de vérité, édita
 data/quartiers.json          Demande par quartier (estimations → à remplacer par INSEE)
 data/benchmarks.json         Hypothèses économiques du secteur (fourchettes)
 scripts/sync_osm.py          Synchronisation de l'inventaire avec OpenStreetMap
+scripts/enrich_google_places.py  Notes, avis, photos et positions via l'API Google
+scripts/geocode_quartiers.py     Recale les centroïdes de quartiers via l'API Google
 scripts/build_standalone.py  Génère laverie-mapper.html
 ```
+
+## Limite connue : la maille de la demande
+
+Les 9 laveries sont géolocalisées au mètre par Google. La **demande**, elle,
+repose encore sur 15 centroïdes de quartiers — désormais ancrés sur des
+équipements réels (mairie, collège, centre social, gare) via
+`scripts/geocode_quartiers.py`, mais avec une population toujours estimée.
+
+Pour éviter les faux points chauds là où deux centroïdes se rapprochent, la
+population de chaque quartier est étalée sur un disque de 450 m plutôt que
+concentrée en un point. C'est un pis-aller : le correctif définitif reste
+l'import du **carroyage INSEE Filosofi 200 m** (gratuit), qui donne la
+population réellement observée maille par maille. C'est la priorité n°1 pour
+fiabiliser le classement des zones.
 
 ## Récupérer les infos d'une fiche Google — deux méthodes
 

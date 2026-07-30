@@ -4,7 +4,7 @@
     "code_insee": "33318",
     "code_postal": "33600",
     "derniere_maj": "2026-07-30",
-    "methode": "Inventaire constitué par recherche web (PagesJaunes, Justacoté, Bottin, Yelp, laverie24, GoWork, SIRENE/annuaire-entreprises). Notes et nombres d'avis relevés sur des annuaires qui republient les notes Google.",
+    "methode": "Inventaire constitué par recherche web puis recalé et complété via l'API Google Places (scripts/enrich_google_places.py) : positions, notes, avis, horaires et téléphones officiels.",
     "avertissement": "Notes, avis et photos issus de l'API Google Places. Conditions Google : ne pas conserver ces contenus au-delà de 30 jours — relancer scripts/enrich_google_places.py régulièrement.",
     "sources_contradictoires": [
       "Le téléphone 05 57 35 56 40 est attribué tantôt au 35 av. Pasteur, tantôt au 23 av. Léon Duguit selon les annuaires.",
@@ -95,7 +95,9 @@
       "a_verifier": true,
       "google_maps_url": "https://maps.google.com/?cid=12335351986898942327&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
       "nom_google": "Laverie Au Fil du Linge",
-      "adresse_google": "14 Rue d'Artois, 33600 Pessac, France"
+      "adresse_google": "14 Rue d'Artois, 33600 Pessac, France",
+      "nb_lave_linge_hs": null,
+      "nb_seche_linge_hs": null
     },
     {
       "id": "au-fil-du-linge-pasteur",
@@ -175,7 +177,9 @@
       "a_verifier": true,
       "google_maps_url": "https://maps.google.com/?cid=9299512339562537386&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
       "nom_google": "Laverie Au Fil du Linge",
-      "adresse_google": "35 Av. Pasteur, 33600 Pessac, France"
+      "adresse_google": "35 Av. Pasteur, 33600 Pessac, France",
+      "nb_lave_linge_hs": null,
+      "nb_seche_linge_hs": null
     },
     {
       "id": "laverie-compostelle",
@@ -256,7 +260,9 @@
       "a_verifier": true,
       "google_maps_url": "https://maps.google.com/?cid=3674427665092782150&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
       "nom_google": "Laverie Pessac-Compostelle",
-      "adresse_google": "Rue Compostelle Centre Commercial Compostelle 33600, 33600 Pessac, France"
+      "adresse_google": "Rue Compostelle Centre Commercial Compostelle 33600, 33600 Pessac, France",
+      "nb_lave_linge_hs": null,
+      "nb_seche_linge_hs": null
     },
     {
       "id": "laverie-nancel-penard",
@@ -320,7 +326,9 @@
       "a_verifier": true,
       "google_maps_url": "https://maps.google.com/?cid=15757176016064880298&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
       "nom_google": "Laverie automatique de Pessac",
-      "adresse_google": "84 Av. Dr Nancel Penard, 33600 Pessac, France"
+      "adresse_google": "84 Av. Dr Nancel Penard, 33600 Pessac, France",
+      "nb_lave_linge_hs": null,
+      "nb_seche_linge_hs": null
     },
     {
       "id": "laverie-de-saige",
@@ -401,11 +409,13 @@
         "annuaire-entreprises.data.gouv.fr (SIREN 500 349 790)",
         "waze (place_id)"
       ],
-      "notes_terrain": "FUSION de deux fiches doublons de l'inventaire initial (« Laverie Saige » et « Lavomatic Pessac Centre ») : même adresse, mêmes horaires, même établissement. SARL indépendante créée en 2007. Note de 2,0/5 sur 26 avis dans un quartier à forte demande (grand ensemble, tram B) : c'est le signal d'opportunité le plus net de la commune — machines non rénovées d'après les avis. Parc déduit des avis Google (déc. 2024) : « 4 machines sur 8 sont en panne (dont 2 depuis au moins 2020), 2 sèche-linge sur 4 en panne ». Pas de paiement CB. Hygiène très dégradée, linge ressorti taché de cambouis (plusieurs avis concordants), service client injoignable, horaires non respectés.",
+      "notes_terrain": "FUSION de deux fiches doublons de l'inventaire initial (« Laverie Saige » et « Lavomatic Pessac Centre ») : même adresse, mêmes horaires, même établissement. SARL indépendante créée en 2007. Note officielle Google de 1,9/5 sur 26 avis dans un quartier à forte demande (grand ensemble, tram B) : c'est le signal d'opportunité le plus net de la commune — machines non rénovées d'après les avis. Parc déduit des avis Google (déc. 2024) : « 4 machines sur 8 sont en panne (dont 2 depuis au moins 2020), 2 sèche-linge sur 4 en panne ». Pas de paiement CB. Hygiène très dégradée, linge ressorti taché de cambouis (plusieurs avis concordants), service client injoignable, horaires non respectés.",
       "a_verifier": true,
       "google_maps_url": "https://maps.google.com/?cid=843305021889211874&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
       "nom_google": "Laverie de Saige",
-      "adresse_google": "20 Rue de l'Horloge, 33600 Pessac, France"
+      "adresse_google": "20 Rue de l'Horloge, 33600 Pessac, France",
+      "nb_lave_linge_hs": 4,
+      "nb_seche_linge_hs": 2
     },
     {
       "id": "laverie-leon-duguit",
@@ -489,7 +499,9 @@
       "a_verifier": true,
       "google_maps_url": "https://maps.google.com/?cid=8603468805120134486&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
       "nom_google": "Laverie",
-      "adresse_google": "23 Av. Léon Duguit, 33600 Pessac, France"
+      "adresse_google": "23 Av. Léon Duguit, 33600 Pessac, France",
+      "nb_lave_linge_hs": null,
+      "nb_seche_linge_hs": null
     },
     {
       "id": "laverie-crous-bardanac",
@@ -568,7 +580,9 @@
       "a_verifier": true,
       "google_maps_url": "https://maps.google.com/?cid=15660676491504015446&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
       "nom_google": "Laverie Crous",
-      "adresse_google": "20 Av. de Bardanac, 33600 Pessac, France"
+      "adresse_google": "20 Av. de Bardanac, 33600 Pessac, France",
+      "nb_lave_linge_hs": null,
+      "nb_seche_linge_hs": null
     },
     {
       "id": "google-r3m3cws0qqbi",
@@ -608,7 +622,9 @@
       "a_verifier": true,
       "google_maps_url": "https://maps.google.com/?cid=12844593988251733468&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
       "nom_google": "Laverie crous",
-      "adresse_google": "4 Av. Henri Vizioz, 33600 Pessac, France"
+      "adresse_google": "4 Av. Henri Vizioz, 33600 Pessac, France",
+      "nb_lave_linge_hs": null,
+      "nb_seche_linge_hs": null
     },
     {
       "id": "google-r2yowolwmuhw",
@@ -677,7 +693,9 @@
       "a_verifier": true,
       "google_maps_url": "https://maps.google.com/?cid=8987115943141321435&g_mp=CiVnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLkdldFBsYWNlEAIYBCAA",
       "nom_google": "Laverie CROUS - RU2",
-      "adresse_google": "Canton de Pessac-2, 33600 Pessac, France"
+      "adresse_google": "Canton de Pessac-2, 33600 Pessac, France",
+      "nb_lave_linge_hs": null,
+      "nb_seche_linge_hs": null
     }
   ]
 }

@@ -28,6 +28,7 @@ def main():
         "laveries": json.loads(lire("data/laveries.json")),
         "quartiers": json.loads(lire("data/quartiers.json")),
         "benchmarks": json.loads(lire("data/benchmarks.json")),
+        "generateurs": json.loads(lire("data/generateurs.json")),
     }
 
     # On repart de index.html et on remplace les balises externes par leur contenu.

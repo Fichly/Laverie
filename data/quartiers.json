@@ -139,13 +139,14 @@
     {
       "id": "cap-de-bos",
       "nom": "Cap de Bos",
-      "lat": 44.7885,
-      "lon": -0.671,
+      "lat": 44.7923,
+      "lon": -0.6826,
       "population": 5500,
       "part_locataires_est": 0.3,
       "part_petits_logements_est": 0.08,
       "densite": "faible",
-      "commentaire": "Pavillonnaire. Centre commercial de proximité."
+      "commentaire": "Pavillonnaire. Centre commercial de proximité. Centroïde recalé sur le centre commercial Cap de Bos (géolocalisé par Google via l'adresse de la laverie) : l'estimation initiale était 1,1 km à l'est, ce qui privait la laverie de toute sa clientèle dans le modèle.",
+      "position_source": "Centre commercial Cap de Bos (Google)"
     },
     {
       "id": "magonty",

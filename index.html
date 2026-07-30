@@ -64,6 +64,13 @@
           <span class="lg"><i style="background:#d03b3b"></i> Nettement au-dessus</span>
           <span style="flex-basis:100%;margin-top:4px">Chaque maille de 140 m est évaluée par le modèle. Référence : le CA d'une laverie moyenne de Pessac. Rouge = une nouvelle laverie y ferait mieux.</span>
         </div>
+        <label class="check"><input type="checkbox" id="l-heat-demande"> <strong>🏢 Heatmap de la demande captive</strong></label>
+        <div class="legend" id="legende-demande">
+          <span class="lg"><span class="dot" style="background:#eda100;width:10px;height:10px"></span> Résidence étudiante</span>
+          <span class="lg"><span class="dot" style="background:#e87ba4;width:10px;height:10px"></span> Logement social</span>
+          <span class="lg"><span class="dot" style="background:#1baf7a;width:10px;height:10px"></span> Hébergement touristique</span>
+          <span style="flex-basis:100%;margin-top:4px">Bâtiments où se concentrent les ménages sans lave-linge. Taille du cercle = nombre de ménages cibles. Cliquez pour la fiche.</span>
+        </div>
         <label class="check"><input type="checkbox" id="l-heat-offre"> Carte de chaleur — concentration de l'offre</label>
         <label class="check"><input type="checkbox" id="l-tension" checked> Potentiel par quartier (demande vs concurrence)</label>
         <div class="legend" id="legende-tension">
@@ -119,6 +126,11 @@
           <label>CA moyen constaté d'une laverie à Pessac : <strong><span id="h-caref-val">50 000</span> €</strong></label>
           <input type="range" id="h-caref" min="25000" max="90000" step="2500" value="50000">
         </div>
+        <div class="slider-row">
+          <label>Loyer mensuel du local : <strong><span id="h-loyer-val">1 050</span> €</strong></label>
+          <input type="range" id="h-loyer" min="300" max="2500" step="50" value="1050">
+        </div>
+        <label class="check-inline"><input type="checkbox" id="h-energie"> Scénario stressé : énergie et eau +30 %</label>
         <button id="btn-reset-hyp" class="btn-second hidden">↺ Rétablir les valeurs du secteur</button>
       </section>
 

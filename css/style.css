@@ -290,3 +290,17 @@ footer { font-size: 0.7rem; color: #64748b; padding: 8px 4px 20px; line-height: 
   #app { flex-direction: column; }
   #sidebar { width: 100%; min-width: 0; max-height: 45vh; }
 }
+
+/* ---- Compte d'exploitation ---- */
+.expl { margin-top: 10px; background: var(--panel); border-radius: 8px; padding: 8px 10px; }
+.expl summary { cursor: pointer; font-size: 0.8rem; font-weight: 700; color: var(--accent); }
+.expl[open] summary { margin-bottom: 8px; }
+.tab-pl { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+.tab-pl td { padding: 3px 2px; border-bottom: 1px solid #26334a; }
+.tab-pl td.ca { text-align: right; white-space: nowrap; }
+.tab-pl tr.sous td { color: var(--muted); font-size: 0.68rem; border-bottom: none; padding-top: 0; }
+.tab-pl tr.total td { border-top: 1px solid #475569; border-bottom: none; font-weight: 700; padding-top: 5px; }
+.verdict-pl { margin-top: 8px; padding: 7px 9px; background: var(--panel-2);
+  border-left: 3px solid var(--accent); border-radius: 6px; font-size: 0.76rem; line-height: 1.4; }
+.check-inline { display: flex; align-items: center; gap: 8px; font-size: 0.78rem;
+  color: var(--muted); padding: 4px 0 0 24px; cursor: pointer; }

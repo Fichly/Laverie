@@ -24,7 +24,7 @@ const state = {
   // Hypothèses ajustables par l'utilisateur. null = valeur du secteur
   // (data/benchmarks.json). Les bouger permet de vérifier si le classement
   // résiste à l'incertitude, qui est ici la principale limite.
-  hyp: { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4 },
+  hyp: { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4, loyer: null, stressEnergie: false },
 };
 
 let map;
@@ -106,18 +106,22 @@ function couverture(d, rayon) {
 async function charger() {
   // La version autonome (fichier HTML unique) injecte les données dans window.__DATA__ ;
   // la version modulaire les charge depuis data/*.json via un serveur local.
-  const [lav, qua, bench] = window.__DATA__
-    ? [window.__DATA__.laveries, window.__DATA__.quartiers, window.__DATA__.benchmarks]
+  const [lav, qua, bench, gen] = window.__DATA__
+    ? [window.__DATA__.laveries, window.__DATA__.quartiers,
+       window.__DATA__.benchmarks, window.__DATA__.generateurs]
     : await Promise.all([
       fetch('data/laveries.json').then(r => r.json()),
       fetch('data/quartiers.json').then(r => r.json()),
       fetch('data/benchmarks.json').then(r => r.json()),
+      fetch('data/generateurs.json').then(r => r.json()),
     ]);
   state.laveries = lav.laveries;
   state.meta = lav.meta;            // conservé pour réécrire un fichier complet à l'export
   state.candidats = lav.candidats || [];
   state.quartiers = qua.quartiers;
   state.benchmarks = bench;
+  state.generateurs = (gen && gen.generateurs) || [];
+  state.profilsGenerateurs = (gen && gen.meta && gen.meta.profils) || {};
   initCarte();
   initUI();
   rafraichir();
@@ -137,6 +141,7 @@ function initCarte() {
   state.layers.tension = L.layerGroup().addTo(map);
   state.layers.simulation = L.layerGroup().addTo(map);
   state.layers.candidats = L.layerGroup().addTo(map);
+  state.layers.demande = L.layerGroup().addTo(map);
   state.layers.heat = null;
 
   map.on('click', (e) => {
@@ -165,6 +170,7 @@ function rafraichir() {
   dessinerTension();
   dessinerHeat();
   dessinerHeatPotentiel();
+  dessinerDemandeCaptive();
   dessinerFiabilite();
   dessinerClassement();
   dessinerCandidats();
@@ -742,18 +748,55 @@ const RAYON_ETALEMENT = 450;      // m
 const POIDS_CENTRE = 0.4;
 const POINTS_COURONNE = 6;
 
+// Occupation moyenne d'un logement selon le type de bâtiment. Une chambre
+// étudiante loge une personne, un logement social une famille.
+const OCCUPANTS = { residence_etudiante: 1.1, logement_social: 2.4, hebergement_tourisme: 2.0 };
+
+// Demande portée par un générateur, exprimée directement en ménages : un
+// logement = un ménage. Pas de division par la taille des ménages ici.
+function menagesGenerateur(g) {
+  return {
+    reguliers: g.logements * g.part_sans_lave_linge,
+    ponctuels: g.logements * (1 - g.part_sans_lave_linge) * 0.20,
+    habitants: g.logements * (OCCUPANTS[g.type] || 2),
+  };
+}
+
 function pointsDemande() {
   if (state._pointsDemande) return state._pointsDemande;
   const pts = [];
+
+  // Les habitants des résidences repérées sont DÉJÀ comptés dans la population
+  // de leur quartier. On les en retire avant de les replacer à leur position
+  // exacte, sinon la demande est comptée deux fois là où elle est la plus forte.
+  const retrait = {};
+  for (const g of state.generateurs || []) {
+    const q = state.quartiers.reduce((meilleur, x) =>
+      distanceM(g.lat, g.lon, x.lat, x.lon) < distanceM(g.lat, g.lon, meilleur.lat, meilleur.lon)
+        ? x : meilleur, state.quartiers[0]);
+    retrait[q.id] = (retrait[q.id] || 0) + menagesGenerateur(g).habitants;
+  }
+
+  for (const g of state.generateurs || []) {
+    const m = menagesGenerateur(g);
+    pts.push({ generateur: g, lat: g.lat, lon: g.lon, part: 1,
+               menagesReguliers: m.reguliers, menagesPonctuels: m.ponctuels,
+               habitants: m.habitants });
+  }
+
   for (const q of state.quartiers) {
-    pts.push({ q, lat: q.lat, lon: q.lon, part: POIDS_CENTRE });
+    // Population résiduelle : on ne descend jamais sous 20 % pour absorber une
+    // éventuelle surestimation du nombre de logements des générateurs.
+    const restante = Math.max(q.population * 0.2, q.population - (retrait[q.id] || 0));
+    const qEff = { ...q, population: restante };
+    pts.push({ q: qEff, lat: q.lat, lon: q.lon, part: POIDS_CENTRE });
     const partAnneau = (1 - POIDS_CENTRE) / POINTS_COURONNE;
     // 1° de latitude ≈ 111 320 m ; la longitude se resserre avec la latitude.
     const dLat = RAYON_ETALEMENT / 111320;
     const dLon = RAYON_ETALEMENT / (111320 * Math.cos(q.lat * Math.PI / 180));
     for (let i = 0; i < POINTS_COURONNE; i++) {
       const a = (2 * Math.PI * i) / POINTS_COURONNE;
-      pts.push({ q, lat: q.lat + dLat * Math.sin(a),
+      pts.push({ q: qEff, lat: q.lat + dLat * Math.sin(a),
                  lon: q.lon + dLon * Math.cos(a), part: partAnneau });
     }
   }
@@ -772,12 +815,19 @@ function demandeAccessible(lat, lon, R) {
   for (const p of pointsDemande()) {
     const w = couverture(distanceM(lat, lon, p.lat, p.lon), R);
     if (w < 0.05) continue;
-    const habitants = p.q.population * p.part * w;
-    pop += habitants;
-    const menages = habitants / TAILLE_MENAGE;
-    const reg = menages * partClienteleReguliere(p.q);
-    reguliers += reg;
-    ponctuels += (menages - reg) * partPonctuelle;
+    if (p.generateur) {
+      // Bâtiment identifié : la demande est connue en logements, pas en habitants.
+      pop += p.habitants * w;
+      reguliers += p.menagesReguliers * w * state.hyp.facteurDemande;
+      ponctuels += p.menagesPonctuels * w;
+    } else {
+      const habitants = p.q.population * p.part * w;
+      pop += habitants;
+      const menages = habitants / TAILLE_MENAGE;
+      const reg = menages * partClienteleReguliere(p.q);
+      reguliers += reg;
+      ponctuels += (menages - reg) * partPonctuelle;
+    }
   }
   return { pop, reguliers, ponctuels };
 }
@@ -809,6 +859,14 @@ function offreAccessible(lat, lon, R) {
 // mes estimations de population s'annule donc au numérateur et au dénominateur —
 // seuls les écarts RELATIFS entre zones subsistent, et ce sont les seuls dont on
 // ait besoin pour choisir un emplacement.
+// OPTION EXTÉRIEURE du modèle de Huff.
+//
+// Sans ce terme, les parts de marché somment toujours à 1 : une laverie isolée
+// capte l'intégralité de sa zone, même notée 1,9/5 avec la moitié du parc en
+// panne. C'est faux — devant une laverie sale, le client renonce, va dans une
+// autre commune, ou lave chez un proche. Ce poids représente ce non-recours.
+const ATTRACTIVITE_EXTERIEURE = 0.5;
+
 function caBrut(lat, lon, R, laverieExistante) {
   const b = state.benchmarks;
   const dem = demandeAccessible(lat, lon, R);
@@ -817,8 +875,8 @@ function caBrut(lat, lon, R, laverieExistante) {
   // Une laverie existante se partage le marché avec les autres selon son propre
   // poids ; un nouvel entrant arrive avec une attractivité de référence de 1.
   const partMarche = laverieExistante
-    ? attractivite(laverieExistante) / Math.max(pression, 1e-6)
-    : 1 / (1 + pression);
+    ? attractivite(laverieExistante) / (pression + ATTRACTIVITE_EXTERIEURE)
+    : 1 / (1 + pression + ATTRACTIVITE_EXTERIEURE);
 
   const [regMin, regMax] = depenseReguliere();
   const [ponMin, ponMax] = b.demande.clientele_ponctuelle.depense_annuelle_eur;
@@ -1031,7 +1089,130 @@ function simuler(lat, lon) {
       implantations sont envisageables.</span><br>` : ''}
     Résultat net indicatif (${margeMin}–${margeMax} % du CA) : ${fmtEur(caMin * margeMin / 100)} – ${fmtEur(caMax * margeMax / 100)}
     <div class="verdict ${verdictCls}">${verdictTxt}</div>
+    ${blocExploitation((caMin + caMax) / 2)}
     <p class="hint">Modèle de Huff pondéré par l'attractivité, rayon ${R} m, demande étalée par quartier. Les hypothèses sont dans data/benchmarks.json.</p>`;
+}
+
+// ---------- COMPTE D'EXPLOITATION PRÉVISIONNEL ----------
+//
+// Le CA seul ne dit pas si un emplacement est finançable. On déroule donc le
+// P&L complet du dossier de marché : cycles impliqués, coûts variables, charges
+// fixes poste par poste, résultat net, point mort et retour sur investissement.
+//
+// Le loyer est isolé des autres charges : c'est le seul poste qui dépend
+// fortement de l'emplacement (300 € en rural, 1 800 € en centre-ville), donc
+// celui que l'utilisateur doit pouvoir renseigner pour un local réel.
+function compteExploitation(caAnnuel, opts = {}) {
+  const b = state.benchmarks;
+  const c = b.couts;
+  const f = b.financement;
+
+  const prixMoyenCycle = (b.prix.lavage_eur[0] + b.prix.lavage_eur[1]) / 2;
+  const cycles = caAnnuel / prixMoyenCycle;
+  const coutVariable = cycles * c.cout_variable_par_cycle_eur;
+  const margeBrute = caAnnuel - coutVariable;
+
+  // Charges fixes hors loyer : milieu de fourchette de chaque poste, avec
+  // stress énergie optionnel (point de vigilance n°6 du dossier).
+  const mid = ([a, z]) => (a + z) / 2;
+  const cf = c.charges_fixes_mensuelles_eur;
+  const stress = opts.stressEnergie ? 1.3 : 1;
+  const postes = {
+    'Électricité / gaz': mid(cf.electricite_gaz) * stress,
+    'Eau': mid(cf.eau) * stress,
+    'Maintenance': mid(cf.maintenance),
+    'Produits lessiviels': mid(cf.produits_lessiviels),
+    'Assurance': mid(cf.assurance),
+  };
+  const loyerMensuel = opts.loyer != null ? opts.loyer : mid(cf.loyer);
+  const autresMensuel = Object.values(postes).reduce((s, x) => s + x, 0);
+  const chargesFixesAnnuelles = (loyerMensuel + autresMensuel) * 12;
+
+  const resultatNet = margeBrute - chargesFixesAnnuelles;
+  const margeNettePct = caAnnuel > 0 ? (resultatNet / caAnnuel) * 100 : 0;
+
+  // Point mort : charges fixes ÷ marge unitaire réelle (et non les 1,75 €
+  // du dossier, incohérents avec ses propres 78-85 % de marge brute).
+  const margeParCycle = prixMoyenCycle - c.cout_variable_par_cycle_eur;
+  const cyclesPointMort = (loyerMensuel + autresMensuel) / margeParCycle;
+
+  const investissement = mid(f.investissement_initial_eur);
+  const roiAnnees = resultatNet > 0 ? investissement / resultatNet : null;
+
+  return {
+    caAnnuel, cycles, cyclesMois: cycles / 12, prixMoyenCycle,
+    coutVariable, margeBrute, postes, loyerMensuel,
+    chargesFixesMensuelles: loyerMensuel + autresMensuel,
+    chargesFixesAnnuelles, resultatNet, margeNettePct,
+    margeParCycle, cyclesPointMort, cyclesPointMortJour: cyclesPointMort / 30,
+    investissement, roiAnnees,
+    // Repères du dossier pour situer le résultat
+    margeNetteAttendue: b.exploitation.marge_nette_pct,
+    roiAttendu: f.roi_annees,
+  };
+}
+
+function blocExploitation(ca) {
+  const x = compteExploitation(ca, {
+    loyer: state.hyp.loyer,
+    stressEnergie: state.hyp.stressEnergie,
+  });
+  const [mnMin, mnMax] = x.margeNetteAttendue;
+  const [roiMin, roiMax] = x.roiAttendu;
+
+  // Trois cas distincts : sous les repères, dedans, ou AU-DESSUS. Un résultat
+  // meilleur que le secteur n'est pas une bonne nouvelle à ce stade — c'est le
+  // signe que le CA modélisé est probablement surestimé.
+  const dedansMarge = x.margeNettePct >= mnMin && x.margeNettePct <= mnMax;
+  const dedansRoi = x.roiAnnees != null && x.roiAnnees >= roiMin && x.roiAnnees <= roiMax;
+  const auDessus = x.margeNettePct > mnMax || (x.roiAnnees != null && x.roiAnnees < roiMin);
+
+  let couleur, verdict;
+  if (x.resultatNet <= 0) {
+    couleur = '#dc2626';
+    verdict = '❌ Exploitation déficitaire à ce niveau de CA';
+  } else if (dedansMarge && dedansRoi) {
+    couleur = '#16a34a';
+    verdict = `✅ Conforme aux repères du secteur (marge ${mnMin}–${mnMax} %, retour ${roiMin}–${roiMax} ans)`;
+  } else if (auDessus) {
+    couleur = '#eab308';
+    verdict = `⚠ Meilleur que les repères du secteur (marge ${x.margeNettePct.toFixed(0)} % contre `
+      + `${mnMin}–${mnMax} % attendus). À ce stade c'est un signal d'alerte, pas une bonne nouvelle : `
+      + `le CA modélisé est probablement surestimé — voir le contrôle de fiabilité.`;
+  } else {
+    couleur = '#eab308';
+    verdict = `🟡 Sous les repères du secteur (marge attendue ${mnMin}–${mnMax} %, `
+      + `retour ${roiMin}–${roiMax} ans)`;
+  }
+
+  const lignesPostes = Object.entries(x.postes)
+    .map(([n, v]) => `<tr><td>− ${n}</td><td class="ca">−${fmtEur(v * 12)}</td></tr>`).join('');
+
+  return `
+    <details class="expl">
+      <summary>📊 Compte d'exploitation prévisionnel</summary>
+      <table class="tab-pl">
+        <tr><td>Chiffre d'affaires</td><td class="ca"><b>${fmtEur(x.caAnnuel)}</b></td></tr>
+        <tr class="sous"><td>soit ~${fmtInt(x.cyclesMois)} cycles/mois à ${x.prixMoyenCycle.toFixed(2)} €</td><td></td></tr>
+        <tr><td>− Coûts variables (${state.benchmarks.couts.cout_variable_par_cycle_eur} €/cycle)</td>
+            <td class="ca">−${fmtEur(x.coutVariable)}</td></tr>
+        <tr class="total"><td>= Marge brute</td><td class="ca">${fmtEur(x.margeBrute)}</td></tr>
+        <tr><td>− Loyer</td><td class="ca">−${fmtEur(x.loyerMensuel * 12)}</td></tr>
+        ${lignesPostes}
+        <tr class="total"><td>= Résultat net</td>
+            <td class="ca" style="color:${couleur}"><b>${fmtEur(x.resultatNet)}</b></td></tr>
+        <tr class="sous"><td>marge nette</td><td>${x.margeNettePct.toFixed(0)} %</td></tr>
+      </table>
+      <table class="tab-pl" style="margin-top:8px">
+        <tr><td>Point mort</td><td class="ca">${fmtInt(x.cyclesPointMort)} cycles/mois
+            (${x.cyclesPointMortJour.toFixed(0)}/jour)</td></tr>
+        <tr><td>Investissement retenu</td><td class="ca">${fmtEur(x.investissement)}</td></tr>
+        <tr><td>Retour sur investissement</td><td class="ca">${
+          x.roiAnnees != null ? x.roiAnnees.toFixed(1) + ' ans' : '—'}</td></tr>
+      </table>
+      <div class="verdict-pl" style="border-left-color:${couleur}">${verdict}</div>
+      <p class="hint">${state.benchmarks.financement.point_mort_reference.bfr_demarrage}</p>
+    </details>`;
 }
 
 // ---------- CONTRÔLE DE FIABILITÉ DU MODÈLE ----------
@@ -1182,6 +1363,49 @@ function dessinerHeatPotentiel() {
   state.layers.potentiel.bringToFront?.();
 }
 
+// ---------- HEATMAP DE LA DEMANDE CAPTIVE ----------
+//
+// Là où la heatmap du potentiel répond « où implanter ? », celle-ci répond
+// « d'où vient la demande ? ». Elle rend visibles les résidences étudiantes et
+// les ensembles de logement social — les concentrations de ménages sans
+// lave-linge, invisibles sur un fond de carte ordinaire.
+const COULEUR_GENERATEUR = {
+  residence_etudiante: '#eda100',
+  logement_social: '#e87ba4',
+  hebergement_tourisme: '#1baf7a',
+};
+
+function dessinerDemandeCaptive() {
+  state.layers.demande.clearLayers();
+  if (!document.getElementById('l-heat-demande')?.checked) return;
+
+  for (const g of state.generateurs || []) {
+    const m = menagesGenerateur(g);
+    const couleur = COULEUR_GENERATEUR[g.type] || '#94a3b8';
+    // Halo proportionnel à la demande, en mètres : lisible à toutes les échelles.
+    L.circle([g.lat, g.lon], {
+      radius: 60 + Math.sqrt(m.reguliers) * 26,
+      color: couleur, weight: 1, fillColor: couleur, fillOpacity: 0.22,
+    }).addTo(state.layers.demande);
+
+    L.circleMarker([g.lat, g.lon], {
+      radius: 5, color: '#fff', weight: 1.5, fillColor: couleur, fillOpacity: 1,
+    }).bindPopup(`<div class="popup">
+        <span class="tag" style="background:${couleur}">${
+          state.profilsGenerateurs?.[g.type]?.libelle || g.type}</span>
+        <h3>${g.nom}</h3>
+        <table>
+          <tr><td>Adresse</td><td>${g.adresse}</td></tr>
+          <tr><td>Logements</td><td>~${fmtInt(g.logements)} <span style="color:#fbbf24">(valeur par défaut)</span></td></tr>
+          <tr><td>Ménages sans lave-linge</td><td><b>~${fmtInt(m.reguliers)}</b>
+            (${Math.round(g.part_sans_lave_linge * 100)} %)</td></tr>
+        </table>
+        <p class="warn">Le nombre de logements n'est pas fourni par Google : c'est une
+        valeur par défaut selon le type de bâtiment. La position, elle, est exacte.</p>
+      </div>`, { maxWidth: 300 }).addTo(state.layers.demande);
+  }
+}
+
 // ---------- localiser un local précis ----------
 
 // Extrait des coordonnées d'un lien Google Maps ou d'une saisie « lat, lon ».
@@ -1324,7 +1548,8 @@ function initUI() {
   });
 
   for (const id of ['f-chaine', 'f-independant', 'f-captif', 'l-couverture',
-                    'l-heat-offre', 'l-heat-potentiel', 'l-tension']) {
+                    'l-heat-offre', 'l-heat-potentiel',
+                    'l-heat-demande', 'l-tension']) {
     document.getElementById(id).addEventListener('change', rafraichir);
   }
   const slider = document.getElementById('rayon');
@@ -1333,6 +1558,7 @@ function initUI() {
     document.getElementById('rayon-val').textContent = state.rayon;
     dessinerCouverture();
     dessinerHeatPotentiel();
+  dessinerDemandeCaptive();
   });
 
   // Localiser un local précis
@@ -1347,6 +1573,7 @@ function initUI() {
     ['h-depense', 'h-depense-val', v => { state.hyp.depenseMediane = v; return fmtInt(v); }],
     ['h-demande', 'h-demande-val', v => { state.hyp.facteurDemande = v / 100; return v; }],
     ['h-caref', 'h-caref-val', v => { state.hyp.caReference = v; return fmtInt(v); }],
+    ['h-loyer', 'h-loyer-val', v => { state.hyp.loyer = v; return fmtInt(v); }],
   ];
   for (const [id, idVal, appliquer] of hyps) {
     const s = document.getElementById(id);
@@ -1360,8 +1587,14 @@ function initUI() {
       }
     });
   }
+  document.getElementById('h-energie').addEventListener('change', (e) => {
+    state.hyp.stressEnergie = e.target.checked;
+    document.getElementById('btn-reset-hyp').classList.remove('hidden');
+    if (state.derniereSimulation) simuler(state.derniereSimulation.lat, state.derniereSimulation.lon);
+  });
+
   document.getElementById('btn-reset-hyp').addEventListener('click', () => {
-    state.hyp = { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4 };
+    state.hyp = { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4, loyer: null, stressEnergie: false };
     const [dMin, dMax] = state.benchmarks.demande.clientele_reguliere.depense_annuelle_eur;
     const [cMin, cMax] = state.benchmarks.exploitation.ca_annuel_laverie_eur;
     document.getElementById('h-depense').value = (dMin + dMax) / 2;
@@ -1370,8 +1603,12 @@ function initUI() {
     document.getElementById('h-demande-val').textContent = 100;
     document.getElementById('h-caref').value = (cMin + cMax) / 2;
     document.getElementById('h-caref-val').textContent = fmtInt((cMin + cMax) / 2);
+    document.getElementById('h-loyer').value = 1050;
+    document.getElementById('h-loyer-val').textContent = fmtInt(1050);
+    document.getElementById('h-energie').checked = false;
     document.getElementById('btn-reset-hyp').classList.add('hidden');
     rafraichir();
+    if (state.derniereSimulation) simuler(state.derniereSimulation.lat, state.derniereSimulation.lon);
   });
 
   const btn = document.getElementById('btn-simu');

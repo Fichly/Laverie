@@ -60,6 +60,49 @@
     "_sources": "L'Express Franchise ; Wash'N Dry ; Propulse by Crédit Agricole ; Modeles de Business Plan ; Speed Queen"
   },
 
+  "couts": {
+    "_commentaire": "Structure de coûts mensuelle du dossier de marché, section 3. Permet de dérouler un compte d'exploitation complet pour chaque emplacement simulé.",
+    "charges_fixes_mensuelles_eur": {
+      "loyer": [300, 1800],
+      "_loyer_commentaire": "300 € en rural, jusqu'à 1 800 € en centre-ville. C'est le poste le plus dépendant de l'emplacement, donc réglable dans l'outil.",
+      "electricite_gaz": [500, 1500],
+      "eau": [300, 800],
+      "maintenance": [300, 500],
+      "_maintenance_commentaire": "Jusqu'à 1 000 € en cas de panne majeure.",
+      "produits_lessiviels": [100, 300],
+      "assurance": [35, 500],
+      "total": [1800, 5600],
+      "total_urbain": [2560, 4440]
+    },
+    "cout_variable_par_cycle_eur": 0.75,
+    "_cout_variable_commentaire": "Eau, électricité et lessive, pour un cycle facturé 5 €. Eau : 15 à 45 L/cycle à ~0,004 €/L assainissement inclus. Lessive : 0,10 à 0,40 €/cycle si fournie.",
+    "marge_brute_par_cycle_pct": [78, 85],
+    "sensibilite_energie": {
+      "poste_energie_eau_mensuel_eur": [800, 2300],
+      "gain_machines_recentes_pct": [10, 20],
+      "_commentaire": "Point de vigilance n°6 du dossier : l'énergie et l'eau doivent être stressées dans les scénarios."
+    }
+  },
+
+  "financement": {
+    "investissement_initial_eur": [80000, 150000],
+    "investissement_fourchette_elargie_eur": [50000, 250000],
+    "capex_machines_eur": [40000, 80000],
+    "capex_travaux_techniques_eur": [15000, 30000],
+    "_travaux_commentaire": "Plomberie renforcée, électricité, ventilation, évacuation.",
+    "roi_annees": [3, 5],
+    "benefice_net_annuel_pour_100k_investis_eur": [20000, 35000],
+    "point_mort_reference": {
+      "cycles_mois": 1486,
+      "charges_fixes_eur": 2600,
+      "marge_par_cycle_eur": 1.75,
+      "cycles_jour": 50,
+      "_commentaire": "Point mort type du dossier. ATTENTION : la marge de 1,75 €/cycle retenue ici est bien inférieure aux 78-85 % de marge brute annoncés ailleurs dans le même dossier (soit ~4 € sur un cycle à 5 €). L'outil calcule le point mort à partir de la marge brute, plus cohérente avec le reste, et affiche les deux.",
+      "bfr_demarrage": "Les premiers mois sont sous le seuil de rentabilité, le temps d'installer la clientèle : prévoir une trésorerie de démarrage dans le plan de financement (point de vigilance n°5)."
+    },
+    "_sources": "Dossier marché section 3 ; Propulse by Crédit Agricole ; Modeles de Business Plan"
+  },
+
   "demande": {
     "_commentaire": "La clientèle se compose de DEUX populations distinctes qu'il faut modéliser séparément — les confondre fausse totalement l'estimation de CA.",
     "clientele_reguliere": {

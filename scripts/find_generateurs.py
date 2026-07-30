@@ -50,6 +50,7 @@ FAMILLES = [
             "résidence universitaire Pessac", "résidence étudiante Pessac",
             "cité universitaire Pessac", "CROUS résidence Pessac",
             "logement étudiant Pessac", "résidence Les Estudines Pessac",
+            "Yugo Pessac", "résidence campus Pessac", "studios étudiants Pessac",
         ],
         "part_sans_lave_linge": 0.55,
         "logements_defaut": 200,
@@ -66,7 +67,17 @@ FAMILLES = [
             "logement social Pessac", "HLM Pessac", "résidence Domofrance Pessac",
             "Aquitanis Pessac", "Clairsienne Pessac", "Mésolia Pessac",
             "Gironde Habitat Pessac", "résidence Saige Formanoir Pessac",
-            "résidence Compostelle Pessac", "Le Monteil résidence Pessac",
+            "Le Monteil résidence Pessac",
+            # Les grands ensembles sont éclatés en plusieurs blocs, chacun ayant sa
+            # propre fiche Google. Les chercher un par un est le seul moyen de voir
+            # la vraie densité : une résidence de six bâtiments n'est pas un point.
+            "résidence Compostelle Pessac", "Résidence Compostelle bâtiment Pessac",
+            "rue du Relais Pessac résidence", "rue Léo Ferré Pessac",
+            "allée Elsa Triolet Pessac", "rue de Compostelle Pessac résidence",
+            "résidence Arago Pessac", "résidence la Châtaigneraie Pessac",
+            "résidence Pontet Pessac", "résidence Formanoir Pessac",
+            "Bois de Saige Pessac", "Cité Frugès Pessac",
+            "résidence Alouette Pessac", "résidence Haut Lévêque Pessac",
         ],
         "part_sans_lave_linge": 0.12,
         "logements_defaut": 150,
@@ -98,7 +109,12 @@ EXCLUSIONS = [
     "supermarché", "tabac", "coiffeur", "garage", "cabinet",
     # Les résidences pour personnes âgées disposent d'un service de blanchisserie
     # interne : elles ne génèrent pas de demande en laverie de ville.
-    "personnes agées", "personnes âgées", "ehpad", "retraite",
+    "personnes agées", "personnes âgées", "ehpad", "retraite", "seniors",
+    "senioriales", "rpa ", "maison de retraite",
+    # Syndics, gestionnaires et professions libérales domiciliés dans l'immeuble :
+    # ils signalent bien un bâtiment d'habitation mais ne sont pas le bâtiment.
+    "synd", "copro", "location", "immobilier", "notaire", "médecin", "téléconsultation",
+    "amicale", "salle municipale", "centre social", "centre commercial", "btp",
 ]
 
 

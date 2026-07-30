@@ -304,3 +304,10 @@ footer { font-size: 0.7rem; color: #64748b; padding: 8px 4px 20px; line-height: 
   border-left: 3px solid var(--accent); border-radius: 6px; font-size: 0.76rem; line-height: 1.4; }
 .check-inline { display: flex; align-items: center; gap: 8px; font-size: 0.78rem;
   color: var(--muted); padding: 4px 0 0 24px; cursor: pointer; }
+
+.edit-gen { margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155; }
+.edit-gen label { display: block; font-size: 0.7rem; color: var(--muted); margin-bottom: 3px; }
+.edit-gen input { width: 100%; background: var(--panel-2); border: 1px solid #3b4a63;
+  color: var(--text); border-radius: 6px; padding: 5px 7px; font-size: 0.8rem; font-family: inherit; }
+.edit-gen button { margin-top: 6px; background: var(--panel-2); color: #fca5a5;
+  font-size: 0.7rem; font-weight: 600; padding: 5px; }

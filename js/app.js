@@ -582,6 +582,7 @@ function exporterDonnees() {
     laveries: state.laveries,
     // Les emplacements étudiés font partie du travail : on les conserve.
     candidats: state.candidats,
+    generateurs: state.generateurs,
   };
   const blob = new Blob([JSON.stringify(contenu, null, 2) + '\n'], { type: 'application/json' });
   const a = document.createElement('a');
@@ -1375,35 +1376,141 @@ const COULEUR_GENERATEUR = {
   hebergement_tourisme: '#1baf7a',
 };
 
+// Rayon d'influence d'un bâtiment : au-delà, ses habitants ne sont plus « sur
+// place ». Volontairement court — c'est la densité bâtie qu'on veut voir.
+const RAYON_DENSITE_M = 320;
+const GRILLE_DENSITE_M = 60;
+
+// Densité de ménages sans lave-linge en un point, tous bâtiments confondus.
+// C'est l'agrégation qui compte : cinq immeubles voisins doivent former UNE
+// zone chaude, pas cinq pastilles côte à côte.
+function densiteDemande(lat, lon) {
+  let d = 0;
+  for (const g of state.generateurs || []) {
+    if (g.exclu) continue;
+    const w = couverture(distanceM(lat, lon, g.lat, g.lon), RAYON_DENSITE_M);
+    if (w < 0.03) continue;
+    d += menagesGenerateur(g).reguliers * w;
+  }
+  return d;
+}
+
+// Échelle SÉQUENTIELLE (une seule teinte, intensité croissante) : la densité est
+// une magnitude sans point de bascule. L'orange la distingue de la heatmap du
+// potentiel, qui est divergente bleu-rouge.
+const PALIERS_DENSITE = [15, 40, 90, 180, 320];
+
 function dessinerDemandeCaptive() {
   state.layers.demande.clearLayers();
+  if (state.layers.demandeSurface) {
+    map.removeLayer(state.layers.demandeSurface);
+    state.layers.demandeSurface = null;
+  }
   if (!document.getElementById('l-heat-demande')?.checked) return;
 
-  for (const g of state.generateurs || []) {
-    const m = menagesGenerateur(g);
-    const couleur = COULEUR_GENERATEUR[g.type] || '#94a3b8';
-    // Halo proportionnel à la demande, en mètres : lisible à toutes les échelles.
-    L.circle([g.lat, g.lon], {
-      radius: 60 + Math.sqrt(m.reguliers) * 26,
-      color: couleur, weight: 1, fillColor: couleur, fillOpacity: 0.22,
-    }).addTo(state.layers.demande);
+  const gens = (state.generateurs || []).filter(g => !g.exclu);
+  if (!gens.length) return;
 
-    L.circleMarker([g.lat, g.lon], {
-      radius: 5, color: '#fff', weight: 1.5, fillColor: couleur, fillOpacity: 1,
-    }).bindPopup(`<div class="popup">
-        <span class="tag" style="background:${couleur}">${
-          state.profilsGenerateurs?.[g.type]?.libelle || g.type}</span>
-        <h3>${g.nom}</h3>
-        <table>
-          <tr><td>Adresse</td><td>${g.adresse}</td></tr>
-          <tr><td>Logements</td><td>~${fmtInt(g.logements)} <span style="color:#fbbf24">(valeur par défaut)</span></td></tr>
-          <tr><td>Ménages sans lave-linge</td><td><b>~${fmtInt(m.reguliers)}</b>
-            (${Math.round(g.part_sans_lave_linge * 100)} %)</td></tr>
-        </table>
-        <p class="warn">Le nombre de logements n'est pas fourni par Google : c'est une
-        valeur par défaut selon le type de bâtiment. La position, elle, est exacte.</p>
-      </div>`, { maxWidth: 300 }).addTo(state.layers.demande);
+  const marge = 0.006;
+  const sud = Math.min(...gens.map(g => g.lat)) - marge;
+  const nord = Math.max(...gens.map(g => g.lat)) + marge;
+  const ouest = Math.min(...gens.map(g => g.lon)) - marge;
+  const est = Math.max(...gens.map(g => g.lon)) + marge;
+
+  const pasLat = GRILLE_DENSITE_M / 111320;
+  const pasLon = GRILLE_DENSITE_M / (111320 * Math.cos(((sud + nord) / 2) * Math.PI / 180));
+  const nY = Math.ceil((nord - sud) / pasLat);
+  const nX = Math.ceil((est - ouest) / pasLon);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = nX; canvas.height = nY;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(nX, nY);
+
+  for (let y = 0; y < nY; y++) {
+    const lat = nord - y * pasLat;
+    for (let x = 0; x < nX; x++) {
+      const d = densiteDemande(lat, ouest + x * pasLon);
+      const i = (y * nX + x) * 4;
+      if (d < PALIERS_DENSITE[0]) { img.data[i + 3] = 0; continue; }
+      let niveau = 0;
+      while (niveau < PALIERS_DENSITE.length - 1 && d >= PALIERS_DENSITE[niveau + 1]) niveau++;
+      const t = niveau / (PALIERS_DENSITE.length - 1);
+      // Orange qui s'intensifie : clair et transparent en périphérie, saturé au cœur.
+      img.data[i] = 245 - t * 30;
+      img.data[i + 1] = 190 - t * 110;
+      img.data[i + 2] = 90 - t * 60;
+      img.data[i + 3] = 60 + t * 145;
+    }
   }
+  ctx.putImageData(img, 0, 0);
+  state.layers.demandeSurface = L.imageOverlay(canvas.toDataURL(),
+    [[sud, ouest], [nord, est]], { opacity: 0.8, interactive: false, zIndex: 240 }).addTo(map);
+
+  // Repères cliquables par-dessus la surface, pour accéder au détail bâtiment.
+  for (const g of gens) {
+    const m = menagesGenerateur(g);
+    L.circleMarker([g.lat, g.lon], {
+      radius: 4, color: '#fff', weight: 1,
+      fillColor: COULEUR_GENERATEUR[g.type] || '#94a3b8', fillOpacity: 1,
+    }).bindPopup(popupGenerateur(g, m), { maxWidth: 300 })
+      .on('popupopen', (e) => brancherEditionGenerateur(e.popup))
+      .addTo(state.layers.demande);
+  }
+}
+
+// Les popups Leaflet sont recréés à chaque ouverture : on branche les champs
+// d'édition à l'ouverture plutôt qu'à la construction.
+function brancherEditionGenerateur(popup) {
+  const el = popup.getElement?.();
+  if (!el) return;
+  const champ = el.querySelector('input[data-gen]');
+  if (champ) {
+    champ.addEventListener('change', () => {
+      const g = state.generateurs.find(x => x.id === champ.dataset.gen);
+      if (!g) return;
+      g.logements = Math.max(0, Number(champ.value) || 0);
+      g.logements_source = 'saisi à la main';
+      state._pointsDemande = null;    // la demande doit être recalculée
+      state.modifie = true;
+      map.closePopup();
+      rafraichir();
+    });
+  }
+  const btn = el.querySelector('button[data-excl]');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const g = state.generateurs.find(x => x.id === btn.dataset.excl);
+      if (!g) return;
+      g.exclu = true;
+      state._pointsDemande = null;
+      state.modifie = true;
+      map.closePopup();
+      rafraichir();
+    });
+  }
+}
+
+function popupGenerateur(g, m) {
+  const couleur = COULEUR_GENERATEUR[g.type] || '#94a3b8';
+  return `<div class="popup">
+      <span class="tag" style="background:${couleur}">${
+        state.profilsGenerateurs?.[g.type]?.libelle || g.type}</span>
+      <h3>${g.nom}</h3>
+      <table>
+        <tr><td>Adresse</td><td>${g.adresse}</td></tr>
+        <tr><td>Ménages sans lave-linge</td><td><b>~${fmtInt(m.reguliers)}</b>
+          (${Math.round(g.part_sans_lave_linge * 100)} % de ${fmtInt(g.logements)} logements)</td></tr>
+      </table>
+      <div class="edit-gen">
+        <label>Nombre réel de logements</label>
+        <input type="number" min="0" value="${g.logements}" data-gen="${g.id}">
+        <button data-excl="${g.id}">Ce n'est pas un logement — retirer</button>
+      </div>
+      <p class="warn">Le nombre de logements n'est pas fourni par Google : c'est une
+      valeur par défaut selon le type. Corrigez-la ici (CROUS, bailleur, comptage
+      des balcons sur Street View) — la position, elle, est exacte.</p>
+    </div>`;
 }
 
 // ---------- localiser un local précis ----------

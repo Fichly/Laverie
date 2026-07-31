@@ -236,6 +236,7 @@ function laveriesVisibles() {
 function rafraichir() {
   state._coefCal = null;   // le calibrage dépend des hypothèses courantes
   state._indexDemande = null;
+  state._indexOffre = null;
   dessinerMarqueurs();
   dessinerListe();
   dessinerCouverture();
@@ -1108,13 +1109,57 @@ function demandeAccessible(lat, lon, R) {
   return { pop, reguliers, ponctuels };
 }
 
+// INDEX SPATIAL DE L'OFFRE.
+//
+// À l'échelle métropole, la heatmap évalue ~20 000 mailles et chacune parcourait
+// les 153 laveries : trois millions de distances par repeinte. On range donc les
+// laveries dans des cases d'un kilomètre et on ne visite que les cases utiles.
+// Le résultat est strictement identique — seul le temps change.
+const TAILLE_CASE_OFFRE_M = 1000;
+
+// Au-delà de cette distance, le noyau gaussien passe sous le seuil de 0,01
+// retenu par offreAccessible, même pour la laverie la plus attractive.
+// exp(-(d/R)²) < 0,01/A avec A ≤ 2,5 donne d/R < 2,4 ; on prend 2,6 de marge.
+const PORTEE_UTILE = 2.6;
+
+function indexOffre() {
+  if (state._indexOffre) return state._indexOffre;
+  const cases = new Map();
+  const dLat = TAILLE_CASE_OFFRE_M / 111320;
+  let porteeMax = 1;
+  for (const l of state.laveries) {
+    if (l.statut !== 'actif') continue;
+    if (l.acces && l.acces.parking) porteeMax = Math.max(porteeMax, state.hyp.porteeParking);
+    const dLon = TAILLE_CASE_OFFRE_M / (111320 * Math.cos(l.lat * Math.PI / 180));
+    const cle = Math.round(l.lat / dLat) + ':' + Math.round(l.lon / dLon);
+    (cases.get(cle) || cases.set(cle, []).get(cle)).push(l);
+  }
+  state._indexOffre = { cases, dLat, porteeMax };
+  return state._indexOffre;
+}
+
+function laveriesProches(lat, lon, R) {
+  const { cases, dLat, porteeMax } = indexOffre();
+  const dLon = TAILLE_CASE_OFFRE_M / (111320 * Math.cos(lat * Math.PI / 180));
+  const portee = Math.ceil((R * porteeMax * PORTEE_UTILE) / TAILLE_CASE_OFFRE_M);
+  const ci = Math.round(lat / dLat), cj = Math.round(lon / dLon);
+  const proches = [];
+  for (let i = ci - portee; i <= ci + portee; i++) {
+    for (let j = cj - portee; j <= cj + portee; j++) {
+      const b = cases.get(i + ':' + j);
+      if (b) proches.push(...b);
+    }
+  }
+  return proches;
+}
+
 // Pression concurrentielle exercée sur un point par les laveries existantes.
 function offreAccessible(lat, lon, R) {
   let pression = 0;
   const concurrents = [];
   // Toutes les laveries actives, communes voisines comprises : la demande
   // déborde de Pessac, la concurrence doit couvrir la même zone.
-  for (const l of state.laveries.filter(x => x.statut === 'actif')) {
+  for (const l of laveriesProches(lat, lon, R)) {
     const d = distanceM(lat, lon, l.lat, l.lon);
     const p = attractivite(l) * couverture(d, rayonEffectif(l, R));
     if (p < 0.01) continue;

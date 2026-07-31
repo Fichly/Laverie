@@ -31,7 +31,8 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import reseau                                              # noqa: E402
+import metier                                               # noqa: E402
+import reseau                                               # noqa: E402
 
 RACINE = Path(__file__).resolve().parent.parent
 DATA = RACINE / "data" / "laveries.json"
@@ -142,8 +143,12 @@ def main():
         adresse = p.get("formattedAddress", "")
         if p["id"] in connus:
             continue
-        if "pressing" in nom.lower() and "laverie" not in nom.lower():
-            ecartees.append(f"{nom} — pressing (autre métier)")
+        # Une station de lavage auto ou un installateur de machines, laissés
+        # dans l'inventaire, deviennent des concurrents fantômes : ils
+        # refroidissent la carte autour d'eux et masquent une vraie opportunité.
+        verdict, raison = metier.classer(nom, adresse)
+        if verdict == "exclu":
+            ecartees.append(f"{nom} — {raison}")
             continue
         if p.get("businessStatus") == "CLOSED_PERMANENTLY":
             ecartees.append(f"{nom} — fermé définitivement")
@@ -182,16 +187,23 @@ def main():
             "acces": {"parking": None, "arret_tc_a_moins_300m": None,
                       "generateurs_flux": []},
             "sources": ["Google Places"],
-            "notes_terrain": "Recensée par le balayage métropole. Position et note "
-                             "officielles Google ; machines, surface et prix à relever.",
+            "notes_terrain": ("Recensée par le balayage métropole. Position et note "
+                              "officielles Google ; machines, surface et prix à relever."
+                              + (f" ⚠ À VÉRIFIER : {raison}." if verdict == "douteux" else "")),
             "a_verifier": True,
+            "doute_metier": raison if verdict == "douteux" else None,
         })
 
     nouvelles.sort(key=lambda l: -(l.get("nb_avis") or 0))
+    douteuses = [l for l in nouvelles if l.get("doute_metier")]
     print(f"\n{n_req} requêtes · {len(nouvelles)} laverie(s) à ajouter :\n")
     for l in nouvelles:
         print(f"  {l['nom'][:56]:<58} {str(l.get('note_google') or '—'):>4}"
               f" / {str(l.get('nb_avis') or '—'):<5} avis")
+    if douteuses:
+        print(f"\n⚠ {len(douteuses)} à vérifier — conservées mais signalées :")
+        for l in douteuses:
+            print(f"  ? {l['nom'][:52]:<54} {l['doute_metier']}")
     if ecartees:
         print(f"\n{len(ecartees)} écartée(s) :")
         for e in ecartees:

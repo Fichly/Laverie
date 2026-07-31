@@ -24,7 +24,7 @@ const state = {
   // Hypothèses ajustables par l'utilisateur. null = valeur du secteur
   // (data/benchmarks.json). Les bouger permet de vérifier si le classement
   // résiste à l'incertitude, qui est ici la principale limite.
-  hyp: { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4, loyer: null, stressEnergie: false },
+  hyp: { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4, loyer: null, stressEnergie: false, porteeParking: 2.0 },
 };
 
 let map;
@@ -85,6 +85,18 @@ function attractivite(l) {
 
   const acces = l.type === 'captif' ? state.hyp.poidsCaptif : 1.0;
   return qualite * taille * acces;
+}
+
+// PORTÉE D'UNE LAVERIE
+//
+// Le rayon piéton de 400-800 m ne vaut que pour une laverie de rue. Une laverie
+// de centre commercial avec parking draine une clientèle motorisée, dont le
+// dossier de marché situe le rayon à 5-10 minutes de voiture. Leur appliquer le
+// même rayon revient à sous-estimer massivement les secondes.
+//
+// Réglable : c'est une hypothèse de mécanisme, pas une constante mesurée.
+function rayonEffectif(l, R) {
+  return l.acces && l.acces.parking ? R * state.hyp.porteeParking : R;
 }
 
 // Laverie vulnérable : mal notée sur un volume d'avis crédible, et grand public.
@@ -927,7 +939,7 @@ function offreAccessible(lat, lon, R) {
   // déborde de Pessac, la concurrence doit couvrir la même zone.
   for (const l of state.laveries.filter(x => x.statut === 'actif')) {
     const d = distanceM(lat, lon, l.lat, l.lon);
-    const p = attractivite(l) * couverture(d, R);
+    const p = attractivite(l) * couverture(d, rayonEffectif(l, R));
     if (p < 0.01) continue;
     pression += p;
     if (p > 0.05) concurrents.push({ nom: l.nom, d: Math.round(d), type: l.type });
@@ -958,7 +970,9 @@ const ATTRACTIVITE_EXTERIEURE = 0.5;
 
 function caBrut(lat, lon, R, laverieExistante) {
   const b = state.benchmarks;
-  const dem = demandeAccessible(lat, lon, R);
+  // Une laverie existante draine sur sa propre portée, pas sur le rayon d'affichage.
+  const portee = laverieExistante ? rayonEffectif(laverieExistante, R) : R;
+  const dem = demandeAccessible(lat, lon, portee);
   const { pression } = offreAccessible(lat, lon, R);
 
   // Une laverie existante se partage le marché avec les autres selon son propre
@@ -1768,6 +1782,7 @@ function initUI() {
     ['h-demande', 'h-demande-val', v => { state.hyp.facteurDemande = v / 100; return v; }],
     ['h-caref', 'h-caref-val', v => { state.hyp.caReference = v; return fmtInt(v); }],
     ['h-loyer', 'h-loyer-val', v => { state.hyp.loyer = v; return fmtInt(v); }],
+    ['h-portee', 'h-portee-val', v => { state.hyp.porteeParking = v; return v.toFixed(1); }],
   ];
   for (const [id, idVal, appliquer] of hyps) {
     const s = document.getElementById(id);
@@ -1788,7 +1803,7 @@ function initUI() {
   });
 
   document.getElementById('btn-reset-hyp').addEventListener('click', () => {
-    state.hyp = { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4, loyer: null, stressEnergie: false };
+    state.hyp = { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4, loyer: null, stressEnergie: false, porteeParking: 2.0 };
     const [dMin, dMax] = state.benchmarks.demande.clientele_reguliere.depense_annuelle_eur;
     const [cMin, cMax] = state.benchmarks.exploitation.ca_annuel_laverie_eur;
     document.getElementById('h-depense').value = (dMin + dMax) / 2;
@@ -1797,6 +1812,8 @@ function initUI() {
     document.getElementById('h-demande-val').textContent = 100;
     document.getElementById('h-caref').value = (cMin + cMax) / 2;
     document.getElementById('h-caref-val').textContent = fmtInt((cMin + cMax) / 2);
+    document.getElementById('h-portee').value = 2;
+    document.getElementById('h-portee-val').textContent = '2.0';
     document.getElementById('h-loyer').value = 1050;
     document.getElementById('h-loyer-val').textContent = fmtInt(1050);
     document.getElementById('h-energie').checked = false;

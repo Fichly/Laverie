@@ -132,6 +132,11 @@
           <label>Loyer mensuel du local : <strong><span id="h-loyer-val">1 050</span> €</strong></label>
           <input type="range" id="h-loyer" min="300" max="2500" step="50" value="1050">
         </div>
+        <div class="slider-row">
+          <label>Portée des laveries avec parking : <strong>×<span id="h-portee-val">2.0</span></strong>
+            <span style="display:block;font-size:0.72rem">Le dossier situe le rayon voiture à 5-10 min (2 à 4 km) contre 800 m à pied. Toute la clientèle ne vient pas en voiture, d'où ce facteur mixte. Mettez ×1.0 pour annuler l'effet.</span></label>
+          <input type="range" id="h-portee" min="1" max="3" step="0.1" value="2">
+        </div>
         <label class="check-inline"><input type="checkbox" id="h-energie"> Scénario stressé : énergie et eau +30 %</label>
         <button id="btn-reset-hyp" class="btn-second hidden">↺ Rétablir les valeurs du secteur</button>
       </section>

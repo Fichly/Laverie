@@ -347,6 +347,23 @@ button.active { background: var(--orange); color: #431407; }
 .verdict.moyen { background: rgba(234, 179, 8, 0.16); color: #fde047; }
 .verdict.faible { background: rgba(220, 38, 38, 0.16); color: #fca5a5; }
 
+/* ---- Faits observés (marché réel) ---- */
+.fait {
+  background: var(--surface-2); border-left: 3px solid var(--accent);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  padding: 9px 12px; margin-bottom: 7px;
+}
+.fait-val {
+  display: block; font-size: 1.3rem; font-weight: 700;
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+}
+.fait-lib { display: block; font-size: 0.74rem; color: var(--muted); margin-top: 1px; }
+.fait-detail {
+  display: block; font-size: 0.73rem; color: var(--faint);
+  line-height: 1.5; margin-top: 6px;
+}
+.fait-detail b { color: var(--muted); }
+
 .bench { font-size: 0.78rem; line-height: 1.65; color: var(--muted); }
 .bench b { color: var(--text); }
 
@@ -365,6 +382,7 @@ button.active { background: var(--orange); color: #431407; }
 .tab-candidats .ca { white-space: nowrap; }
 .tab-candidats .sup { background: none; color: #fca5a5; width: 18px; padding: 0; font-size: 0.7rem; }
 .tab-fiabilite .ca { text-align: right; font-variant-numeric: tabular-nums; }
+.tab-fiabilite .sous { display: block; color: var(--faint); font-size: 0.66rem; font-weight: 400; }
 .pastille { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
 
 /* ---- Bandeau d'impact au-dessus de la carte ---- */

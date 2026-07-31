@@ -122,17 +122,22 @@ function couverture(d, rayon) {
 async function charger() {
   // La version autonome (fichier HTML unique) injecte les données dans window.__DATA__ ;
   // la version modulaire les charge depuis data/*.json via un serveur local.
-  const [lav, qua, bench, gen, car] = window.__DATA__
+  const facultatif = (chemin) =>
+    fetch(chemin).then(r => r.ok ? r.json() : null).catch(() => null);
+  const [lav, qua, bench, gen, car, ent, bod] = window.__DATA__
     ? [window.__DATA__.laveries, window.__DATA__.quartiers,
        window.__DATA__.benchmarks, window.__DATA__.generateurs,
-       window.__DATA__.carreaux]
+       window.__DATA__.carreaux, window.__DATA__.entreprises,
+       window.__DATA__.bodacc]
     : await Promise.all([
       fetch('data/laveries.json').then(r => r.json()),
       fetch('data/quartiers.json').then(r => r.json()),
       fetch('data/benchmarks.json').then(r => r.json()),
       fetch('data/generateurs.json').then(r => r.json()),
-      // Facultatif : absent tant que le carroyage INSEE n'a pas été importé.
-      fetch('data/carreaux.json').then(r => r.ok ? r.json() : null).catch(() => null),
+      // Facultatifs : absents tant que les imports n'ont pas été lancés.
+      facultatif('data/carreaux.json'),
+      facultatif('data/entreprises.json'),
+      facultatif('data/bodacc.json'),
     ]);
   state.laveries = lav.laveries;
   state.meta = lav.meta;            // conservé pour réécrire un fichier complet à l'export
@@ -143,6 +148,10 @@ async function charger() {
   state.profilsGenerateurs = (gen && gen.meta && gen.meta.profils) || {};
   state.carreaux = (car && car.carreaux) || null;
   state.metaCarreaux = (car && car.meta) || null;
+  state.entreprises = (ent && ent.etablissements) || null;
+  state.metaEntreprises = (ent && ent.meta) || null;
+  state.bodacc = bod || null;
+  indexerEntreprises();
   initCarte();
   initUI();
   rafraichir();
@@ -207,6 +216,7 @@ function rafraichir() {
   dessinerHeatPotentiel();
   dessinerDemandeCaptive();
   dessinerFiabilite();
+  dessinerMarcheReel();
   dessinerClassement();
   dessinerCandidats();
   majStats();
@@ -342,6 +352,65 @@ function ligneInfo(icone, valeur, manquantTexte) {
   return `<div class="ligne"><span class="ic">${icone}</span>${contenu}</div>`;
 }
 
+// IDENTITÉ D'ENTREPRISE
+//
+// Une laverie n'est pas qu'un point sur une carte : c'est une société, avec une
+// date de création, un effectif et — quand elle dépose ses comptes — un chiffre
+// d'affaires. C'est la seule information de cette fiche qui ne doive rien à un
+// modèle ni à une estimation.
+function blocEntreprise(l) {
+  if (!state.entreprises) return '';
+  const e = entrepriseDe(l);
+  if (!e) {
+    return `<div class="encart" style="border-left-color:#64748b">
+      <b>Aucune société rapprochée</b><br>
+      Aucun établissement SIRENE de laverie n'a été trouvé à cette adresse. Soit
+      l'exploitation est portée par une société domiciliée ailleurs, soit le code
+      d'activité déclaré n'est pas le 96.01B.</div>`;
+  }
+
+  const annee = (d) => (d ? Number(String(d).slice(0, 4)) : null);
+  const naissance = annee(e.date_creation);
+  const age = naissance ? new Date().getFullYear() - naissance : null;
+  const effectif = e.effectif_min == null ? null
+    : (e.effectif_min === 0 ? 'aucun salarié'
+       : `${e.effectif_min}–${e.effectif_max ?? '+'} salariés`);
+
+  let finances;
+  if (!(e.finances || []).length) {
+    finances = `<span style="color:#fbbf24">Comptes non publiés.</span> Depuis 2016 les
+      petites sociétés peuvent demander la confidentialité de leur compte de résultat,
+      et les entreprises individuelles ne déposent rien. L'absence de chiffre n'est
+      pas un signal sur la santé de l'affaire.`;
+  } else if (!e.ca_attribuable) {
+    finances = `<span style="color:#fbbf24">CA publié mais non imputable à cette
+      adresse :</span> la société exploite ${e.nb_etablissements_ouverts} établissements,
+      le chiffre déposé est un cumul. Il n'est pas utilisé pour caler le modèle.`;
+  } else {
+    finances = `<table class="tab-pl" style="margin-top:4px">
+      <tr><td>Exercice</td><td class="ca">CA</td><td class="ca">Résultat net</td></tr>
+      ${e.finances.slice(0, 3).map(f => `<tr>
+        <td>${f.annee}</td>
+        <td class="ca"><b>${f.ca != null ? fmtEur(f.ca) : '—'}</b></td>
+        <td class="ca" style="color:${(f.resultat_net ?? 0) >= 0 ? '#86efac' : '#fca5a5'}">${
+          f.resultat_net != null ? fmtEur(f.resultat_net) : '—'}</td></tr>`).join('')}
+    </table>`;
+  }
+
+  return `<div class="encart" style="border-left-color:#38bdf8">
+      <b>${e.nom}</b>
+      ${e.actif ? '' : ' <span style="color:#fca5a5">— radiée</span>'}<br>
+      <span style="font-size:0.72rem">
+        SIREN <a href="https://annuaire-entreprises.data.gouv.fr/entreprise/${e.siren}"
+          target="_blank" rel="noopener" style="color:var(--accent)">${e.siren}</a>
+        ${naissance ? ` · créée en ${naissance}${age ? ` (${age} ans)` : ''}` : ''}
+        ${effectif ? ` · ${effectif}` : ''}
+        ${e.rapprochement ? ` · rapproché par ${e.rapprochement}` : ''}
+      </span>
+      <div style="margin-top:6px">${finances}</div>
+    </div>`;
+}
+
 function ficheLaverie(l) {
   const rechercheGoogle = encodeURIComponent(`${l.nom} ${l.adresse}`);
   const urlMaps = l.google_maps_url
@@ -418,6 +487,7 @@ function ficheLaverie(l) {
         ${l.site_web ? ligneInfo('🌐', `<a href="${l.site_web}" target="_blank" rel="noopener" style="color:var(--accent)">site web</a>`) : ''}
       </div>
       ${forceBloc}
+      ${blocEntreprise(l)}
       ${(() => {
         const t = tendanceAvis(l);
         if (!t) return '';
@@ -769,8 +839,16 @@ function plafondCapacite() {
   return state.benchmarks.exploitation.ca_annuel_fourchette_large_eur[1];
 }
 
+// ANCRE DU MODÈLE. Par ordre de préséance :
+//   1. la valeur choisie à la main dans l'onglet Modèle ;
+//   2. le CA médian RÉELLEMENT PUBLIÉ par les laveries du secteur ;
+//   3. à défaut, le milieu de la fourchette du dossier de marché.
+// Le passage de 3 à 2 est ce qui fait basculer l'outil d'une convention à une
+// mesure : tous les euros affichés en découlent.
 function caReference() {
   if (state.hyp.caReference != null) return state.hyp.caReference;
+  const obs = caObserve();
+  if (obs) return obs.mediane;
   const [min, max] = state.benchmarks.exploitation.ca_annuel_laverie_eur;
   return (min + max) / 2;
 }
@@ -1344,6 +1422,132 @@ function blocExploitation(ca) {
     </details>`;
 }
 
+// ---------- DONNÉES D'ENTREPRISE : SIRENE, COMPTES ANNUELS, BODACC ----------
+//
+// Jusqu'ici le modèle prédisait un chiffre d'affaires sans jamais en observer
+// un seul : il était calé sur une hypothèse. Ces trois sources publiques
+// remplacent l'hypothèse par des mesures.
+//
+//   SIRENE   dates de création et de fermeture, effectifs → durée de vie réelle
+//   Comptes  CA et résultat net des sociétés qui déposent au greffe
+//   BODACC   radiations et prix de cession des fonds de commerce
+//
+// Tout est facultatif : sans les fichiers, l'application fonctionne comme avant
+// sur les repères du secteur.
+
+const CP_COMMUNE = '33600';
+
+function indexerEntreprises() {
+  state._entrepriseParLaverie = {};
+  if (!state.entreprises) return;
+  for (const e of state.entreprises) {
+    if (!e.laverie_id || !e.est_laverie) continue;
+    const actuel = state._entrepriseParLaverie[e.laverie_id];
+    // À rapprochements égaux, on préfère la ligne qui porte des comptes.
+    const mieux = !actuel
+      || ((e.finances || []).length && !(actuel.finances || []).length);
+    if (mieux) state._entrepriseParLaverie[e.laverie_id] = e;
+  }
+}
+
+function entrepriseDe(l) {
+  return (state._entrepriseParLaverie || {})[l.id] || null;
+}
+
+// CA réellement publié, et imputable à CETTE adresse. Une société qui exploite
+// plusieurs laveries publie un CA cumulé : l'utiliser pour caler une adresse
+// serait une faute de méthode, le script d'import l'a donc marqué.
+function caReelDe(l) {
+  const e = entrepriseDe(l);
+  if (!e || !e.ca_attribuable) return null;
+  const f = (e.finances || []).find(x => x.ca != null);
+  return f ? { ...f, siren: e.siren } : null;
+}
+
+function mediane(valeurs) {
+  if (!valeurs.length) return null;
+  const t = [...valeurs].sort((a, b) => a - b);
+  const m = Math.floor(t.length / 2);
+  return t.length % 2 ? t[m] : (t[m - 1] + t[m]) / 2;
+}
+
+// CA observé sur le terrain, par ordre de pertinence : la commune d'abord,
+// la métropole ensuite si la commune ne fournit rien.
+function caObserve() {
+  if (state._caObserve !== undefined) return state._caObserve;
+  const eligibles = (state.entreprises || []).filter(
+    e => e.est_laverie && e.actif && e.ca_attribuable
+         && (e.finances || []).some(f => f.ca != null));
+  const ca = (e) => e.finances.find(f => f.ca != null).ca;
+
+  for (const [perimetre, filtre] of [
+    ['commune', e => e.code_postal === CP_COMMUNE],
+    ['métropole', () => true],
+  ]) {
+    const lot = eligibles.filter(filtre);
+    if (lot.length) {
+      const valeurs = lot.map(ca);
+      state._caObserve = {
+        // Arrondi à 500 € : une médiane sur quelques sociétés n'a pas la
+        // précision de l'euro, et le curseur doit pouvoir afficher exactement
+        // la valeur qui cale le modèle.
+        n: lot.length, perimetre, mediane: Math.round(mediane(valeurs) / 500) * 500,
+        min: Math.min(...valeurs), max: Math.max(...valeurs),
+        annee: Math.max(...lot.map(e => e.finances.find(f => f.ca != null).annee)),
+      };
+      return state._caObserve;
+    }
+  }
+  state._caObserve = null;
+  return null;
+}
+
+// SURVIE DES LAVERIES
+//
+// Un quartier où trois laveries ont fermé en cinq ans n'est pas une
+// opportunité. Le taux de survie exclut les établissements trop récents pour
+// être jugés : les compter comme « survivants » gonflerait artificiellement le
+// résultat (c'est le biais de censure à droite).
+function statsSurvie() {
+  if (!state.entreprises) return null;
+  const lav = state.entreprises.filter(e => e.est_laverie && e.date_creation);
+  if (lav.length < 3) return null;
+  const an = (d) => (d ? Number(String(d).slice(0, 4)) : null);
+  const anneeCourante = new Date().getFullYear();
+
+  const fermees = lav.filter(e => !e.actif);
+  const durees = fermees
+    .map(e => an(e.date_fermeture) - an(e.date_creation))
+    .filter(d => Number.isFinite(d) && d >= 0);
+
+  const jugeables = lav.filter(e => anneeCourante - an(e.date_creation) >= 5);
+  const survivantes = jugeables.filter(
+    e => e.actif || an(e.date_fermeture) - an(e.date_creation) >= 5);
+
+  const radiations = state.bodacc
+    ? Object.values(state.bodacc.par_siren || {}).flat()
+        .filter(a => /radiation/i.test(String(a.famille || ''))).length
+    : null;
+
+  return {
+    total: lav.length,
+    ouvertes: lav.filter(e => e.actif).length,
+    fermees: fermees.length,
+    dureeMediane: mediane(durees),
+    ageMedian: mediane(lav.filter(e => e.actif)
+      .map(e => anneeCourante - an(e.date_creation)).filter(Number.isFinite)),
+    survie5ans: jugeables.length >= 5
+      ? survivantes.length / jugeables.length : null,
+    nJugeables: jugeables.length,
+    radiations,
+  };
+}
+
+function prixCession() {
+  const p = state.bodacc && state.bodacc.meta && state.bodacc.meta.prix_cession_eur;
+  return p && p.n ? p : null;
+}
+
 // ---------- CONTRÔLE DE FIABILITÉ DU MODÈLE ----------
 //
 // Un modèle qui ne sait pas expliquer les laveries DÉJÀ là n'a aucune raison de
@@ -1367,18 +1571,43 @@ function correlationRangs(a, b) {
   return 1 - (6 * d2) / (n * (n * n - 1));
 }
 
+// Deux références possibles, par ordre de qualité décroissante :
+//
+//   1. le CA RÉELLEMENT PUBLIÉ au greffe — la vraie variable à prédire ;
+//   2. à défaut, le nombre d'avis Google, proxy grossier de fréquentation.
+//
+// Passer de 2 à 1 change la nature de l'exercice : on ne vérifie plus que le
+// modèle « va dans le bon sens », on mesure de combien il se trompe.
 function controleFiabilite() {
-  const publiques = laveriesCommune().filter(l => l.type !== 'captif' && l.nb_avis != null);
-  if (publiques.length < 3) return null;
+  const publiques = laveriesCommune().filter(l => l.type !== 'captif');
   const coef = coefficientCalibrage();
-  const lignes = publiques.map(l => {
+  const toutes = publiques.map(l => {
     const e = caBrut(l.lat, l.lon, RAYON_TENSION, l);
-    return { nom: l.nom, ca: ((e.caMin + e.caMax) / 2) * coef, avis: l.nb_avis };
+    const reel = caReelDe(l);
+    return {
+      nom: l.nom, ca: ((e.caMin + e.caMax) / 2) * coef,
+      avis: l.nb_avis, caReel: reel ? reel.ca : null,
+      anneeReel: reel ? reel.annee : null,
+    };
   });
-  const rho = correlationRangs(lignes.map(x => x.ca), lignes.map(x => x.avis));
+
+  const avecReel = toutes.filter(x => x.caReel != null);
+  const avecAvis = toutes.filter(x => x.avis != null);
+  const surReel = avecReel.length >= 3;
+  const lignes = surReel ? avecReel : avecAvis;
+  if (lignes.length < 3) return null;
+
+  const observe = (x) => (surReel ? x.caReel : x.avis);
+  const rho = correlationRangs(lignes.map(x => x.ca), lignes.map(observe));
+
+  // Erreur relative médiane : n'a de sens que face à un vrai CA.
+  const erreurMediane = surReel
+    ? mediane(lignes.map(x => Math.abs(x.ca - x.caReel) / x.caReel)) : null;
+
   return {
     lignes: lignes.sort((a, b) => b.ca - a.ca),
-    rho,
+    rho, erreurMediane, surReel,
+    nReel: avecReel.length, nTotal: publiques.length,
     verdict: rho >= 0.6 ? 'bon' : rho >= 0.2 ? 'faible' : 'nul',
   };
 }
@@ -1405,27 +1634,138 @@ function majChipFiabilite(f) {
   chip.className = 'chip ' + f.verdict;
 }
 
+const TITRE_FIABILITE_REEL = {
+  bon: '✅ Le modèle reproduit les CA réellement publiés',
+  faible: '🟡 Lien ténu avec les CA réellement publiés',
+  nul: '❌ Le modèle ne reproduit PAS les CA réellement publiés',
+};
+
 function dessinerFiabilite() {
   const zone = document.getElementById('fiabilite');
   if (!zone) return;
   const f = controleFiabilite();
   majChipFiabilite(f);
   if (!f) { zone.innerHTML = '<p class="note">Pas assez de laveries notées pour tester.</p>'; return; }
-  const [titre, texte, couleur] = VERDICT_FIABILITE[f.verdict];
+  let [titre, texte, couleur] = VERDICT_FIABILITE[f.verdict];
+  const ref = f.surReel ? 'CA réellement publié au greffe' : 'nombre d\'avis Google';
+
+  // Le libellé doit dire contre QUOI le modèle a été confronté : « suit la
+  // fréquentation » et « reproduit les CA publiés » ne valent pas la même chose.
+  if (f.surReel) titre = TITRE_FIABILITE_REEL[f.verdict];
+  if (f.verdict === 'nul' && state.carreaux) {
+    texte = texte.replace(
+      /Cause la plus probable.*$/,
+      'Le carroyage INSEE étant déjà importé, la cause n\'est plus la population : '
+      + 'regardez ligne par ligne quelle laverie fait diverger le modèle, et ce qui la '
+      + 'distingue (parking, horaires, format).');
+  }
+
+  const erreur = f.erreurMediane != null
+    ? `<br>Écart médian entre CA modélisé et CA réel :
+       <b>${(f.erreurMediane * 100).toFixed(0)} %</b>` : '';
+
+  const entete = f.surReel
+    ? `<th>CA réel</th><th>Écart</th>` : `<th>Avis</th>`;
+  const cellules = (l) => f.surReel
+    ? `<td class="ca">${fmtEur(l.caReel)}<span class="sous">${l.anneeReel}</span></td>
+       <td class="ca" style="color:${Math.abs(l.ca - l.caReel) / l.caReel > 0.4
+          ? '#fca5a5' : '#86efac'}">${l.ca >= l.caReel ? '+' : '−'}${
+          Math.abs(Math.round(100 * (l.ca - l.caReel) / l.caReel))} %</td>`
+    : `<td>${l.avis}</td>`;
+
+  const explication = f.surReel
+    ? `<p class="note">La référence est le <b>chiffre d'affaires réellement déposé au
+       greffe</b> par ${f.nReel} laverie${f.nReel > 1 ? 's' : ''} sur ${f.nTotal}.
+       Le modèle est calé pour que le <i>total</i> tombe juste : ce qu'on teste ici,
+       c'est sa capacité à répartir correctement ce total entre les adresses. Un écart
+       médian sous 25 % est bon pour ce type de modèle ; au-delà de 50 %, le classement
+       des zones ne vaut que comme piste.</p>`
+    : `<p class="note">Faute de CA publié, la référence reste le nombre d'avis Google :
+       un proxy grossier de la fréquentation, mais indépendant du modèle. Pour passer à
+       une vraie validation, lancez
+       <code>python3 scripts/import_entreprises.py</code> — il récupère les comptes
+       annuels déposés au greffe.</p>`;
+
   zone.innerHTML = `
     <div class="encart" style="border-left-color:${couleur};margin-top:0">
       <b style="color:${couleur}">${titre}</b><br>
-      Corrélation de rang entre CA modélisé et nombre d'avis :
-      <b>${f.rho >= 0 ? '+' : ''}${f.rho.toFixed(2)}</b><br>${texte}
+      Corrélation de rang avec le ${ref} :
+      <b>${f.rho >= 0 ? '+' : ''}${f.rho.toFixed(2)}</b>${erreur}<br>${texte}
     </div>
     <table class="tab-fiabilite" style="margin-top:8px">
-      <thead><tr><th>Laverie existante</th><th>CA modélisé</th><th>Avis</th></tr></thead>
+      <thead><tr><th>Laverie existante</th><th>CA modélisé</th>${entete}</tr></thead>
       <tbody>${f.lignes.map(l => `<tr><td>${l.nom}</td>
-        <td class="ca">${fmtEur(l.ca)}</td><td>${l.avis}</td></tr>`).join('')}</tbody>
+        <td class="ca">${fmtEur(l.ca)}</td>${cellules(l)}</tr>`).join('')}</tbody>
     </table>
-    <p class="note">Le nombre d'avis est un proxy imparfait de la fréquentation, mais il a
-    l'avantage d'être indépendant du modèle. Si les deux colonnes ne vont pas dans le
-    même sens, le modèle décrit mal le terrain.</p>`;
+    ${explication}`;
+}
+
+// ---------- CE QUE DIT LE MARCHÉ RÉEL ----------
+//
+// Panneau alimenté uniquement par des chiffres publiés : aucun modèle, aucune
+// hypothèse. C'est la contrepartie factuelle du reste de l'outil.
+
+function dessinerMarcheReel() {
+  const zone = document.getElementById('marche-reel');
+  if (!zone) return;
+  const obs = caObserve();
+  const survie = statsSurvie();
+  const prix = prixCession();
+
+  if (!obs && !survie && !prix) {
+    zone.innerHTML = `<p class="note">Aucune donnée d'entreprise importée. Ces trois
+      sources publiques et gratuites remplacent les hypothèses par des mesures :</p>
+      <p class="note"><code>python3 scripts/import_entreprises.py</code><br>
+      SIRENE et comptes annuels déposés au greffe → le CA réel des laveries.</p>
+      <p class="note"><code>python3 scripts/import_bodacc.py</code><br>
+      BODACC → radiations et prix de cession des fonds de commerce.</p>`;
+    return;
+  }
+
+  const blocs = [];
+
+  if (obs) {
+    blocs.push(`<div class="fait">
+      <span class="fait-val">${fmtEur(obs.mediane)}</span>
+      <span class="fait-lib">CA médian publié · ${obs.n} laverie${obs.n > 1 ? 's' : ''}
+        (${obs.perimetre}, ${obs.annee})</span>
+      <span class="fait-detail">Fourchette observée ${fmtEur(obs.min)} – ${fmtEur(obs.max)}.
+        C'est ce chiffre qui cale désormais le modèle, à la place des 50 000 € du
+        dossier de marché.</span></div>`);
+  }
+
+  if (survie) {
+    const tx = survie.survie5ans != null
+      ? `${Math.round(survie.survie5ans * 100)} %` : 'n.d.';
+    blocs.push(`<div class="fait">
+      <span class="fait-val">${tx}</span>
+      <span class="fait-lib">encore ouvertes 5 ans après leur création</span>
+      <span class="fait-detail">${survie.total} laveries suivies :
+        ${survie.ouvertes} ouvertes, ${survie.fermees} fermées.
+        ${survie.dureeMediane != null
+          ? `Durée de vie médiane des fermées : <b>${survie.dureeMediane} ans</b>. ` : ''}
+        ${survie.ageMedian != null
+          ? `Âge médian de celles en activité : <b>${survie.ageMedian} ans</b>. ` : ''}
+        ${survie.nJugeables < 10
+          ? '<span style="color:#fbbf24">Échantillon faible : à lire comme un ordre de grandeur.</span>' : ''}
+        </span></div>`);
+  }
+
+  if (prix) {
+    blocs.push(`<div class="fait">
+      <span class="fait-val">${fmtEur(prix.median)}</span>
+      <span class="fait-lib">prix de cession médian d'un fonds · ${prix.n} vente${prix.n > 1 ? 's' : ''}</span>
+      <span class="fait-detail">De ${fmtEur(prix.min)} à ${fmtEur(prix.max)}, relevés dans
+        les annonces BODACC. À comparer à l'investissement de création
+        (${fmtEur(state.benchmarks.exploitation.investissement_initial_eur[0])} –
+        ${fmtEur(state.benchmarks.exploitation.investissement_initial_eur[1])}) :
+        reprendre coûte-t-il moins cher que créer ?</span></div>`);
+  }
+
+  zone.innerHTML = blocs.join('')
+    + `<p class="note">Chiffres publics, sans aucun modèle : SIRENE, comptes annuels
+       déposés au greffe et annonces BODACC. Tout ce qui est absent l'est parce que les
+       sociétés concernées n'ont rien publié — pas parce que le chiffre n'existe pas.</p>`;
 }
 
 // ---------- HEATMAP DU POTENTIEL ----------
@@ -1920,6 +2260,33 @@ function differer(cle, ms, fn) {
   differer._t[cle] = setTimeout(fn, ms);
 }
 
+// L'ancre du modèle doit refléter ce qu'on a MESURÉ, pas ce qu'on a supposé :
+// quand les comptes annuels sont importés, le curseur se positionne tout seul
+// sur la médiane observée et le dit.
+function calerCurseurCaRef() {
+  const s = document.getElementById('h-caref');
+  const note = document.getElementById('caref-source');
+  if (!s) return;
+  const obs = caObserve();
+  const val = caReference();
+  // Le CA observé peut sortir des bornes prévues : on élargit plutôt que de
+  // tronquer, sinon le curseur afficherait un chiffre faux.
+  const arrondi = (x) => Math.round(x / 500) * 500;
+  s.step = 500;
+  s.min = Math.min(Number(s.min), arrondi(val * 0.5));
+  s.max = Math.max(Number(s.max), arrondi(val * 1.6));
+  s.value = arrondi(val);
+  document.getElementById('h-caref-val').textContent = fmtInt(val);
+  if (!note) return;
+  note.innerHTML = obs
+    ? `✅ Calé sur le <b>CA réellement publié par ${obs.n} laverie${obs.n > 1 ? 's' : ''}</b>
+       (${obs.perimetre}, exercice ${obs.annee}) — médiane ${fmtEur(obs.mediane)},
+       fourchette ${fmtEur(obs.min)} – ${fmtEur(obs.max)}. Ce n'est plus une hypothèse.`
+    : `⚠ Aucun CA réel importé : cette valeur vient du dossier de marché, pas du terrain.
+       Lancez <code>python3 scripts/import_entreprises.py</code> pour la remplacer par
+       les comptes déposés au greffe.`;
+}
+
 // ---------- UI ----------
 
 function initUI() {
@@ -1950,6 +2317,8 @@ function initUI() {
     });
   }
   majLegendeVue();
+
+  calerCurseurCaRef();
 
   const slider = document.getElementById('rayon');
   slider.addEventListener('input', () => {
@@ -2041,13 +2410,11 @@ function initUI() {
   document.getElementById('btn-reset-hyp').addEventListener('click', () => {
     state.hyp = { depenseMediane: null, facteurDemande: 1, caReference: null, poidsCaptif: 0.4, loyer: null, stressEnergie: false, porteeParking: 2.0 };
     const [dMin, dMax] = state.benchmarks.demande.clientele_reguliere.depense_annuelle_eur;
-    const [cMin, cMax] = state.benchmarks.exploitation.ca_annuel_laverie_eur;
     document.getElementById('h-depense').value = (dMin + dMax) / 2;
     document.getElementById('h-depense-val').textContent = fmtInt((dMin + dMax) / 2);
     document.getElementById('h-demande').value = 100;
     document.getElementById('h-demande-val').textContent = 100;
-    document.getElementById('h-caref').value = (cMin + cMax) / 2;
-    document.getElementById('h-caref-val').textContent = fmtInt((cMin + cMax) / 2);
+    calerCurseurCaRef();
     document.getElementById('h-portee').value = 2;
     document.getElementById('h-portee-val').textContent = '2.0';
     document.getElementById('h-loyer').value = 1050;

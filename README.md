@@ -22,13 +22,50 @@ Après toute modification de `data/*.json`, régénérer le fichier autonome :
 python3 scripts/build_standalone.py
 ```
 
+## Les données réelles : SIRENE, comptes annuels, BODACC
+
+Le modèle prédisait un chiffre d'affaires sans jamais en observer un seul : il
+était calé sur une hypothèse (« une laverie fait 50 000 € »). Trois sources
+publiques et gratuites remplacent cette hypothèse par des mesures.
+
+```bash
+python3 scripts/import_entreprises.py    # SIRENE + comptes annuels des greffes
+python3 scripts/import_bodacc.py         # radiations et prix de cession
+python3 scripts/build_standalone.py
+```
+
+| Source | Ce qu'elle apporte |
+|---|---|
+| **SIRENE** | Dates de création et de fermeture, effectifs → durée de vie réelle des laveries, taux de survie à 5 ans |
+| **Comptes annuels** | CA et résultat net des sociétés qui déposent au greffe → l'ancre du modèle devient une mesure, et la validation se fait contre du vrai CA |
+| **BODACC** | Radiations, et **prix de cession des fonds de commerce** → ce que vaut réellement une laverie en Gironde |
+
+Trois précautions de méthode, appliquées par les scripts :
+
+1. **Le CA est publié au niveau de la société, pas de l'établissement.** Une
+   société qui exploite trois laveries publie un cumul, inexploitable pour caler
+   une adresse. Chaque ligne porte un `ca_attribuable`, faux dès que la société a
+   plus d'un établissement ouvert — et seules les lignes vraies calent le modèle.
+2. **La couverture est partielle par construction.** Depuis 2016 les petites
+   sociétés peuvent demander la confidentialité de leur compte de résultat, et les
+   entreprises individuelles ne déposent rien. Une absence de chiffre n'est pas un
+   signal sur la santé de l'affaire.
+3. **Le taux de survie exclut les établissements trop récents pour être jugés.**
+   Les compter comme survivants gonflerait le résultat (censure à droite).
+
+Une fois les fichiers présents, l'onglet **Modèle** valide le classement contre
+le CA réel plutôt que contre le nombre d'avis Google, et affiche l'écart médian
+entre CA modélisé et CA publié — la seule mesure qui dise vraiment ce que vaut
+le modèle. L'onglet **Laveries** ajoute un panneau « ce que dit le marché réel »,
+sans aucun modèle.
+
 ## L'interface en quatre onglets
 
 | Onglet | Ce qu'on y fait |
 |---|---|
 | **Carte** | Choisir *une* vue d'analyse (potentiel, demande captive, diagnostic par quartier, concentration de l'offre, ou aucune), régler le rayon de chalandise, filtrer ce qui s'affiche. |
 | **Analyse** | Le parcours en trois étapes : classement des zones → test d'un local précis → comparaison des candidats. |
-| **Laveries** | Les statistiques du marché et l'inventaire complet, indépendant des filtres de la carte. |
+| **Laveries** | Les statistiques du marché, ce que disent les chiffres publiés, et l'inventaire complet — indépendant des filtres de la carte. |
 | **Modèle** | Le contrôle de fiabilité, les cinq réglages du modèle et les repères du secteur. |
 
 Deux principes de conception valent d'être connus :

@@ -29,10 +29,13 @@ def main():
         "quartiers": json.loads(lire("data/quartiers.json")),
         "benchmarks": json.loads(lire("data/benchmarks.json")),
         "generateurs": json.loads(lire("data/generateurs.json")),
-        # Facultatif : présent seulement après import_insee_carreaux.py
-        "carreaux": (json.loads(lire("data/carreaux.json"))
-                     if (RACINE / "data" / "carreaux.json").exists() else None),
     }
+    # Facultatifs : présents seulement après le script d'import correspondant.
+    for cle, chemin in (("carreaux", "data/carreaux.json"),
+                        ("entreprises", "data/entreprises.json"),
+                        ("bodacc", "data/bodacc.json")):
+        donnees[cle] = (json.loads(lire(chemin))
+                        if (RACINE / chemin).exists() else None)
 
     # On repart de index.html et on remplace les balises externes par leur contenu.
     html = lire("index.html")

@@ -195,6 +195,13 @@
           </section>
 
           <section class="bloc">
+            <h2>Ce que dit le marché réel</h2>
+            <p class="note">Chiffres publiés, sans modèle : ce que les laveries déclarent
+            vraiment, combien de temps elles tiennent, et à quel prix elles se vendent.</p>
+            <div id="marche-reel"></div>
+          </section>
+
+          <section class="bloc">
             <h2>Inventaire <span id="liste-count" class="badge"></span></h2>
             <p class="note">Cliquez une ligne pour la localiser et ouvrir sa fiche complète. Un
             cerclage orange sur la carte signale une laverie mal notée : c'est une cible.</p>
@@ -283,6 +290,7 @@
               </div>
               <input type="range" id="h-caref" min="25000" max="90000" step="2500" value="50000">
               <div class="reperes"><span>25 k€</span><span>50 k€ · secteur</span><span>90 k€</span></div>
+              <p class="note" id="caref-source"></p>
               <details class="aide">
                 <summary>Le curseur le plus important</summary>
                 <div class="aide-corps">

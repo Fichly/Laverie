@@ -22,6 +22,32 @@ Après toute modification de `data/*.json`, régénérer le fichier autonome :
 python3 scripts/build_standalone.py
 ```
 
+## Deux périmètres d'étude : Pessac et Bordeaux Métropole
+
+Le sélecteur en tête de colonne bascule toute l'application d'une échelle à
+l'autre — demande, concurrence, calibrage, fiabilité et classement suivent.
+
+| | Pessac · pilote | Bordeaux Métropole |
+|---|---|---|
+| Zones d'analyse | 15 quartiers | 28 communes |
+| Calibrage | ~5 laveries grand public | ~20+ (d'autant plus solide) |
+| Maille du diagnostic | fine (quartier, générateurs bâtiment par bâtiment) | grossière (commune) — dit où regarder, pas où signer |
+
+**Le garde-fou du mode métropole** : une commune sans laverie recensée ressort
+mécaniquement rouge vif (concurrence nulle → indice au plafond). Or « aucune
+laverie dans nos données » ne veut pas dire « aucune laverie sur le terrain ».
+Toute commune dont l'inventaire est trop maigre pour son gabarit (moins de 60 %
+du compte attendu à ~1 laverie / 10 000 habitants) est déclarée **non
+évaluable** : estompée en gris sur la heatmap, pointillés sur le diagnostic,
+exclue du classement — avec le remède affiché. Pour lever le voile :
+
+```bash
+export GOOGLE_MAPS_API_KEY="votre_cle"
+python3 scripts/find_laveries_metropole.py --ecrire   # ~48 requêtes, balayage en tuiles
+python3 scripts/import_insee_carreaux.py <chemin>/carreaux_200m_met.gpkg  # nouvelle emprise 28 communes
+python3 scripts/build_standalone.py
+```
+
 ## Les données réelles : SIRENE, comptes annuels, BODACC
 
 Le modèle prédisait un chiffre d'affaires sans jamais en observer un seul : il

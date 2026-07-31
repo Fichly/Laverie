@@ -18,6 +18,11 @@ const state = {
   quartiers: [],
   benchmarks: null,
   rayon: RAYON_TENSION,
+  // Périmètre d'étude : 'pessac' (la ville pilote, analyse fine par quartier)
+  // ou 'metropole' (les 28 communes — calibrage plus solide, maille plus
+  // grossière). Tout le modèle suit : demande, concurrence, calibrage,
+  // fiabilité, classement.
+  perimetre: 'pessac',
   // Une seule surface d'analyse à la fois. Superposer une heatmap divergente,
   // une heatmap séquentielle et des pastilles colorées ne se lit pas : on force
   // le choix plutôt que de laisser l'utilisateur fabriquer une carte illisible.
@@ -124,11 +129,11 @@ async function charger() {
   // la version modulaire les charge depuis data/*.json via un serveur local.
   const facultatif = (chemin) =>
     fetch(chemin).then(r => r.ok ? r.json() : null).catch(() => null);
-  const [lav, qua, bench, gen, car, ent, bod] = window.__DATA__
+  const [lav, qua, bench, gen, car, ent, bod, com] = window.__DATA__
     ? [window.__DATA__.laveries, window.__DATA__.quartiers,
        window.__DATA__.benchmarks, window.__DATA__.generateurs,
        window.__DATA__.carreaux, window.__DATA__.entreprises,
-       window.__DATA__.bodacc]
+       window.__DATA__.bodacc, window.__DATA__.communes]
     : await Promise.all([
       fetch('data/laveries.json').then(r => r.json()),
       fetch('data/quartiers.json').then(r => r.json()),
@@ -138,6 +143,7 @@ async function charger() {
       facultatif('data/carreaux.json'),
       facultatif('data/entreprises.json'),
       facultatif('data/bodacc.json'),
+      fetch('data/communes.json').then(r => r.json()),
     ]);
   state.laveries = lav.laveries;
   state.meta = lav.meta;            // conservé pour réécrire un fichier complet à l'export
@@ -148,6 +154,7 @@ async function charger() {
   state.profilsGenerateurs = (gen && gen.meta && gen.meta.profils) || {};
   state.carreaux = (car && car.carreaux) || null;
   state.metaCarreaux = (car && car.meta) || null;
+  state.communes = (com && com.communes) || [];
   state.entreprises = (ent && ent.etablissements) || null;
   state.metaEntreprises = (ent && ent.meta) || null;
   state.bodacc = bod || null;
@@ -191,16 +198,37 @@ function typesActifs() {
   return actifs;
 }
 
-// Laveries du périmètre étudié. Les laveries des communes voisines comptent
-// comme concurrentes dans le modèle, mais fausseraient les statistiques et le
-// contrôle de fiabilité de Pessac : on les en écarte.
-function laveriesCommune() {
-  return state.laveries.filter(l => !l.hors_commune && l.statut === 'actif');
+// Laveries du périmètre étudié.
+//
+// En périmètre Pessac, les laveries des communes voisines comptent comme
+// concurrentes dans le modèle mais sont écartées des statistiques, du calibrage
+// et du contrôle de fiabilité. En périmètre métropole, elles font partie de
+// l'étude à part entière — c'est tout l'intérêt du changement d'échelle : le
+// calibrage passe d'une poignée d'établissements à quelques dizaines.
+function laveriesEtude() {
+  return state.laveries.filter(l => l.statut === 'actif'
+    && (state.perimetre === 'metropole' || !l.hors_commune));
+}
+
+function nomPerimetre() {
+  return state.perimetre === 'metropole' ? 'la métropole' : 'Pessac';
+}
+
+// Zones d'analyse : les 15 quartiers de Pessac, ou les 28 communes.
+// Une commune est une maille grossière — le diagnostic dit où regarder,
+// pas où signer.
+function zonesEtude() {
+  if (state.perimetre !== 'metropole') return state.quartiers;
+  return state.communes.map(c => ({
+    ...c,
+    commentaire: 'Maille communale : diagnostic indicatif, à affiner par quartier.',
+  }));
 }
 
 function laveriesVisibles() {
   const types = typesActifs();
-  const voisines = document.getElementById('f-voisines')?.checked;
+  const voisines = state.perimetre === 'metropole'
+    || document.getElementById('f-voisines')?.checked;
   return state.laveries.filter(l => types.includes(l.type) && l.statut === 'actif'
                                  && (voisines || !l.hors_commune));
 }
@@ -896,9 +924,50 @@ function partSansLaveLingeCarreau(c) {
   return (pMin + (pMax - pMin) * facteur) / 100;
 }
 
+// Étalement d'une commune entière (mode métropole sans carroyage).
+//
+// Une commune n'est pas un quartier : Bordeaux fait 49 km². Verser 40 % de ses
+// 260 000 habitants sur le centroïde créerait une densité absurde (100 000
+// habitants « à 800 m » d'un point). Le rayon suit donc la taille de la
+// commune, et la population se répartit sur deux couronnes avec un centre
+// léger.
+function rayonCommune(c) {
+  return Math.max(900, Math.min(3200, 700 * Math.sqrt(c.population / 10000)));
+}
+
+const CENTRE_COMMUNE = 0.12;
+
+function etalerCommune(pts, c) {
+  const rayon = rayonCommune(c);
+  pts.push({ q: c, lat: c.lat, lon: c.lon, part: CENTRE_COMMUNE });
+  const anneaux = [[rayon * 0.45, 8, 0.42], [rayon * 0.95, 12, 0.46]];
+  for (const [r, n, poids] of anneaux) {
+    const dLat = r / 111320;
+    const dLon = r / (111320 * Math.cos(c.lat * Math.PI / 180));
+    for (let i = 0; i < n; i++) {
+      const a = (2 * Math.PI * i) / n + r;     // décalage angulaire entre anneaux
+      pts.push({ q: c, lat: c.lat + dLat * Math.sin(a),
+                 lon: c.lon + dLon * Math.cos(a), part: poids / n });
+    }
+  }
+}
+
+// Communes hors de la couverture du carroyage importé : un ancien import limité
+// à Pessac ne doit pas faire croire que le reste de la métropole est désert.
+function communesHorsCarroyage() {
+  if (!state.carreaux || !state.carreaux.length) return state.communes;
+  const lats = state.carreaux.map(c => c.lat), lons = state.carreaux.map(c => c.lon);
+  const boite = { sud: Math.min(...lats), nord: Math.max(...lats),
+                  ouest: Math.min(...lons), est: Math.max(...lons) };
+  return state.communes.filter(c =>
+    c.lat < boite.sud || c.lat > boite.nord || c.lon < boite.ouest || c.lon > boite.est);
+}
+
 function pointsDemande() {
   if (state._pointsDemande) return state._pointsDemande;
   const pts = [];
+
+  const metropole = state.perimetre === 'metropole';
 
   // Quand le carroyage INSEE est disponible, il REMPLACE les centroïdes de
   // quartiers : population observée maille par maille au lieu d'estimations.
@@ -914,8 +983,25 @@ function pointsDemande() {
     }
     // Les résidences repérées sont déjà comptées dans les carreaux : on ne les
     // ajoute pas une seconde fois, on garde seulement leur affichage.
+
+    // Carroyage partiel (ex. importé du temps où l'emprise s'arrêtait à
+    // Pessac) : les communes hors de sa boîte reçoivent le repli par centroïde,
+    // avec un avertissement dans l'onglet Modèle plutôt qu'un désert silencieux.
+    if (metropole) {
+      const manquantes = communesHorsCarroyage();
+      state.carroyagePartiel = manquantes.length > 0;
+      for (const c of manquantes) etalerCommune(pts, c);
+    }
     state._pointsDemande = pts;
     return pts;
+  }
+
+  // Sans carroyage, en mode métropole : quartiers fins pour Pessac, centroïdes
+  // étalés pour les 27 autres communes. Pessac est exclue de la liste des
+  // communes pour ne pas compter ses habitants deux fois.
+  if (metropole) {
+    state.carroyagePartiel = true;      // tout est estimé : à dire clairement
+    for (const c of state.communes.filter(x => x.id !== 'pessac')) etalerCommune(pts, c);
   }
 
   // Les habitants des résidences repérées sont DÉJÀ comptés dans la population
@@ -1085,7 +1171,7 @@ function caBrut(lat, lon, R, laverieExistante) {
 
 function coefficientCalibrage() {
   if (state._coefCal != null) return state._coefCal;
-  const publiques = laveriesCommune().filter(l => l.type !== 'captif');
+  const publiques = laveriesEtude().filter(l => l.type !== 'captif');
   if (!publiques.length) return (state._coefCal = 1);
   let predit = 0;
   for (const l of publiques) {
@@ -1145,6 +1231,32 @@ function tensionQuartier(q) {
   return estimerCA(q.lat, q.lon, RAYON_TENSION);
 }
 
+// GARDE-FOU DU MODE MÉTROPOLE — inventaire incomplet.
+//
+// Une commune sans laverie recensée ressort mécaniquement rouge vif : pression
+// concurrentielle nulle, indice au plafond. Or « aucune laverie dans nos
+// données » ne veut pas dire « aucune laverie sur le terrain » tant que le
+// balayage Google de la métropole n'a pas été lancé. Bordeaux affichait 2,40
+// avec une pression de zéro en plein centre-ville — évidemment faux.
+//
+// Règle : d'après les benchmarks, une commune porte environ un établissement
+// pour 8 000 à 15 000 habitants. Si l'inventaire en contient nettement moins,
+// le diagnostic de la zone est déclaré NON ÉVALUABLE plutôt qu'attractif.
+function inventaireInsuffisant(zone) {
+  if (state.perimetre !== 'metropole') return false;
+  const rayon = rayonCommune(zone) * 1.25;
+  const recensees = state.laveries.filter(l => l.statut === 'actif'
+    && l.type !== 'captif'
+    && distanceM(zone.lat, zone.lon, l.lat, l.lon) <= rayon).length;
+  // Attendu : un établissement pour ~10 000 habitants (milieu de fourchette).
+  // On exige au moins 60 % de ce compte dans l'inventaire pour juger la zone :
+  // en deçà, la « faible concurrence » est un artefact de données. Bordeaux
+  // recensée à 8 laveries pour 260 000 habitants en attendrait ~26 : non
+  // évaluable tant que le balayage métropole n'a pas tourné.
+  const attendues = zone.population / 10000;
+  return recensees < Math.max(1, Math.round(attendues * 0.6));
+}
+
 function couleurTension(i) {
   if (i < 0.6) return '#15803d';   // pas de place : marché déjà servi ou demande trop faible
   if (i < 1.0) return '#eab308';   // limite
@@ -1154,25 +1266,34 @@ function couleurTension(i) {
 function dessinerTension() {
   state.layers.tension.clearLayers();
   if (state.vue !== 'quartiers') return;
-  for (const q of state.quartiers) {
+  for (const q of zonesEtude()) {
     const t = tensionQuartier(q);
-    const label = t.indice < 0.6 ? 'Pas de place pour une laverie'
+    const incomplet = inventaireInsuffisant(q);
+    const label = incomplet ? 'Non évaluable : inventaire incomplet'
+      : t.indice < 0.6 ? 'Pas de place pour une laverie'
       : (t.indice < 1.0 ? 'Zone limite' : 'Place pour une laverie');
+    const couleur = incomplet ? '#64748b' : couleurTension(t.indice);
     L.circleMarker([q.lat, q.lon], {
-      radius: Math.max(10, Math.sqrt(q.population) / 5),
-      color: couleurTension(t.indice),
+      // Rayon borné : Bordeaux (260 000 hab.) ne doit pas manger la carte.
+      radius: Math.min(28, Math.max(10, Math.sqrt(q.population) / 5)),
+      color: couleur,
       weight: 2,
-      fillColor: couleurTension(t.indice),
-      fillOpacity: 0.30,
+      dashArray: incomplet ? '5 6' : null,
+      fillColor: couleur,
+      fillOpacity: incomplet ? 0.12 : 0.30,
     }).bindPopup(`<div class="popup"><h3>${q.nom}</h3>
       <table>
       <tr><td>Population (est.)</td><td>${fmtInt(q.population)}</td></tr>
       <tr><td>Clientèle régulière accessible</td><td>~${fmtInt(t.reguliers)} ménages</td></tr>
       <tr><td>Concurrence en place</td><td>${t.pression.toFixed(2)} équiv. laverie → part de marché ${Math.round(t.partMarche * 100)} %</td></tr>
       <tr><td>CA d'une nouvelle laverie</td><td>${fmtEur(t.caMin)} – ${fmtEur(t.caMax)}<br>(référence secteur : ${fmtEur(caReference())})</td></tr>
-      <tr><td>Diagnostic</td><td><strong>${label}</strong> (indice ${t.indice.toFixed(2)})</td></tr>
+      <tr><td>Diagnostic</td><td><strong>${label}</strong>${incomplet ? '' : ` (indice ${t.indice.toFixed(2)})`}</td></tr>
       </table>
-      <p class="warn">${q.commentaire ?? ''}</p></div>`, { maxWidth: 320 })
+      ${incomplet ? `<p class="warn">Cette commune n'a pas assez de laveries recensées
+        pour son gabarit (${fmtInt(q.population)} hab.) : l'indice élevé mesure
+        l'absence de données, pas une opportunité. Lancez
+        <code>scripts/find_laveries_metropole.py</code> pour recenser l'offre réelle.</p>`
+        : `<p class="warn">${q.commentaire ?? ''}</p>`}</div>`, { maxWidth: 320 })
       .addTo(state.layers.tension);
   }
 }
@@ -1181,9 +1302,14 @@ function dessinerTension() {
 
 function dessinerClassement() {
   const ol = document.getElementById('classement');
-  const toutes = state.quartiers
+  const evaluees = [], nonEvaluables = [];
+  for (const q of zonesEtude()) {
+    (inventaireInsuffisant(q) ? nonEvaluables : evaluees).push(q);
+  }
+  const toutes = evaluees
     .map(q => ({ q, t: tensionQuartier(q) }))
     .sort((a, b) => b.t.indice - a.t.indice);
+  state._nonEvaluables = nonEvaluables;
 
   // Empreinte du classement complet : sert à mesurer l'effet réel d'un réglage
   // (voir afficherImpact). On la prend AVANT de tronquer à 6.
@@ -1203,11 +1329,16 @@ function dessinerClassement() {
         <span class="z-ca">CA potentiel ${fmtEur(t.caMin)} – ${fmtEur(t.caMax)}</span></span>
       <span class="z-ind ${cls}">${t.indice.toFixed(2)}</span>
     </li>`;
-  }).join('');
+  }).join('')
+  + (nonEvaluables.length ? `<li class="non-evaluable">⚠ ${nonEvaluables.length} commune${
+      nonEvaluables.length > 1 ? 's' : ''} hors classement, inventaire trop incomplet pour
+      juger : ${nonEvaluables.slice(0, 5).map(z => z.nom).join(', ')}${
+      nonEvaluables.length > 5 ? '…' : ''}. Un indice élevé y mesurerait l'absence de
+      données, pas une opportunité — lancez <code>find_laveries_metropole.py</code>.</li>` : '');
 
   for (const li of ol.querySelectorAll('li')) {
     li.addEventListener('click', () => {
-      const q = state.quartiers.find(x => x.id === li.dataset.id);
+      const q = zonesEtude().find(x => x.id === li.dataset.id);
       map.flyTo([q.lat, q.lon], 15, { duration: 0.8 });
       // On lance directement la simulation sur la zone pour éviter un aller-retour.
       state.simulation = true;
@@ -1225,20 +1356,36 @@ function dessinerClassement() {
 function majStats() {
   // Les statistiques décrivent le marché, pas l'affichage : elles ne suivent
   // donc pas les cases de filtrage de la carte.
-  const visibles = laveriesCommune();
+  const visibles = laveriesEtude();
   const grandPublic = visibles.filter(l => l.type !== 'captif');
-  const pop = state.quartiers.reduce((s, q) => s + q.population, 0);
+  // Population du périmètre : mesurée (carroyage complet) quand on l'a,
+  // sinon la somme des zones estimées.
+  const pop = (state.perimetre === 'metropole' && state.metaCarreaux
+               && !state.carroyagePartiel)
+    ? state.metaCarreaux.population_totale
+    : zonesEtude().reduce((s, q) => s + q.population, 0);
   document.getElementById('stat-count').textContent = visibles.length;
   document.getElementById('stat-open').textContent = grandPublic.length;
   document.getElementById('stat-pop').textContent = fmtInt(pop);
   const ratio = Math.round(pop / grandPublic.length);
   document.getElementById('stat-ratio').textContent = fmtInt(ratio);
 
+  const titre = document.getElementById('marche-titre');
+  if (titre) {
+    titre.textContent = state.perimetre === 'metropole'
+      ? 'Le marché de la métropole' : 'Le marché de Pessac';
+  }
+
   const [bMin, bMax] = state.benchmarks.demande.habitants_par_laverie_zone_urbaine;
   let verdict;
   if (ratio > bMax) verdict = `⚠ ${fmtInt(ratio)} hab./laverie grand public : au-dessus de la fourchette benchmark (${fmtInt(bMin)}–${fmtInt(bMax)}). Le marché semble globalement SOUS-ÉQUIPÉ — regardez les quartiers rouges.`;
   else if (ratio < bMin) verdict = `${fmtInt(ratio)} hab./laverie : marché dense, cherchez les poches mal couvertes plutôt qu'une implantation frontale.`;
   else verdict = `${fmtInt(ratio)} hab./laverie : dans la fourchette benchmark (${fmtInt(bMin)}–${fmtInt(bMax)}). L'opportunité se joue quartier par quartier.`;
+  if (state.perimetre === 'metropole' && state.carroyagePartiel) {
+    verdict += ' ⚠ Population partiellement estimée : le carroyage INSEE importé ne '
+      + 'couvre pas toute la métropole — relancez import_insee_carreaux.py '
+      + '(la nouvelle emprise couvre les 28 communes).';
+  }
   document.getElementById('stat-verdict').textContent = verdict;
 }
 
@@ -1480,10 +1627,10 @@ function caObserve() {
          && (e.finances || []).some(f => f.ca != null));
   const ca = (e) => e.finances.find(f => f.ca != null).ca;
 
-  for (const [perimetre, filtre] of [
-    ['commune', e => e.code_postal === CP_COMMUNE],
-    ['métropole', () => true],
-  ]) {
+  const paliers = state.perimetre === 'metropole'
+    ? [['métropole', () => true]]
+    : [['commune', e => e.code_postal === CP_COMMUNE], ['métropole', () => true]];
+  for (const [perimetre, filtre] of paliers) {
     const lot = eligibles.filter(filtre);
     if (lot.length) {
       const valeurs = lot.map(ca);
@@ -1579,7 +1726,7 @@ function correlationRangs(a, b) {
 // Passer de 2 à 1 change la nature de l'exercice : on ne vérifie plus que le
 // modèle « va dans le bon sens », on mesure de combien il se trompe.
 function controleFiabilite() {
-  const publiques = laveriesCommune().filter(l => l.type !== 'captif');
+  const publiques = laveriesEtude().filter(l => l.type !== 'captif');
   const coef = coefficientCalibrage();
   const toutes = publiques.map(l => {
     const e = caBrut(l.lat, l.lon, RAYON_TENSION, l);
@@ -1801,15 +1948,28 @@ function dessinerHeatPotentiel() {
   }
   if (state.vue !== 'potentiel') return;
 
-  // Emprise : les quartiers connus, élargis d'une marge.
-  const lats = state.quartiers.map(q => q.lat);
-  const lons = state.quartiers.map(q => q.lon);
-  const marge = 0.012;
+  // Emprise : les zones du périmètre courant, élargies d'une marge.
+  const zones = zonesEtude();
+  const lats = zones.map(q => q.lat);
+  const lons = zones.map(q => q.lon);
+  const marge = state.perimetre === 'metropole' ? 0.02 : 0.012;
   const sud = Math.min(...lats) - marge, nord = Math.max(...lats) + marge;
   const ouest = Math.min(...lons) - marge, est = Math.max(...lons) + marge;
 
-  const pasLat = GRILLE_PAS_M / 111320;
-  const pasLon = GRILLE_PAS_M / (111320 * Math.cos(((sud + nord) / 2) * Math.PI / 180));
+  // Pas adaptatif : passer à la métropole multiplie la surface par ~15.
+  // Peindre 70 000 mailles gèlerait le navigateur ; on relâche la résolution
+  // juste assez pour rester sous ~20 000 mailles, et la légende l'affiche.
+  let pas = GRILLE_PAS_M;
+  {
+    const largeurM = (est - ouest) * 111320 * Math.cos(((sud + nord) / 2) * Math.PI / 180);
+    const hauteurM = (nord - sud) * 111320;
+    const mailles = (largeurM / pas) * (hauteurM / pas);
+    if (mailles > 20000) pas = Math.ceil(Math.sqrt(largeurM * hauteurM / 20000) / 10) * 10;
+  }
+  state.pasGrille = pas;
+
+  const pasLat = pas / 111320;
+  const pasLon = pas / (111320 * Math.cos(((sud + nord) / 2) * Math.PI / 180));
   const nY = Math.ceil((nord - sud) / pasLat);
   const nX = Math.ceil((est - ouest) / pasLon);
 
@@ -1818,6 +1978,16 @@ function dessinerHeatPotentiel() {
   const ctx = canvas.getContext('2d');
   const img = ctx.createImageData(nX, nY);
   const R = state.rayon;
+
+  // Même garde-fou que le diagnostic par commune : là où l'inventaire est trop
+  // incomplet pour juger, la heatmap s'estompe en gris au lieu d'afficher un
+  // rouge éclatant qui ne mesure que l'absence de données.
+  const zonesAveugles = state.perimetre === 'metropole'
+    ? zonesEtude().filter(inventaireInsuffisant)
+        .map(z => ({ lat: z.lat, lon: z.lon, rayon: rayonCommune(z) * 1.15 }))
+    : [];
+  const estAveugle = (lat, lon) => zonesAveugles.some(
+    z => distanceM(lat, lon, z.lat, z.lon) <= z.rayon);
 
   for (let y = 0; y < nY; y++) {
     // L'image se dessine du haut (nord) vers le bas.
@@ -1829,6 +1999,11 @@ function dessinerHeatPotentiel() {
       // Hors de toute demande, on laisse transparent plutôt que d'afficher
       // un « très en dessous » qui n'aurait aucun sens (forêt, vignes).
       if (e.pop < 150) { img.data[i + 3] = 0; continue; }
+      if (estAveugle(lat, lon)) {
+        img.data[i] = 120; img.data[i + 1] = 122; img.data[i + 2] = 134;
+        img.data[i + 3] = 80;
+        continue;
+      }
       const [r, g, b] = couleurPotentiel(e.indice);
       img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b;
       img.data[i + 3] = 190;
@@ -1840,6 +2015,7 @@ function dessinerHeatPotentiel() {
     [[sud, ouest], [nord, est]], { opacity: 0.75, interactive: false, zIndex: 250 });
   state.layers.potentiel.addTo(map);
   state.layers.potentiel.bringToFront?.();
+  majLegendeVue();     // le pas de grille affiché doit être celui qui a servi
 }
 
 // ---------- HEATMAP DE LA DEMANDE CAPTIVE ----------
@@ -2028,7 +2204,7 @@ function allerAAdresse() {
       + "local puis « Copier les coordonnées », ou collez l'URL de la page.";
     return;
   }
-  if (c.lat < 44.6 || c.lat > 45.0 || c.lon < -0.9 || c.lon > -0.4) {
+  if (c.lat < 44.6 || c.lat > 45.05 || c.lon < -0.9 || c.lon > -0.4) {
     err.textContent = "Ce point est hors de la zone d'étude (Bordeaux Métropole).";
     return;
   }
@@ -2150,23 +2326,75 @@ function montrerSimulation() {
   }
 }
 
+// ---------- BASCULE DE PÉRIMÈTRE ----------
+//
+// Changer d'échelle invalide tout ce qui dépend du périmètre : la demande, le
+// calibrage, l'ancre de CA et le classement. On repart proprement plutôt que de
+// laisser des caches raconter l'ancienne échelle.
+
+const VUES_CARTE = {
+  pessac: { centre: [44.798, -0.640], zoom: 13 },
+  metropole: { centre: [44.855, -0.590], zoom: 11 },
+};
+
+function changerPerimetre(nouveau) {
+  if (nouveau === state.perimetre) return;
+  state.perimetre = nouveau;
+  state._pointsDemande = null;
+  state._indexDemande = null;
+  state._coefCal = null;
+  state._caObserve = undefined;
+  state._empreinte = null;
+  state._empreinteAvant = null;
+  state.carroyagePartiel = false;
+
+  for (const b of document.querySelectorAll('[data-perimetre]')) {
+    b.classList.toggle('actif', b.dataset.perimetre === nouveau);
+  }
+  const v = VUES_CARTE[nouveau];
+  map.flyTo(v.centre, v.zoom, { duration: 0.9 });
+
+  calerCurseurCaRef();
+  majLegendeVue();
+  rafraichir();
+  if (state.derniereSimulation) {
+    const d = state.derniereSimulation;
+    simuler(d.lat, d.lon);
+  }
+
+  const publiques = laveriesEtude().filter(l => l.type !== 'captif').length;
+  afficherToast('Périmètre : ' + (nouveau === 'metropole' ? 'Bordeaux Métropole' : 'Pessac (pilote)'),
+    nouveau === 'metropole'
+      ? `le modèle se recale sur <b>${publiques} laveries grand public</b> au lieu de 5 : `
+        + `calibrage et contrôle de fiabilité deviennent bien plus solides. En échange, `
+        + `le diagnostic passe à la maille communale — indicatif, pas contractuel.`
+      : `retour à l'analyse fine de Pessac : 15 quartiers, générateurs de demande `
+        + `bâtiment par bâtiment.`,
+    false);
+}
+
 // ---------- LÉGENDE DE LA VUE ACTIVE ----------
 //
 // Une seule légende affichée, celle de la vue en cours. Afficher les quatre en
 // permanence obligeait le lecteur à deviner laquelle s'applique.
 
 const LEGENDES = {
-  potentiel: `
+  potentiel: () => `
     <span class="lg"><i style="background:#1c5cab"></i> Très en dessous</span>
     <span class="lg"><i style="background:#5598e7"></i> En dessous</span>
     <span class="lg"><i style="background:#6e6e69"></i> Au niveau</span>
     <span class="lg"><i style="background:#e66767"></i> Au-dessus</span>
     <span class="lg"><i style="background:#d03b3b"></i> Nettement au-dessus</span>
-    <span class="texte">Chaque maille de 140 m est évaluée par le modèle. La référence,
-    c'est le CA d'une <b>laverie moyenne de Pessac</b> : rouge = une nouvelle laverie
-    y ferait mieux. Les zones sans habitants restent transparentes.</span>`,
+    <span class="texte">Chaque maille de ${state.pasGrille || 140} m est évaluée par le
+    modèle. La référence, c'est le CA d'une <b>laverie moyenne de ${nomPerimetre()}</b> :
+    rouge = une nouvelle laverie y ferait mieux. Les zones sans habitants restent
+    transparentes.</span>${state.perimetre === 'metropole' ? `
+    <span class="lg"><i style="background:#787a86;opacity:0.55"></i> Estompé : non évaluable</span>
+    <span class="texte" style="color:#fbbf24">Les communes estompées n'ont pas assez de
+    laveries recensées pour leur gabarit : un rouge y mesurerait l'absence de données,
+    pas une opportunité. Lancez <code>scripts/find_laveries_metropole.py</code>.</span>` : ''}`,
 
-  demande: `
+  demande: () => `
     <span class="lg"><i style="background:#f5be5a"></i> Demande diffuse</span>
     <span class="lg"><i style="background:#d75220"></i> Grappe dense</span>
     <span class="texte">Densité de ménages sans lave-linge, agrégée sur 320 m : une grappe
@@ -2178,28 +2406,29 @@ const LEGENDES = {
     <span class="texte" style="color:#fbbf24">⚠ Le nombre de logements est une valeur par
     défaut : cliquez un point pour le corriger.</span>`,
 
-  quartiers: `
+  quartiers: () => `
     <span class="lg"><i style="background:#dc2626"></i> Place pour une laverie</span>
     <span class="lg"><i style="background:#eab308"></i> Limite</span>
     <span class="lg"><i style="background:#15803d"></i> Pas de place</span>
-    <span class="texte">Même calcul que la heatmap, résumé par quartier, à rayon fixe de
-    800 m. Cliquez une pastille : population, concurrence en place, part de marché et CA
-    attendu.</span>`,
+    <span class="texte">Même calcul que la heatmap, résumé par ${
+      state.perimetre === 'metropole' ? 'commune — une maille grossière qui dit où regarder, pas où signer' : 'quartier'
+    }, à rayon fixe de 800 m. Cliquez une pastille : population, concurrence en place,
+    part de marché et CA attendu.</span>`,
 
-  offre: `
+  offre: () => `
     <span class="texte">Chaleur = concentration des laveries existantes, pondérée par leur
     force concurrentielle (note Google lissée × machines en service). Cette vue ne montre
     <b>que l'offre</b> : une zone froide n'est pas forcément une opportunité, elle peut
     n'avoir aucun habitant.</span>`,
 
-  aucune: `
+  aucune: () => `
     <span class="texte">Aucune surface d'analyse. Les laveries et leurs cercles de
     chalandise restent affichés — pratique pour repérer les rues et les locaux vacants.</span>`,
 };
 
 function majLegendeVue() {
   const el = document.getElementById('legende-vue');
-  if (el) el.innerHTML = LEGENDES[state.vue] || '';
+  if (el) el.innerHTML = LEGENDES[state.vue] ? LEGENDES[state.vue]() : '';
 }
 
 // ---------- MESURE DE L'EFFET D'UN RÉGLAGE ----------
@@ -2295,6 +2524,9 @@ function initUI() {
   }
   document.getElementById('chip-fiabilite').addEventListener('click',
     () => ouvrirOnglet('modele'));
+  for (const b of document.querySelectorAll('[data-perimetre]')) {
+    b.addEventListener('click', () => changerPerimetre(b.dataset.perimetre));
+  }
 
   document.getElementById('fiche-fermer').addEventListener('click', fermerFiche);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerFiche(); });
@@ -2367,7 +2599,7 @@ function initUI() {
       appliquer: v => { state.hyp.depenseMediane = v; return fmtInt(v); } },
     { id: 'h-demande', val: 'h-demande-val', libelle: 'Niveau de demande', modele: true,
       appliquer: v => { state.hyp.facteurDemande = v / 100; return v; } },
-    { id: 'h-caref', val: 'h-caref-val', libelle: 'CA moyen à Pessac', modele: true,
+    { id: 'h-caref', val: 'h-caref-val', libelle: 'CA moyen du périmètre', modele: true,
       appliquer: v => { state.hyp.caReference = v; return fmtInt(v); } },
     { id: 'h-portee', val: 'h-portee-val', libelle: 'Portée avec parking', modele: true,
       appliquer: v => { state.hyp.porteeParking = v; return v.toFixed(1); } },

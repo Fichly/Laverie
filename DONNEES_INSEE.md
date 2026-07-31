@@ -54,6 +54,12 @@ Le Parquet 2021 est plus récent mais demande `pyarrow`. Si vous ne voulez rien
 installer, prenez le GeoPackage — l'écart entre les millésimes 2019 et 2021 est
 négligeable pour un choix d'emplacement.
 
+**Depuis le passage au mode métropole, l'emprise d'import couvre les 28
+communes de Bordeaux Métropole** (~20 000 carreaux, ~800 000 habitants). Si
+votre `data/carreaux.json` date d'un import antérieur limité à Pessac,
+relancez simplement la commande : l'application détecte un carroyage partiel
+et le signale, mais autant l'avoir complet.
+
 Le script détecte tout seul les noms de colonnes (l'INSEE les fait varier d'un
 millésime à l'autre), ne garde que les carreaux de l'emprise de Pessac, et
 convertit les coordonnées. Il commence toujours par un autotest de la

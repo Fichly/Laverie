@@ -1,0 +1,235 @@
+{
+  "meta": {
+    "perimetre": "Bordeaux Métropole — 28 communes",
+    "usage": "Zones d'analyse du mode métropole : diagnostic, classement et, en l'absence du carroyage INSEE, demande de repli étalée autour du centroïde.",
+    "population_source": "INSEE, populations municipales, ordre de grandeur 2021. À titre indicatif : le carroyage 200 m les remplace dès qu'il est importé.",
+    "avertissement": "Un centroïde par commune est une maille très grossière : le diagnostic par commune signale où regarder, pas où signer un bail. Repasser en périmètre Pessac (ou importer le carroyage métropole) pour l'analyse fine.",
+    "part_petits_logements": "Estimation à dire d'expert par commune (studios/T1), utilisée seulement par la demande de repli quand le carroyage INSEE est absent. Le carroyage la remplace par la part mesurée de ménages d'une personne."
+  },
+  "communes": [
+    {
+      "id": "bordeaux",
+      "nom": "Bordeaux",
+      "lat": 44.8378,
+      "lon": -0.5792,
+      "population": 260000,
+      "part_petits_logements_est": 0.5
+    },
+    {
+      "id": "merignac",
+      "nom": "Mérignac",
+      "lat": 44.8386,
+      "lon": -0.6469,
+      "population": 74000,
+      "part_petits_logements_est": 0.25
+    },
+    {
+      "id": "pessac",
+      "nom": "Pessac",
+      "lat": 44.8067,
+      "lon": -0.6311,
+      "population": 66000,
+      "part_petits_logements_est": 0.3
+    },
+    {
+      "id": "talence",
+      "nom": "Talence",
+      "lat": 44.809,
+      "lon": -0.5906,
+      "population": 43000,
+      "part_petits_logements_est": 0.45
+    },
+    {
+      "id": "villenave-d-ornon",
+      "nom": "Villenave-d'Ornon",
+      "lat": 44.7806,
+      "lon": -0.5658,
+      "population": 38000,
+      "part_petits_logements_est": 0.2
+    },
+    {
+      "id": "saint-medard-en-jalles",
+      "nom": "Saint-Médard-en-Jalles",
+      "lat": 44.8964,
+      "lon": -0.7164,
+      "population": 32000,
+      "part_petits_logements_est": 0.15
+    },
+    {
+      "id": "begles",
+      "nom": "Bègles",
+      "lat": 44.8086,
+      "lon": -0.5478,
+      "population": 31000,
+      "part_petits_logements_est": 0.3
+    },
+    {
+      "id": "cenon",
+      "nom": "Cenon",
+      "lat": 44.8578,
+      "lon": -0.5317,
+      "population": 26000,
+      "part_petits_logements_est": 0.3
+    },
+    {
+      "id": "gradignan",
+      "nom": "Gradignan",
+      "lat": 44.7725,
+      "lon": -0.6156,
+      "population": 25000,
+      "part_petits_logements_est": 0.25
+    },
+    {
+      "id": "eysines",
+      "nom": "Eysines",
+      "lat": 44.8853,
+      "lon": -0.65,
+      "population": 25000,
+      "part_petits_logements_est": 0.18
+    },
+    {
+      "id": "le-bouscat",
+      "nom": "Le Bouscat",
+      "lat": 44.865,
+      "lon": -0.5997,
+      "population": 24000,
+      "part_petits_logements_est": 0.28
+    },
+    {
+      "id": "lormont",
+      "nom": "Lormont",
+      "lat": 44.8792,
+      "lon": -0.5217,
+      "population": 23000,
+      "part_petits_logements_est": 0.3
+    },
+    {
+      "id": "bruges",
+      "nom": "Bruges",
+      "lat": 44.8825,
+      "lon": -0.6111,
+      "population": 20000,
+      "part_petits_logements_est": 0.22
+    },
+    {
+      "id": "floirac",
+      "nom": "Floirac",
+      "lat": 44.8342,
+      "lon": -0.5236,
+      "population": 18000,
+      "part_petits_logements_est": 0.25
+    },
+    {
+      "id": "ambares-et-lagrave",
+      "nom": "Ambarès-et-Lagrave",
+      "lat": 44.9264,
+      "lon": -0.4869,
+      "population": 17000,
+      "part_petits_logements_est": 0.15
+    },
+    {
+      "id": "blanquefort",
+      "nom": "Blanquefort",
+      "lat": 44.9106,
+      "lon": -0.6367,
+      "population": 15000,
+      "part_petits_logements_est": 0.15
+    },
+    {
+      "id": "le-haillan",
+      "nom": "Le Haillan",
+      "lat": 44.8722,
+      "lon": -0.6797,
+      "population": 12000,
+      "part_petits_logements_est": 0.15
+    },
+    {
+      "id": "le-taillan-medoc",
+      "nom": "Le Taillan-Médoc",
+      "lat": 44.9047,
+      "lon": -0.6672,
+      "population": 10000,
+      "part_petits_logements_est": 0.12
+    },
+    {
+      "id": "parempuyre",
+      "nom": "Parempuyre",
+      "lat": 44.9494,
+      "lon": -0.6033,
+      "population": 10000,
+      "part_petits_logements_est": 0.12
+    },
+    {
+      "id": "artigues-pres-bordeaux",
+      "nom": "Artigues-près-Bordeaux",
+      "lat": 44.8603,
+      "lon": -0.4864,
+      "population": 9000,
+      "part_petits_logements_est": 0.15
+    },
+    {
+      "id": "carbon-blanc",
+      "nom": "Carbon-Blanc",
+      "lat": 44.8961,
+      "lon": -0.5031,
+      "population": 8000,
+      "part_petits_logements_est": 0.15
+    },
+    {
+      "id": "bassens",
+      "nom": "Bassens",
+      "lat": 44.9006,
+      "lon": -0.5164,
+      "population": 7500,
+      "part_petits_logements_est": 0.18
+    },
+    {
+      "id": "saint-aubin-de-medoc",
+      "nom": "Saint-Aubin-de-Médoc",
+      "lat": 44.9114,
+      "lon": -0.73,
+      "population": 7500,
+      "part_petits_logements_est": 0.08
+    },
+    {
+      "id": "martignas-sur-jalle",
+      "nom": "Martignas-sur-Jalle",
+      "lat": 44.8433,
+      "lon": -0.7758,
+      "population": 7500,
+      "part_petits_logements_est": 0.1
+    },
+    {
+      "id": "bouliac",
+      "nom": "Bouliac",
+      "lat": 44.8183,
+      "lon": -0.5019,
+      "population": 3500,
+      "part_petits_logements_est": 0.1
+    },
+    {
+      "id": "ambes",
+      "nom": "Ambès",
+      "lat": 44.9878,
+      "lon": -0.5286,
+      "population": 3300,
+      "part_petits_logements_est": 0.12
+    },
+    {
+      "id": "saint-louis-de-montferrand",
+      "nom": "Saint-Louis-de-Montferrand",
+      "lat": 44.9497,
+      "lon": -0.5386,
+      "population": 2200,
+      "part_petits_logements_est": 0.1
+    },
+    {
+      "id": "saint-vincent-de-paul",
+      "nom": "Saint-Vincent-de-Paul",
+      "lat": 44.9569,
+      "lon": -0.475,
+      "population": 1100,
+      "part_petits_logements_est": 0.08
+    }
+  ]
+}

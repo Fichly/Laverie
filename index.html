@@ -26,6 +26,14 @@
         <button id="chip-fiabilite" class="chip" title="Fiabilité du modèle — ouvrir l'onglet Modèle">–</button>
       </header>
 
+      <div class="barre-perimetre">
+        <span>Périmètre d'étude</span>
+        <div class="perimetres">
+          <button data-perimetre="pessac" class="actif">Pessac · pilote</button>
+          <button data-perimetre="metropole">Bordeaux Métropole</button>
+        </div>
+      </div>
+
       <nav class="onglets" role="tablist">
         <button class="onglet actif" data-onglet="carte" role="tab">Carte</button>
         <button class="onglet" data-onglet="analyse" role="tab">Analyse</button>
@@ -42,7 +50,7 @@
             <summary>Comment lire cette carte</summary>
             <div class="guide-corps">
               <p>La carte répond à <b>une seule question</b> : si j'ouvrais une laverie ici,
-              ferait-elle mieux ou moins bien qu'une laverie moyenne de Pessac ?</p>
+              ferait-elle mieux ou moins bien qu'une laverie moyenne du périmètre étudié ?</p>
               <p><b>Rouge</b> = mieux. <b>Bleu</b> = moins bien. <b>Gris</b> = au même niveau.
               Les zones sans habitants restent transparentes.</p>
               <p>Choisissez ci-dessous ce que la carte doit montrer. Une seule vue à la fois :
@@ -184,7 +192,7 @@
         <div class="vue-onglet hidden" id="tab-laveries">
 
           <section class="bloc">
-            <h2>Le marché de Pessac</h2>
+            <h2 id="marche-titre">Le marché de Pessac</h2>
             <div class="stat-grid">
               <div class="stat"><span class="stat-value" id="stat-count">–</span><span class="stat-label">laveries</span></div>
               <div class="stat"><span class="stat-value" id="stat-open">–</span><span class="stat-label">grand public</span></div>
@@ -285,7 +293,7 @@
 
             <div class="champ">
               <div class="champ-tete">
-                <label for="h-caref">CA moyen d'une laverie à Pessac</label>
+                <label for="h-caref">CA moyen d'une laverie du périmètre</label>
                 <output><span id="h-caref-val">50 000</span> €</output>
               </div>
               <input type="range" id="h-caref" min="25000" max="90000" step="2500" value="50000">

@@ -33,8 +33,11 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parent.parent
 SORTIE = RACINE / "data" / "carreaux.json"
 
-# Emprise de la ville pilote (Pessac), en degrés.
-EMPRISE = {"sud": 44.745, "nord": 44.830, "ouest": -0.760, "est": -0.585}
+# Emprise de l'étude, en degrés : les 28 communes de Bordeaux Métropole.
+# (L'ancienne emprise ne couvrait que Pessac et ses abords ; le mode métropole
+# de l'application a besoin de la demande sur tout le territoire. Environ
+# 20 000 carreaux et 800 000 habitants — l'import reste rapide grâce au R-tree.)
+EMPRISE = {"sud": 44.700, "nord": 45.020, "ouest": -0.820, "est": -0.440}
 
 # ---------------------------------------------------------------------------
 # Projection ETRS89-LAEA (EPSG:3035), celle des carreaux INSEE.

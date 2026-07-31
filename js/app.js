@@ -208,6 +208,7 @@ function initCarte() {
   state.layers.simulation = L.layerGroup().addTo(map);
   state.layers.candidats = L.layerGroup().addTo(map);
   state.layers.demande = L.layerGroup().addTo(map);
+  state.layers.libelles = L.layerGroup().addTo(map);
   state.layers.heat = null;
 
   // Le résultat d'une simulation s'affiche dans l'onglet Analyse : on y bascule,
@@ -277,6 +278,7 @@ function rafraichir() {
   state._indexDemande = null;
   state._indexOffre = null;
   dessinerMarqueurs();
+  dessinerLibelles();
   dessinerListe();
   dessinerCouverture();
   dessinerTension();
@@ -290,6 +292,25 @@ function rafraichir() {
   dessinerCandidats();
   majStats();
   majBarreExport();
+}
+
+// NOMS DE COMMUNES
+//
+// À l'échelle métropole, un point sur fond de carte ne dit pas dans quelle
+// commune il se trouve — et si les tuiles ne se chargent pas (hors ligne, page
+// publiée sans accès réseau), la carte devient totalement muette. Ces libellés
+// la rendent lisible dans tous les cas.
+function dessinerLibelles() {
+  if (!state.layers.libelles) return;
+  state.layers.libelles.clearLayers();
+  if (state.perimetre !== 'metropole' || !state.communes) return;
+  for (const c of state.communes) {
+    L.marker([c.lat, c.lon], {
+      interactive: false,
+      icon: L.divIcon({ className: '', iconSize: [0, 0],
+        html: `<span class="etiquette-commune">${c.nom}</span>` }),
+    }).addTo(state.layers.libelles);
+  }
 }
 
 function dessinerMarqueurs() {

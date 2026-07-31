@@ -377,6 +377,15 @@ button.active { background: var(--orange); color: #431407; }
 .verdict.moyen { background: rgba(234, 179, 8, 0.16); color: #fde047; }
 .verdict.faible { background: rgba(220, 38, 38, 0.16); color: #fca5a5; }
 
+/* ---- Noms de communes sur la carte ---- */
+.etiquette-commune {
+  position: absolute; transform: translate(-50%, -50%);
+  white-space: nowrap; pointer-events: none;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.02em;
+  color: #f1f5f9;
+  text-shadow: 0 0 3px #0b111f, 0 0 6px #0b111f, 0 1px 2px #0b111f;
+}
+
 /* ---- Pins des générateurs de demande ---- */
 .pin-gen {
   display: flex; align-items: center; justify-content: center;
@@ -394,6 +403,15 @@ button.active { background: var(--orange); color: #431407; }
 }
 .check-gen { gap: 7px; }
 .check-gen .badge { margin-left: auto; }
+
+/* ---- Noms de communes sur la carte ---- */
+.etiquette-commune {
+  position: absolute; transform: translate(-50%, -50%);
+  white-space: nowrap; pointer-events: none;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.02em;
+  color: #f1f5f9;
+  text-shadow: 0 0 3px #0b111f, 0 0 6px #0b111f, 0 1px 2px #0b111f;
+}
 
 /* ---- Pins des générateurs de demande ---- */
 /* Goutte classique : cercle dont un coin est carré, pivoté de 45°. Le symbole

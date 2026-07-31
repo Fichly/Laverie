@@ -29,6 +29,10 @@ def main():
         "quartiers": json.loads(lire("data/quartiers.json")),
         "benchmarks": json.loads(lire("data/benchmarks.json")),
         "generateurs": json.loads(lire("data/generateurs.json")),
+        # Sans les 28 communes, le mode métropole n'a plus aucune zone d'étude :
+        # l'emprise de la heatmap se calcule sur une liste vide et le rendu
+        # échoue. Oubli invisible tant qu'on ne teste que la version modulaire.
+        "communes": json.loads(lire("data/communes.json")),
     }
     # Facultatifs : présents seulement après le script d'import correspondant.
     for cle, chemin in (("carreaux", "data/carreaux.json"),

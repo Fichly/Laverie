@@ -59,11 +59,6 @@ def main():
             raise SystemExit(f"Balise introuvable dans index.html : {cible}")
         html = html.replace(cible, contenu)
 
-    html = html.replace(
-        "<title>Laverie Mapper — Pessac (pilote)</title>",
-        "<title>Laverie Mapper — Pessac (version autonome)</title>",
-    )
-
     SORTIE.write_text(html, encoding="utf-8")
     taille = SORTIE.stat().st_size / 1024
     nb = len(donnees["laveries"]["laveries"])

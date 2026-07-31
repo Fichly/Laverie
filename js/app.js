@@ -1,4 +1,4 @@
-/* Laverie Mapper — Phase 1 (ville pilote : Pessac)
+/* Laverie Mapper — Bordeaux Métropole
  *
  * Modèle volontairement simple et transparent :
  * - la demande est portée par les centroïdes de quartiers (à remplacer par le carroyage INSEE 200 m)
@@ -18,15 +18,22 @@ const state = {
   quartiers: [],
   benchmarks: null,
   rayon: RAYON_TENSION,
-  // Périmètre d'étude : 'pessac' (la ville pilote, analyse fine par quartier)
+  // Périmètre d'étude : 'pessac' (analyse fine, quartier par quartier)
   // ou 'metropole' (les 28 communes — calibrage plus solide, maille plus
   // grossière). Tout le modèle suit : demande, concurrence, calibrage,
   // fiabilité, classement.
-  perimetre: 'pessac',
+  // Le périmètre par défaut s'adapte à l'inventaire : tant que le balayage
+  // métropole n'a pas été lancé, afficher les 28 communes donnerait une carte
+  // creuse où les zones sans données paraîtraient attractives.
+  perimetre: 'metropole',
   // Une seule surface d'analyse à la fois. Superposer une heatmap divergente,
   // une heatmap séquentielle et des pastilles colorées ne se lit pas : on force
   // le choix plutôt que de laisser l'utilisateur fabriquer une carte illisible.
   vue: 'potentiel',
+  // Filtres d'AFFICHAGE des générateurs de demande. Ils ne touchent jamais le
+  // modèle : masquer les résidences étudiantes ne fait pas disparaître leur
+  // demande du calcul, seulement de la carte.
+  genTypes: { residence_etudiante: true, logement_social: true, hebergement_tourisme: true },
   simulation: false,
   layers: {},
   candidats: [],
@@ -159,6 +166,14 @@ async function charger() {
   state.metaEntreprises = (ent && ent.meta) || null;
   state.bodacc = bod || null;
   indexerEntreprises();
+  // Le mode métropole n'a de sens qu'avec un inventaire qui couvre les 28
+  // communes. Tant que le balayage n'a pas été lancé, on retombe sur Pessac
+  // plutôt que d'afficher une carte creuse où le vide passerait pour une
+  // opportunité.
+  if (laveriesEtude().length < 40) state.perimetre = 'pessac';
+  for (const b of document.querySelectorAll('[data-perimetre]')) {
+    b.classList.toggle('actif', b.dataset.perimetre === state.perimetre);
+  }
   initCarte();
   initUI();
   rafraichir();
@@ -210,6 +225,16 @@ function laveriesEtude() {
     && (state.perimetre === 'metropole' || !l.hors_commune));
 }
 
+// Le sous-titre doit dire le périmètre RÉELLEMENT actif : afficher « 28
+// communes » alors que l'analyse porte sur Pessac serait un contresens.
+function majSousTitre() {
+  const el = document.querySelector('.marque-txt span');
+  if (!el) return;
+  el.textContent = state.perimetre === 'metropole'
+    ? 'Bordeaux Métropole · 28 communes'
+    : 'Pessac (33600) · 15 quartiers';
+}
+
 function nomPerimetre() {
   return state.perimetre === 'metropole' ? 'la métropole' : 'Pessac';
 }
@@ -244,6 +269,7 @@ function rafraichir() {
   dessinerHeat();
   dessinerHeatPotentiel();
   dessinerDemandeCaptive();
+  majSousTitre();
   dessinerFiabilite();
   dessinerMarcheReel();
   dessinerClassement();
@@ -1763,6 +1789,35 @@ function correlationRangs(a, b) {
   return 1 - (6 * d2) / (n * (n * n - 1));
 }
 
+// CONCORDANCE DES PAIRES — la même information, mais énonçable.
+//
+// « Corrélation de rang +0,60 » ne dit rien à personne, pas même à qui l'a
+// calculée. La même information se formule en une phrase vérifiable : sur deux
+// laveries prises au hasard, dans quelle proportion des cas le modèle
+// désigne-t-il correctement la plus performante ?
+//
+// On compte donc les paires bien ordonnées, ce qui donne un pourcentage lisible :
+//    50 %  = pile ou face, le modèle n'apporte rien
+//   100 %  = ordre parfait
+// C'est l'indicateur que l'interface met en avant ; la corrélation reste
+// affichée en second, pour qui veut le chiffre technique.
+function concordance(predit, observe) {
+  let bonnes = 0, mauvaises = 0, exaequo = 0;
+  for (let i = 0; i < predit.length; i++) {
+    for (let j = i + 1; j < predit.length; j++) {
+      const dPredit = predit[i] - predit[j];
+      const dObserve = observe[i] - observe[j];
+      // Une égalité ne départage rien : la paire ne compte ni pour ni contre.
+      if (dPredit === 0 || dObserve === 0) { exaequo++; continue; }
+      if (Math.sign(dPredit) === Math.sign(dObserve)) bonnes++;
+      else mauvaises++;
+    }
+  }
+  const total = bonnes + mauvaises;
+  if (!total) return null;
+  return { taux: bonnes / total, bonnes, mauvaises, total, exaequo };
+}
+
 // Deux références possibles, par ordre de qualité décroissante :
 //
 //   1. le CA RÉELLEMENT PUBLIÉ au greffe — la vraie variable à prédire ;
@@ -1791,6 +1846,7 @@ function controleFiabilite() {
 
   const observe = (x) => (surReel ? x.caReel : x.avis);
   const rho = correlationRangs(lignes.map(x => x.ca), lignes.map(observe));
+  const conc = concordance(lignes.map(x => x.ca), lignes.map(observe));
 
   // Erreur relative médiane : n'a de sens que face à un vrai CA.
   const erreurMediane = surReel
@@ -1798,22 +1854,25 @@ function controleFiabilite() {
 
   return {
     lignes: lignes.sort((a, b) => b.ca - a.ca),
-    rho, erreurMediane, surReel,
-    nReel: avecReel.length, nTotal: publiques.length,
-    verdict: rho >= 0.6 ? 'bon' : rho >= 0.2 ? 'faible' : 'nul',
+    rho, conc, erreurMediane, surReel,
+    n: lignes.length, nReel: avecReel.length, nTotal: publiques.length,
+    // Seuils exprimés en concordance, pas en corrélation : 70 % correspond à
+    // l'ancien seuil rho = 0,6 et 57 % à rho = 0,2, mais se justifient seuls.
+    verdict: !conc ? 'nul'
+      : conc.taux >= 0.70 ? 'bon' : conc.taux >= 0.57 ? 'faible' : 'nul',
   };
 }
 
 const VERDICT_FIABILITE = {
-  bon: ['✅ Le modèle suit la fréquentation observée',
-        'Les zones proposées reposent sur une mécanique qui explique déjà l\'existant.', '#16a34a'],
-  faible: ['🟡 Lien ténu avec la fréquentation observée',
-           'Le classement des zones est à prendre comme une piste, pas comme un résultat.', '#eab308'],
-  nul: ['❌ Le modèle ne reproduit PAS la fréquentation observée',
-        'Il ne parvient pas à expliquer les laveries déjà en place. Le classement des zones et la '
-        + 'heatmap sont à considérer comme des hypothèses de travail, non comme une aide à la '
-        + 'décision. Cause la plus probable : les populations par quartier sont estimées et mal '
-        + 'localisées. Correctif : import du carroyage INSEE 200 m.', '#dc2626'],
+  bon: ['✅ Le modèle sait classer les laveries', '#16a34a',
+        'Le classement des zones repose sur une mécanique qui explique déjà '
+        + "l'existant. Vous pouvez le présenter."],
+  faible: ['🟡 Le modèle fait à peine mieux que le hasard', '#eab308',
+           'Le classement des zones est une piste de travail, pas un résultat. '
+           + 'À consolider avant de le montrer à un financeur.'],
+  nul: ['❌ Le modèle ne sait pas classer les laveries', '#dc2626',
+        "Il n'explique pas les établissements déjà en place : rien ne dit qu'il "
+        + 'prédise mieux les futurs. Traitez la carte comme une hypothèse.'],
 };
 
 // Pastille permanente en tête de colonne : l'état de santé du modèle doit être
@@ -1821,43 +1880,58 @@ const VERDICT_FIABILITE = {
 function majChipFiabilite(f) {
   const chip = document.getElementById('chip-fiabilite');
   if (!chip) return;
-  if (!f) { chip.textContent = 'fiabilité n.d.'; chip.className = 'chip'; return; }
-  chip.textContent = `fiabilité ${f.rho >= 0 ? '+' : ''}${f.rho.toFixed(2)}`;
+  if (!f || !f.conc) { chip.textContent = 'fiabilité n.d.'; chip.className = 'chip'; return; }
+  chip.textContent = `fiabilité ${Math.round(f.conc.taux * 100)} %`;
   chip.className = 'chip ' + f.verdict;
 }
-
-const TITRE_FIABILITE_REEL = {
-  bon: '✅ Le modèle reproduit les CA réellement publiés',
-  faible: '🟡 Lien ténu avec les CA réellement publiés',
-  nul: '❌ Le modèle ne reproduit PAS les CA réellement publiés',
-};
 
 function dessinerFiabilite() {
   const zone = document.getElementById('fiabilite');
   if (!zone) return;
   const f = controleFiabilite();
   majChipFiabilite(f);
-  if (!f) { zone.innerHTML = '<p class="note">Pas assez de laveries notées pour tester.</p>'; return; }
-  let [titre, texte, couleur] = VERDICT_FIABILITE[f.verdict];
-  const ref = f.surReel ? 'CA réellement publié au greffe' : 'nombre d\'avis Google';
-
-  // Le libellé doit dire contre QUOI le modèle a été confronté : « suit la
-  // fréquentation » et « reproduit les CA publiés » ne valent pas la même chose.
-  if (f.surReel) titre = TITRE_FIABILITE_REEL[f.verdict];
-  if (f.verdict === 'nul' && state.carreaux) {
-    texte = texte.replace(
-      /Cause la plus probable.*$/,
-      'Le carroyage INSEE étant déjà importé, la cause n\'est plus la population : '
-      + 'regardez ligne par ligne quelle laverie fait diverger le modèle, et ce qui la '
-      + 'distingue (parking, horaires, format).');
+  if (!f || !f.conc) {
+    zone.innerHTML = `<p class="note">Pas encore assez de laveries mesurables pour
+      tester le modèle. Il en faut au moins trois dont on connaisse la performance
+      réelle.</p>`;
+    return;
   }
 
-  const erreur = f.erreurMediane != null
-    ? `<br>Écart médian entre CA modélisé et CA réel :
-       <b>${(f.erreurMediane * 100).toFixed(0)} %</b>` : '';
+  const [titre, couleur, consequence] = VERDICT_FIABILITE[f.verdict];
+  const pct = Math.round(f.conc.taux * 100);
+  const reference = f.surReel
+    ? `le <b>chiffre d'affaires réellement déposé au greffe</b>`
+    : `le <b>nombre d'avis Google</b>, faute de chiffre d'affaires publié`;
 
-  const entete = f.surReel
-    ? `<th>CA réel</th><th>Écart</th>` : `<th>Avis</th>`;
+  // Le chiffre mis en avant est une phrase, pas un coefficient : c'est la seule
+  // forme sous laquelle un non-statisticien peut le contester ou s'en servir.
+  const enTete = `
+    <div class="jauge" style="--c:${couleur}">
+      <div class="jauge-val">${pct} %</div>
+      <div class="jauge-lib">des paires de laveries correctement classées</div>
+      <div class="jauge-barre"><i style="width:${Math.max(2, pct)}%"></i>
+        <span class="jauge-hasard" title="50 % = pile ou face"></span></div>
+      <div class="jauge-txt">
+        Prenez <b>deux laveries au hasard</b> parmi les ${f.n} que l'on sait mesurer.
+        Le modèle désigne correctement la plus performante dans <b>${pct} %</b> des cas
+        (${f.conc.bonnes} paires sur ${f.conc.total}).<br>
+        <b>50 %</b> serait un tirage à pile ou face. <b>100 %</b>, un classement parfait.
+      </div>
+    </div>
+    <div class="encart" style="border-left-color:${couleur};margin-top:10px">
+      <b style="color:${couleur}">${titre}</b><br>${consequence}
+    </div>`;
+
+  const erreur = f.erreurMediane != null
+    ? `<div class="fait" style="margin-top:10px">
+         <span class="fait-val">${(f.erreurMediane * 100).toFixed(0)} %</span>
+         <span class="fait-lib">d'écart médian entre CA modélisé et CA réel</span>
+         <span class="fait-detail">Le classement dit <i>quel</i> emplacement est
+           meilleur ; cet écart dit à quel point les <i>euros</i> annoncés sont
+           fiables. Sous 25 % c'est bon pour ce type de modèle, au-delà de 50 %
+           ne vous servez que du classement.</span></div>` : '';
+
+  const entete = f.surReel ? `<th>CA réel</th><th>Écart</th>` : `<th>Avis</th>`;
   const cellules = (l) => f.surReel
     ? `<td class="ca">${fmtEur(l.caReel)}<span class="sous">${l.anneeReel}</span></td>
        <td class="ca" style="color:${Math.abs(l.ca - l.caReel) / l.caReel > 0.4
@@ -1865,31 +1939,42 @@ function dessinerFiabilite() {
           Math.abs(Math.round(100 * (l.ca - l.caReel) / l.caReel))} %</td>`
     : `<td>${l.avis}</td>`;
 
-  const explication = f.surReel
-    ? `<p class="note">La référence est le <b>chiffre d'affaires réellement déposé au
-       greffe</b> par ${f.nReel} laverie${f.nReel > 1 ? 's' : ''} sur ${f.nTotal}.
-       Le modèle est calé pour que le <i>total</i> tombe juste : ce qu'on teste ici,
-       c'est sa capacité à répartir correctement ce total entre les adresses. Un écart
-       médian sous 25 % est bon pour ce type de modèle ; au-delà de 50 %, le classement
-       des zones ne vaut que comme piste.</p>`
-    : `<p class="note">Faute de CA publié, la référence reste le nombre d'avis Google :
-       un proxy grossier de la fréquentation, mais indépendant du modèle. Pour passer à
-       une vraie validation, lancez
-       <code>python3 scripts/import_entreprises.py</code> — il récupère les comptes
-       annuels déposés au greffe.</p>`;
+  const aide = `
+    <details class="aide">
+      <summary>D'où vient ce pourcentage&nbsp;?</summary>
+      <div class="aide-corps">
+        <p><b>Ce qu'on compare</b> — pour chaque laverie qui existe déjà, le modèle
+        calcule ce qu'elle devrait faire. On confronte ce calcul à ${reference}.</p>
+        <p><b>Comment on compte</b> — on forme toutes les paires possibles de
+        laveries (${f.n} laveries donnent ${f.conc.total} paires exploitables). Pour
+        chaque paire, on regarde si le modèle a mis dans le bon ordre celle qui
+        marche le mieux. Le pourcentage affiché est la part de paires bien ordonnées.</p>
+        <p><b>Pourquoi des paires et pas les euros</b> — pour choisir un emplacement,
+        vous avez besoin de savoir <i>lequel est meilleur</i>, pas de prédire un
+        chiffre au millier près. Un modèle qui se trompe de 30 % sur tous les
+        montants mais ne se trompe jamais d'ordre reste parfaitement utile.</p>
+        <p><b>Comment le faire monter</b> — trois leviers, du plus efficace au moins :
+        élargir le nombre de laveries mesurées (plus de comptes annuels récupérés),
+        corriger les nombres de logements des résidences et HLM, et relever sur
+        place les machines et horaires des laveries existantes.</p>
+        ${f.surReel ? '' : `<p><b>Limite actuelle</b> — la référence est le nombre
+        d'avis Google, un proxy grossier : une laverie récente peut être excellente
+        avec peu d'avis. Lancez <code>python3 scripts/import_entreprises.py</code>
+        pour comparer à de vrais chiffres d'affaires.</p>`}
+      </div>
+    </details>`;
 
-  zone.innerHTML = `
-    <div class="encart" style="border-left-color:${couleur};margin-top:0">
-      <b style="color:${couleur}">${titre}</b><br>
-      Corrélation de rang avec le ${ref} :
-      <b>${f.rho >= 0 ? '+' : ''}${f.rho.toFixed(2)}</b>${erreur}<br>${texte}
-    </div>
-    <table class="tab-fiabilite" style="margin-top:8px">
+  zone.innerHTML = enTete + erreur + `
+    <table class="tab-fiabilite" style="margin-top:10px">
       <thead><tr><th>Laverie existante</th><th>CA modélisé</th>${entete}</tr></thead>
       <tbody>${f.lignes.map(l => `<tr><td>${l.nom}</td>
         <td class="ca">${fmtEur(l.ca)}</td>${cellules(l)}</tr>`).join('')}</tbody>
     </table>
-    ${explication}`;
+    <p class="note">Mesuré sur ${f.n} laverie${f.n > 1 ? 's' : ''} sur
+      ${f.nTotal} du périmètre${f.surReel
+        ? ' — celles dont les comptes sont publiés et imputables à une seule adresse'
+        : ''}. Corrélation de rang (Spearman) : ${f.rho >= 0 ? '+' : ''}${f.rho.toFixed(2)}.</p>
+    ${aide}`;
 }
 
 // ---------- CE QUE DIT LE MARCHÉ RÉEL ----------
@@ -2077,16 +2162,38 @@ const COULEUR_GENERATEUR = {
 
 // Rayon d'influence d'un bâtiment : au-delà, ses habitants ne sont plus « sur
 // place ». Volontairement court — c'est la densité bâtie qu'on veut voir.
+const SYMBOLE_GENERATEUR = {
+  residence_etudiante: '🎓',
+  logement_social: '🏢',
+  hebergement_tourisme: '🧳',
+};
+
+function iconeGenerateur(g) {
+  const couleur = COULEUR_GENERATEUR[g.type] || '#94a3b8';
+  const symbole = SYMBOLE_GENERATEUR[g.type] || '•';
+  return L.divIcon({
+    className: '',
+    html: `<span class="pin-gen" style="--pc:${couleur}"><i>${symbole}</i></span>`,
+    iconSize: [22, 28], iconAnchor: [11, 27], popupAnchor: [0, -24],
+  });
+}
+
 const RAYON_DENSITE_M = 320;
 const GRILLE_DENSITE_M = 60;
+
+// Générateurs retenus pour l'AFFICHAGE (filtres de la légende). Le modèle, lui,
+// continue de tous les compter : un filtre de carte ne change pas la demande.
+function generateursAffiches() {
+  return (state.generateurs || []).filter(
+    g => !g.exclu && state.genTypes[g.type] !== false);
+}
 
 // Densité de ménages sans lave-linge en un point, tous bâtiments confondus.
 // C'est l'agrégation qui compte : cinq immeubles voisins doivent former UNE
 // zone chaude, pas cinq pastilles côte à côte.
 function densiteDemande(lat, lon) {
   let d = 0;
-  for (const g of state.generateurs || []) {
-    if (g.exclu) continue;
+  for (const g of generateursAffiches()) {
     const w = couverture(distanceM(lat, lon, g.lat, g.lon), RAYON_DENSITE_M);
     if (w < 0.03) continue;
     d += menagesGenerateur(g).reguliers * w;
@@ -2107,7 +2214,7 @@ function dessinerDemandeCaptive() {
   }
   if (state.vue !== 'demande') return;
 
-  const gens = (state.generateurs || []).filter(g => !g.exclu);
+  const gens = generateursAffiches();
   if (!gens.length) return;
 
   const marge = 0.006;
@@ -2146,13 +2253,14 @@ function dessinerDemandeCaptive() {
   state.layers.demandeSurface = L.imageOverlay(canvas.toDataURL(),
     [[sud, ouest], [nord, est]], { opacity: 0.8, interactive: false, zIndex: 240 }).addTo(map);
 
-  // Repères cliquables par-dessus la surface, pour accéder au détail bâtiment.
+  // Repères cliquables par-dessus la surface. Une pastille de 4 px se perdait
+  // dans l'orange : on pose de vrais pins, reconnaissables au premier coup d'œil
+  // et distincts par famille.
   for (const g of gens) {
     const m = menagesGenerateur(g);
-    L.circleMarker([g.lat, g.lon], {
-      radius: 4, color: '#fff', weight: 1,
-      fillColor: COULEUR_GENERATEUR[g.type] || '#94a3b8', fillOpacity: 1,
-    }).bindPopup(popupGenerateur(g, m), { maxWidth: 300 })
+    L.marker([g.lat, g.lon], { icon: iconeGenerateur(g), riseOnHover: true })
+      .bindPopup(popupGenerateur(g, m), { maxWidth: 300 })
+      .bindTooltip(`${SYMBOLE_GENERATEUR[g.type] || '•'} ${g.nom}`, { direction: 'top' })
       .on('popupopen', (e) => brancherEditionGenerateur(e.popup))
       .addTo(state.layers.demande);
   }
@@ -2408,7 +2516,7 @@ function changerPerimetre(nouveau) {
   }
 
   const publiques = laveriesEtude().filter(l => l.type !== 'captif').length;
-  afficherToast('Périmètre : ' + (nouveau === 'metropole' ? 'Bordeaux Métropole' : 'Pessac (pilote)'),
+  afficherToast('Périmètre : ' + (nouveau === 'metropole' ? 'Bordeaux Métropole' : 'Pessac'),
     nouveau === 'metropole'
       ? `le modèle se recale sur <b>${publiques} laveries grand public</b> au lieu de 5 : `
         + `calibrage et contrôle de fiabilité deviennent bien plus solides. En échange, `
@@ -2439,17 +2547,29 @@ const LEGENDES = {
     laveries recensées pour leur gabarit : un rouge y mesurerait l'absence de données,
     pas une opportunité. Lancez <code>scripts/find_laveries_metropole.py</code>.</span>` : ''}`,
 
-  demande: () => `
-    <span class="lg"><i style="background:#f5be5a"></i> Demande diffuse</span>
-    <span class="lg"><i style="background:#d75220"></i> Grappe dense</span>
-    <span class="texte">Densité de ménages sans lave-linge, agrégée sur 320 m : une grappe
-    d'immeubles forme <b>une seule zone chaude</b>, comme la résidence Compostelle, au lieu
-    de cinq pastilles côte à côte.</span>
-    <span class="lg"><span class="dot" style="background:#eda100"></span> Résidence étudiante</span>
-    <span class="lg"><span class="dot" style="background:#e87ba4"></span> Logement social</span>
-    <span class="lg"><span class="dot" style="background:#1baf7a"></span> Hébergement touristique</span>
-    <span class="texte" style="color:#fbbf24">⚠ Le nombre de logements est une valeur par
-    défaut : cliquez un point pour le corriger.</span>`,
+  demande: () => {
+    const gens = (state.generateurs || []).filter(g => !g.exclu);
+    const compte = (t) => gens.filter(g => g.type === t).length;
+    const ligne = (t, libelle) => `
+      <label class="check check-gen"><input type="checkbox" data-gentype="${t}"
+        ${state.genTypes[t] !== false ? 'checked' : ''}>
+        <span class="pin-gen pin-inline" style="--pc:${COULEUR_GENERATEUR[t]}"><i>${
+          SYMBOLE_GENERATEUR[t]}</i></span>
+        <span>${libelle}</span><span class="badge">${compte(t)}</span></label>`;
+    return `
+      <span class="texte">Un <b>pin par bâtiment</b>, sur un fond orange qui s'intensifie
+      là où ils se regroupent : une grappe d'immeubles forme <b>une seule zone chaude</b>,
+      comme la résidence Compostelle. Cliquez un pin pour corriger son nombre de
+      logements.</span>
+      ${ligne('residence_etudiante', 'Résidences étudiantes')}
+      ${ligne('logement_social', 'Logements sociaux')}
+      ${ligne('hebergement_tourisme', 'Hébergements touristiques')}
+      <span class="texte">Décocher masque les pins <b>et</b> le fond correspondant, sans
+      rien changer au modèle : la demande de ces bâtiments reste comptée dans le
+      potentiel.</span>
+      <span class="texte" style="color:#fbbf24">⚠ Le nombre de logements est une valeur par
+      défaut, sauf là où vous l'avez corrigé.</span>`;
+  },
 
   quartiers: () => `
     <span class="lg"><i style="background:#dc2626"></i> Place pour une laverie</span>
@@ -2473,7 +2593,16 @@ const LEGENDES = {
 
 function majLegendeVue() {
   const el = document.getElementById('legende-vue');
-  if (el) el.innerHTML = LEGENDES[state.vue] ? LEGENDES[state.vue]() : '';
+  if (!el) return;
+  el.innerHTML = LEGENDES[state.vue] ? LEGENDES[state.vue]() : '';
+  // Les filtres de la vue « demande » vivent dans la légende : le HTML étant
+  // régénéré à chaque rendu, on les rebranche ici.
+  for (const c of el.querySelectorAll('[data-gentype]')) {
+    c.addEventListener('change', () => {
+      state.genTypes[c.dataset.gentype] = c.checked;
+      dessinerDemandeCaptive();
+    });
+  }
 }
 
 // ---------- MESURE DE L'EFFET D'UN RÉGLAGE ----------

@@ -3,8 +3,18 @@
 grands ensembles — les lieux où se concentrent les ménages sans lave-linge.
 
     export GOOGLE_MAPS_API_KEY="votre_cle"
-    python3 scripts/find_generateurs.py            # propose, n'écrit rien
-    python3 scripts/find_generateurs.py --ecrire   # écrit data/generateurs.json
+    python3 scripts/find_generateurs.py                                  # propose
+    python3 scripts/find_generateurs.py --ecrire                         # enregistre
+    python3 scripts/find_generateurs.py --type residence_etudiante --ecrire
+
+Le balayage couvre les 28 communes en 12 tuiles : l'API plafonne chaque
+recherche à ~20 résultats, une requête unique sur la métropole raterait
+l'essentiel. Comptez ~150 requêtes pour les trois familles, une cinquantaine
+pour les seules résidences étudiantes.
+
+Les générateurs déjà enregistrés sont CONSERVÉS avec leurs corrections : le
+nombre de logements saisi à la main est le travail le plus coûteux du projet, un
+nouveau balayage ne doit jamais l'écraser.
 
 Pourquoi c'est le chantier le plus utile : le modèle répartit aujourd'hui la
 demande sur 15 centroïdes de quartiers aux populations estimées, et le contrôle
@@ -32,25 +42,48 @@ RACINE = Path(__file__).resolve().parent.parent
 SORTIE = RACINE / "data" / "generateurs.json"
 API = "https://places.googleapis.com/v1"
 
-RESTRICTION = {"rectangle": {
-    "low": {"latitude": 44.750, "longitude": -0.750},
-    "high": {"latitude": 44.825, "longitude": -0.590},
-}}
+# Même emprise que le carroyage INSEE et le balayage des laveries : la demande
+# et l'offre doivent décrire exactement le même territoire.
+EMPRISE = {"sud": 44.700, "nord": 45.020, "ouest": -0.820, "est": -0.440}
+TUILES_X, TUILES_Y = 4, 3
+
+
+def tuiles():
+    """L'API plafonne chaque recherche à ~20 résultats : une requête unique sur
+    la métropole raterait l'essentiel. On découpe donc l'emprise."""
+    d_lat = (EMPRISE["nord"] - EMPRISE["sud"]) / TUILES_Y
+    d_lon = (EMPRISE["est"] - EMPRISE["ouest"]) / TUILES_X
+    for j in range(TUILES_Y):
+        for i in range(TUILES_X):
+            yield {"rectangle": {
+                "low": {"latitude": EMPRISE["sud"] + j * d_lat,
+                        "longitude": EMPRISE["ouest"] + i * d_lon},
+                "high": {"latitude": EMPRISE["sud"] + (j + 1) * d_lat,
+                         "longitude": EMPRISE["ouest"] + (i + 1) * d_lon},
+            }}
+
+
+def dans_emprise(lat, lon):
+    return (EMPRISE["sud"] <= lat <= EMPRISE["nord"]
+            and EMPRISE["ouest"] <= lon <= EMPRISE["est"])
 CHAMPS = ("places.id,places.displayName,places.formattedAddress,places.location,"
           "places.primaryTypeDisplayName")
-CODE_POSTAL = "33600"
-
 # Chaque famille porte son profil de demande : part de ménages sans lave-linge et
 # nombre de logements retenu par défaut faute de source ouverte.
 FAMILLES = [
     {
         "cle": "residence_etudiante",
         "libelle": "Résidence étudiante",
+        # Génériques : balayées dans chacune des 12 tuiles de la métropole.
         "requetes": [
-            "résidence universitaire Pessac", "résidence étudiante Pessac",
-            "cité universitaire Pessac", "CROUS résidence Pessac",
-            "logement étudiant Pessac", "résidence Les Estudines Pessac",
-            "Yugo Pessac", "résidence campus Pessac", "studios étudiants Pessac",
+            "résidence universitaire", "résidence étudiante",
+            "CROUS résidence", "logement étudiant", "studios étudiants",
+        ],
+        # Fines : enseignes et adresses connues, lancées une seule fois.
+        "requetes_fines": [
+            "résidence Les Estudines Bordeaux", "Yugo Bordeaux",
+            "Nemea Appart'Etud Bordeaux", "Studea Bordeaux",
+            "résidence universitaire Talence", "CROUS Bordeaux Aquitaine résidence",
         ],
         "part_sans_lave_linge": 0.55,
         "logements_defaut": 200,
@@ -64,10 +97,12 @@ FAMILLES = [
         "cle": "logement_social",
         "libelle": "Logement social / grand ensemble",
         "requetes": [
-            "logement social Pessac", "HLM Pessac", "résidence Domofrance Pessac",
-            "Aquitanis Pessac", "Clairsienne Pessac", "Mésolia Pessac",
-            "Gironde Habitat Pessac", "résidence Saige Formanoir Pessac",
-            "Le Monteil résidence Pessac",
+            "logement social", "HLM", "résidence Domofrance",
+            "Aquitanis", "Gironde Habitat",
+        ],
+        "requetes_fines": [
+            "Clairsienne Pessac", "Mésolia Pessac",
+            "résidence Saige Formanoir Pessac", "Le Monteil résidence Pessac",
             # Les grands ensembles sont éclatés en plusieurs blocs, chacun ayant sa
             # propre fiche Google. Les chercher un par un est le seul moyen de voir
             # la vraie densité : une résidence de six bâtiments n'est pas un point.
@@ -88,9 +123,8 @@ FAMILLES = [
     {
         "cle": "hebergement_tourisme",
         "libelle": "Hébergement touristique",
-        "requetes": [
-            "camping Pessac", "auberge de jeunesse Pessac", "résidence hôtelière Pessac",
-        ],
+        "requetes": ["auberge de jeunesse", "résidence hôtelière"],
+        "requetes_fines": ["camping Bordeaux Métropole"],
         "part_sans_lave_linge": 0.30,
         "logements_defaut": 60,
         "_justification": "Clientèle de passage sans équipement, mais séjours courts : "
@@ -123,7 +157,7 @@ def est_habitation(nom):
     if any(x in n for x in EXCLUSIONS):
         return False
     # Un nom réduit au code postal ou à la ville n'identifie aucun bâtiment.
-    if n.strip() in ("pessac", "pessac 33600", "33600 pessac"):
+    if len(n.strip()) < 4 or n.strip().isdigit():
         return False
     return True
 
@@ -136,9 +170,9 @@ def distance_m(lat1, lon1, lat2, lon2):
     return 2 * r * math.asin(math.sqrt(a))
 
 
-def chercher(requete, cle):
+def chercher(requete, cle, restriction):
     corps = {"textQuery": requete, "languageCode": "fr",
-             "maxResultCount": 20, "locationRestriction": RESTRICTION}
+             "maxResultCount": 20, "locationRestriction": restriction}
     req = urllib.request.Request(
         f"{API}/places:searchText", data=json.dumps(corps).encode(),
         headers={"X-Goog-Api-Key": cle, "Content-Type": "application/json",
@@ -155,36 +189,63 @@ def chercher(requete, cle):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ecrire", action="store_true", help="écrire data/generateurs.json")
+    ap.add_argument("--type", choices=[f["cle"] for f in FAMILLES],
+                    help="ne chercher qu'une famille (moins de requêtes, moins cher)")
     args = ap.parse_args()
 
     cle = os.environ.get("GOOGLE_MAPS_API_KEY")
     if not cle:
         sys.exit("❌ GOOGLE_MAPS_API_KEY absente. Voir GOOGLE_API.md.")
 
-    trouves, ecartes = {}, 0
-    for fam in FAMILLES:
+    familles = [f for f in FAMILLES if not args.type or f["cle"] == args.type]
+
+    # On repart de l'existant : les nombres de logements corrigés à la main sont
+    # le travail le plus coûteux du projet, il ne doit jamais être écrasé par un
+    # nouveau balayage.
+    existants = {}
+    if SORTIE.exists():
+        for g in json.loads(SORTIE.read_text(encoding="utf-8")).get("generateurs", []):
+            if g.get("place_id"):
+                existants[g["place_id"]] = g
+        print(f"{len(existants)} générateur(s) déjà connus — ils seront conservés "
+              "avec leurs corrections.\n")
+
+    trouves, ecartes, n_req = dict(existants), 0, 0
+    for fam in familles:
         print(f"\n🔍 {fam['libelle']}")
-        for requete in fam["requetes"]:
-            for p in chercher(requete, cle):
-                if CODE_POSTAL not in p.get("formattedAddress", ""):
+        # Les requêtes génériques balaient les 12 tuiles ; les fines, une seule
+        # fois sur l'emprise entière (elles visent une enseigne précise).
+        emprise_totale = {"rectangle": {
+            "low": {"latitude": EMPRISE["sud"], "longitude": EMPRISE["ouest"]},
+            "high": {"latitude": EMPRISE["nord"], "longitude": EMPRISE["est"]}}}
+        plan = [(r, t) for t in tuiles() for r in fam["requetes"]]
+        plan += [(r, emprise_totale) for r in fam.get("requetes_fines", [])]
+
+        nouveaux = 0
+        for requete, restriction in plan:
+            n_req += 1
+            for p in chercher(requete, cle, restriction):
+                loc = p.get("location") or {}
+                lat, lon = loc.get("latitude"), loc.get("longitude")
+                if lat is None or not dans_emprise(lat, lon):
                     ecartes += 1
                     continue
                 if p["id"] in trouves:
                     continue
-                if not est_habitation((p.get("displayName") or {}).get("text", "")):
+                nom = (p.get("displayName") or {}).get("text", "")
+                if not est_habitation(nom):
                     ecartes += 1
                     continue
-                loc = p["location"]
                 # Deux fiches Google peuvent viser le même bâtiment.
-                if any(distance_m(loc["latitude"], loc["longitude"], g["lat"], g["lon"]) < 60
+                if any(distance_m(lat, lon, g["lat"], g["lon"]) < 60
                        for g in trouves.values()):
                     ecartes += 1
                     continue
                 trouves[p["id"]] = {
                     "id": "gen-" + p["id"][-10:].lower(),
-                    "nom": (p.get("displayName") or {}).get("text", "?"),
+                    "nom": nom or "?",
                     "adresse": p.get("formattedAddress", ""),
-                    "lat": loc["latitude"], "lon": loc["longitude"],
+                    "lat": lat, "lon": lon,
                     "type": fam["cle"],
                     "type_google": (p.get("primaryTypeDisplayName") or {}).get("text"),
                     "logements": fam["logements_defaut"],
@@ -192,11 +253,19 @@ def main():
                     "part_sans_lave_linge": fam["part_sans_lave_linge"],
                     "place_id": p["id"],
                 }
-                print(f"    + {trouves[p['id']]['nom'][:52]:<54} {p['formattedAddress'][:44]}")
-            time.sleep(0.25)
+                nouveaux += 1
+                print(f"    + {nom[:50]:<52} {p.get('formattedAddress','')[:42]}")
+            time.sleep(0.2)
+        print(f"    → {nouveaux} nouveau(x)")
 
-    print(f"\n{len(trouves)} générateur(s) retenu(s), {ecartes} écarté(s) "
-          f"(hors {CODE_POSTAL} ou doublon).")
+    print(f"\n{n_req} requêtes envoyées.")
+    from collections import Counter
+    par_type = Counter(g["type"] for g in trouves.values())
+    print(f"{len(trouves)} générateur(s) au total, {ecartes} écarté(s) "
+          "(hors emprise, doublon, ou pas un logement) :")
+    for cle, n in par_type.most_common():
+        libelle = next((f["libelle"] for f in FAMILLES if f["cle"] == cle), cle)
+        print(f"   {n:>4}  {libelle}")
 
     if not args.ecrire:
         print("Rien écrit — relancez avec --ecrire pour enregistrer.")
@@ -204,8 +273,10 @@ def main():
 
     SORTIE.write_text(json.dumps({
         "meta": {
-            "ville": "Pessac",
-            "source": "Google Places (recherche par familles de générateurs de demande).",
+            "territoire": "Bordeaux Métropole",
+            "emprise": EMPRISE,
+            "source": "Google Places — balayage par tuiles, par familles de "
+                      "générateurs de demande.",
             "avertissement": "Les POSITIONS viennent de Google et sont fiables. Le nombre de "
                              "logements est une valeur par défaut par famille, PAS une donnée "
                              "mesurée : à corriger bâtiment par bâtiment (bailleur, CROUS, "

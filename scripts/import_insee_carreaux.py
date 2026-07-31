@@ -14,7 +14,7 @@ USAGE
 
 Le script détecte automatiquement les noms de colonnes : l'INSEE les fait varier
 d'un millésime à l'autre (2019, 2021…). Il n'écrit que les carreaux situés dans
-l'emprise de la ville pilote.
+l'emprise de l'étude.
 
 AUCUNE DÉPENDANCE : la conversion depuis la projection européenne LAEA
 (EPSG:3035) vers les coordonnées géographiques est implémentée ici, pour ne pas
@@ -181,7 +181,7 @@ def wgs84_vers_l93(lat, lon):
 
 
 def emprise_dans(projection):
-    """Emprise de la ville pilote dans la projection demandée."""
+    """Emprise de l'étude dans la projection demandée."""
     coins = [(EMPRISE["sud"], EMPRISE["ouest"]), (EMPRISE["sud"], EMPRISE["est"]),
              (EMPRISE["nord"], EMPRISE["ouest"]), (EMPRISE["nord"], EMPRISE["est"])]
     if projection == 4326:
@@ -209,7 +209,7 @@ def deviner_projection(xmin, xmax, ymin, ymax):
 
 
 def emprise_laea():
-    """Emprise de la ville pilote convertie en EPSG:3035, pour filtrer côté SQL."""
+    """Emprise de l'étude convertie en EPSG:3035, pour filtrer côté SQL."""
     coins = [(EMPRISE["sud"], EMPRISE["ouest"]), (EMPRISE["sud"], EMPRISE["est"]),
              (EMPRISE["nord"], EMPRISE["ouest"]), (EMPRISE["nord"], EMPRISE["est"])]
     xy = [wgs84_vers_laea(a, b) for a, b in coins]

@@ -1,7 +1,7 @@
 # 🧺 Laverie Mapper — cartographie et aide à l'implantation de laveries
 
 Outil d'étude de marché pour choisir intelligemment la zone d'implantation d'une
-laverie automatique. **Ville pilote : Pessac (33600, Bordeaux Métropole).**
+laverie automatique. **Périmètre : les 28 communes de Bordeaux Métropole**, avec une vue de détail sur chaque commune.
 
 ## Démarrage rapide
 
@@ -45,7 +45,7 @@ python3 scripts/build_standalone.py
 Le sélecteur en tête de colonne bascule toute l'application d'une échelle à
 l'autre — demande, concurrence, calibrage, fiabilité et classement suivent.
 
-| | Pessac · pilote | Bordeaux Métropole |
+| | Pessac | Bordeaux Métropole |
 |---|---|---|
 | Zones d'analyse | 15 quartiers | 28 communes |
 | Calibrage | ~5 laveries grand public | ~20+ (d'autant plus solide) |
@@ -112,6 +112,10 @@ sans aucun modèle.
 | **Laveries** | Les statistiques du marché, ce que disent les chiffres publiés, et l'inventaire complet — indépendant des filtres de la carte. |
 | **Modèle** | Le contrôle de fiabilité, les cinq réglages du modèle et les repères du secteur. |
 
+Le périmètre par défaut est la métropole, sauf si l'inventaire est trop maigre
+pour elle (moins de 40 laveries) : l'application retombe alors sur Pessac plutôt
+que d'afficher une carte creuse où le vide passerait pour une opportunité.
+
 Deux principes de conception valent d'être connus :
 
 - **Une seule surface d'analyse à la fois.** Superposer une heatmap divergente,
@@ -124,7 +128,48 @@ Deux principes de conception valent d'être connus :
   qui ne montre pas ses propres réactions demande un acte de foi.
 
 Chaque curseur porte une aide dépliable « ce que ça change / ce que ça ne change
-pas », renseignée à partir de balayages mesurés sur Pessac, pas d'intentions.
+pas », renseignée à partir de balayages mesurés, pas d'intentions.
+
+## L'indicateur de fiabilité, en une phrase
+
+Le modèle affiche **un pourcentage, pas un coefficient** : *sur deux laveries
+prises au hasard parmi celles qu'on sait mesurer, dans quelle proportion des cas
+désigne-t-il correctement la plus performante ?*
+
+- **50 %** = un tirage à pile ou face, le modèle n'apporte rien ;
+- **100 %** = classement parfait ;
+- au-delà de **70 %**, le classement des zones se défend devant un tiers.
+
+Le calcul forme toutes les paires possibles de laveries existantes et compte
+celles que le modèle a mises dans le bon ordre. On raisonne en paires plutôt
+qu'en euros parce que choisir un emplacement demande de savoir *lequel est
+meilleur*, pas de prédire un chiffre au millier près : un modèle qui se trompe
+de 30 % sur tous les montants mais jamais d'ordre reste parfaitement utile.
+Quand les comptes annuels sont importés, un second indicateur donne l'écart
+médian entre CA modélisé et CA réel — c'est celui-là qui juge les euros.
+
+La corrélation de rang (Spearman) reste affichée en bas du panneau, pour qui
+veut le chiffre technique.
+
+## Les générateurs de demande
+
+Résidences étudiantes, logements sociaux et hébergements touristiques sont
+recensés bâtiment par bâtiment et posés en **pins colorés** sur la vue
+« Demande captive », avec un filtre par famille :
+
+```bash
+python3 scripts/find_generateurs.py --type residence_etudiante --ecrire
+python3 scripts/find_generateurs.py --ecrire            # les trois familles
+```
+
+Le balayage couvre les 28 communes en 12 tuiles (~150 requêtes pour tout,
+une cinquantaine pour les seules résidences étudiantes). **Les générateurs déjà
+enregistrés sont conservés avec leurs corrections** : le nombre de logements
+saisi à la main est le travail le plus coûteux du projet, un nouveau balayage ne
+l'écrase jamais.
+
+Décocher une famille masque ses pins et sa contribution au fond orange, mais ne
+retire rien au modèle : la demande reste comptée dans le potentiel.
 
 ## Ce que fait la Phase 1 (version actuelle)
 

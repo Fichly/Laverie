@@ -377,6 +377,66 @@ button.active { background: var(--orange); color: #431407; }
 .verdict.moyen { background: rgba(234, 179, 8, 0.16); color: #fde047; }
 .verdict.faible { background: rgba(220, 38, 38, 0.16); color: #fca5a5; }
 
+/* ---- Pins des générateurs de demande ---- */
+.pin-gen {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50% 50% 50% 2px;
+  transform: rotate(-45deg);
+  background: var(--pc, #94a3b8); border: 2px solid #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+  font-size: 0.68rem; line-height: 1;
+}
+.pin-gen > * , .pin-gen { }
+.pin-gen::first-letter { display: inline-block; }
+.pin-inline {
+  width: 15px; height: 15px; border-width: 1px; font-size: 0.55rem;
+  flex-shrink: 0; box-shadow: none;
+}
+.check-gen { gap: 7px; }
+.check-gen .badge { margin-left: auto; }
+
+/* ---- Pins des générateurs de demande ---- */
+/* Goutte classique : cercle dont un coin est carré, pivoté de 45°. Le symbole
+   est contre-pivoté dans son propre élément, sinon il apparaît de travers. */
+.pin-gen {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50% 50% 50% 2px;
+  transform: rotate(-45deg);
+  background: var(--pc, #94a3b8); border: 2px solid #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
+}
+.pin-gen > i { transform: rotate(45deg); font-style: normal; font-size: 0.7rem; line-height: 1; }
+.pin-inline {
+  width: 15px; height: 15px; border-width: 1px;
+  flex-shrink: 0; box-shadow: none;
+}
+.pin-inline > i { font-size: 0.5rem; }
+.check-gen { gap: 7px; }
+.check-gen .badge { margin-left: auto; }
+
+/* ---- Jauge de fiabilité ---- */
+.jauge {
+  background: var(--surface-2); border-radius: var(--r-md);
+  padding: 12px 14px 13px; border-left: 3px solid var(--c, var(--accent));
+}
+.jauge-val {
+  font-size: 2.1rem; font-weight: 800; line-height: 1;
+  color: var(--c); font-variant-numeric: tabular-nums;
+}
+.jauge-lib { font-size: 0.78rem; color: var(--text); margin-top: 3px; line-height: 1.35; }
+.jauge-barre {
+  position: relative; height: 7px; margin: 10px 0 9px;
+  background: var(--surface-3); border-radius: 4px; overflow: hidden;
+}
+.jauge-barre i { display: block; height: 100%; background: var(--c); border-radius: 4px; }
+/* Repère du hasard : sous cette barre, le modèle n'apporte rien. */
+.jauge-hasard {
+  position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px;
+  background: var(--faint);
+}
+.jauge-txt { font-size: 0.755rem; color: var(--muted); line-height: 1.55; }
+.jauge-txt b { color: var(--text); }
+
 /* ---- Faits observés (marché réel) ---- */
 .fait {
   background: var(--surface-2); border-left: 3px solid var(--accent);

@@ -162,9 +162,18 @@ function typesActifs() {
   return actifs;
 }
 
+// Laveries du périmètre étudié. Les laveries des communes voisines comptent
+// comme concurrentes dans le modèle, mais fausseraient les statistiques et le
+// contrôle de fiabilité de Pessac : on les en écarte.
+function laveriesCommune() {
+  return state.laveries.filter(l => !l.hors_commune && l.statut === 'actif');
+}
+
 function laveriesVisibles() {
   const types = typesActifs();
-  return state.laveries.filter(l => types.includes(l.type) && l.statut === 'actif');
+  const voisines = document.getElementById('f-voisines')?.checked;
+  return state.laveries.filter(l => types.includes(l.type) && l.statut === 'actif'
+                                 && (voisines || !l.hors_commune));
 }
 
 function rafraichir() {
@@ -652,16 +661,18 @@ function surlignerListe(id) {
 
 function dessinerListe() {
   const ul = document.getElementById('liste-laveries');
-  const visibles = laveriesVisibles();
+  const visibles = laveriesVisibles().filter(l => !l.hors_commune);
   ul.innerHTML = visibles.map(l => {
     const note = l.note_google != null
       ? `${l.note_google}★${l.nb_avis != null ? `<br><span style="font-weight:400;font-size:0.62rem">${l.nb_avis} avis</span>` : ''}`
       : 'n.c.';
+    const voisine = l.hors_commune
+      ? '<span class="meta" style="color:#94a3b8">hors Pessac — concurrente</span>' : '';
     const cible = estVulnerable(l)
       ? '<span class="meta" style="color:#f97316">🎯 cible : mal notée, zone à reprendre</span>' : '';
     return `<li data-id="${l.id}">
       <span class="dot dot-${l.type}"></span>
-      <span class="nom">${l.nom}<span class="meta">${l.quartier ?? 'quartier à définir'}</span>${cible}</span>
+      <span class="nom">${l.nom}<span class="meta">${l.quartier ?? 'quartier à définir'}</span>${voisine}${cible}</span>
       <span class="note ${classeNote(l.note_google)}">${note}</span>
     </li>`;
   }).join('');
@@ -912,6 +923,8 @@ function demandeAccessible(lat, lon, R) {
 function offreAccessible(lat, lon, R) {
   let pression = 0;
   const concurrents = [];
+  // Toutes les laveries actives, communes voisines comprises : la demande
+  // déborde de Pessac, la concurrence doit couvrir la même zone.
   for (const l of state.laveries.filter(x => x.statut === 'actif')) {
     const d = distanceM(lat, lon, l.lat, l.lon);
     const p = attractivite(l) * couverture(d, R);
@@ -967,7 +980,7 @@ function caBrut(lat, lon, R, laverieExistante) {
 
 function coefficientCalibrage() {
   if (state._coefCal != null) return state._coefCal;
-  const publiques = state.laveries.filter(l => l.type !== 'captif' && l.statut === 'actif');
+  const publiques = laveriesCommune().filter(l => l.type !== 'captif');
   if (!publiques.length) return (state._coefCal = 1);
   let predit = 0;
   for (const l of publiques) {
@@ -1094,8 +1107,8 @@ function dessinerClassement() {
 // ---------- statistiques ----------
 
 function majStats() {
-  const visibles = laveriesVisibles();
-  const grandPublic = state.laveries.filter(l => l.type !== 'captif' && l.statut === 'actif');
+  const visibles = laveriesVisibles().filter(l => !l.hors_commune);
+  const grandPublic = laveriesCommune().filter(l => l.type !== 'captif');
   const pop = state.quartiers.reduce((s, q) => s + q.population, 0);
   document.getElementById('stat-count').textContent = visibles.length;
   document.getElementById('stat-open').textContent = grandPublic.length;
@@ -1315,8 +1328,7 @@ function correlationRangs(a, b) {
 }
 
 function controleFiabilite() {
-  const publiques = state.laveries.filter(
-    l => l.type !== 'captif' && l.statut === 'actif' && l.nb_avis != null);
+  const publiques = laveriesCommune().filter(l => l.type !== 'captif' && l.nb_avis != null);
   if (publiques.length < 3) return null;
   const coef = coefficientCalibrage();
   const lignes = publiques.map(l => {
@@ -1729,7 +1741,7 @@ function initUI() {
     if (state.modifie) { e.preventDefault(); e.returnValue = ''; }
   });
 
-  for (const id of ['f-chaine', 'f-independant', 'f-captif', 'l-couverture',
+  for (const id of ['f-chaine', 'f-independant', 'f-captif', 'f-voisines', 'l-couverture',
                     'l-heat-offre', 'l-heat-potentiel',
                     'l-heat-demande', 'l-tension']) {
     document.getElementById(id).addEventListener('change', rafraichir);

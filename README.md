@@ -3,6 +3,24 @@
 Outil d'étude de marché pour choisir intelligemment la zone d'implantation d'une
 laverie automatique. **Ville pilote : Pessac (33600, Bordeaux Métropole).**
 
+## Démarrage rapide
+
+**Sur Mac** — double-cliquez `PREPARER.command` à la racine du projet. Un
+assistant s'ouvre, cherche vos fichiers, récupère les données publiques et
+fabrique l'application. Il explique chaque étape et continue même si l'une
+d'elles échoue.
+
+**Sur tout système** :
+
+```bash
+python3 scripts/preparer.py
+```
+
+L'assistant enchaîne les quatre imports dans le bon ordre (population INSEE,
+laveries de la métropole, chiffres d'affaires réels, historique BODACC) puis
+construit `laverie-mapper.html`. Chaque étape est facultative : ce qui manque
+est signalé dans le bilan final, et l'application le redit dans son interface.
+
 ## Lancer l'application
 
 **Le plus simple — version autonome :** ouvrir `laverie-mapper.html` d'un

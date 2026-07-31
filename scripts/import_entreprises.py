@@ -139,7 +139,24 @@ def nombre(v):
 
 # ------------------------------------------------------------------ requêtes
 
-def appeler(params, essais=3):
+def joignable():
+    """Un seul appel court pour savoir si l'API répond.
+
+    Sans ce test, une coupure réseau condamne l'utilisateur à attendre plusieurs
+    minutes de tentatives silencieuses avant le premier message d'erreur.
+    """
+    try:
+        req = urllib.request.Request(API + "?q=test&per_page=1",
+                                     headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=12):
+            return True
+    except urllib.error.HTTPError:
+        return True                     # l'API répond, même si elle refuse
+    except Exception:                   # noqa: BLE001
+        return False
+
+
+def appeler(params, essais=2):
     url = API + "?" + urllib.parse.urlencode(params)
     for n in range(essais):
         try:
@@ -359,6 +376,14 @@ def main():
 
     codes = ([c.strip() for c in args.communes.split(",")] if args.communes
              else COMMUNES_DEFAUT)
+
+    if not joignable():
+        sys.exit(
+            "❌ L'API Recherche d'entreprises ne répond pas.\n"
+            "   Vérifiez votre connexion internet, puis relancez.\n"
+            "   Si vous êtes derrière un réseau d'entreprise ou un VPN, il bloque\n"
+            "   peut-être recherche-entreprises.api.gouv.fr — essayez depuis une\n"
+            "   connexion personnelle.")
 
     if args.diagnostic:
         rep = appeler({"code_naf": args.naf, "code_postal": codes[0], "per_page": 1})

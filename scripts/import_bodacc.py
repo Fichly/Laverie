@@ -61,7 +61,20 @@ MOTS_LAVERIE = ("laverie", "lavomatic", "laverie automatique", "libre service",
                 "libre-service", "blanchisserie")
 
 
-def appeler(params, essais=3):
+def joignable():
+    """Un appel court pour vérifier que l'API BODACC répond avant de boucler."""
+    try:
+        req = urllib.request.Request(API + "?limit=1",
+                                     headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=12):
+            return True
+    except urllib.error.HTTPError:
+        return True
+    except Exception:                   # noqa: BLE001
+        return False
+
+
+def appeler(params, essais=2):
     url = API + "?" + urllib.parse.urlencode(params)
     for n in range(essais):
         try:
@@ -160,6 +173,10 @@ def main():
     if not ENTREPRISES.exists():
         sys.exit("❌ data/entreprises.json manquant. Lancez d'abord :\n"
                  "   python3 scripts/import_entreprises.py")
+
+    if not joignable():
+        sys.exit("❌ L'API BODACC ne répond pas. Vérifiez votre connexion "
+                 "internet, puis relancez.")
 
     ent = json.loads(ENTREPRISES.read_text(encoding="utf-8"))
     sirens = sorted({e["siren"] for e in ent["etablissements"]

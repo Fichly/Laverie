@@ -104,6 +104,15 @@ def main():
     if not cle:
         sys.exit("❌ GOOGLE_MAPS_API_KEY absente. Voir GOOGLE_API.md.")
 
+    # Une première tuile sert de test : si Google ne répond pas (pas de réseau,
+    # clé invalide, facturation non activée), autant le savoir tout de suite.
+    premiere = list(tuiles())[0]
+    if not chercher("laverie", premiere, cle):
+        print("⚠ Aucun résultat sur la première tuile. Causes possibles : pas de\n"
+              "  connexion, clé invalide, ou API Places non activée dans la console\n"
+              "  Google Cloud. Le message HTTP ci-dessus, s'il y en a un, le dira.",
+              file=sys.stderr)
+
     inventaire = json.loads(DATA.read_text(encoding="utf-8"))
     connus = {l.get("place_id") for l in inventaire["laveries"] if l.get("place_id")}
 

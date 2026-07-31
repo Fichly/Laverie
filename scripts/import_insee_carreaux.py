@@ -227,12 +227,23 @@ def lire_gpkg(src):
     France métropolitaine).
     """
     import sqlite3
-    con = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
-    con.row_factory = sqlite3.Row
-    cur = con.cursor()
-
-    table = cur.execute(
-        "SELECT table_name FROM gpkg_contents ORDER BY table_name LIMIT 1").fetchone()
+    try:
+        con = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+        table = cur.execute(
+            "SELECT table_name FROM gpkg_contents ORDER BY table_name LIMIT 1").fetchone()
+    except sqlite3.DatabaseError:
+        # Cas courant : le .zip n'a pas été décompressé, ou le téléchargement
+        # s'est interrompu. Un traceback Python n'aiderait personne ici.
+        raise SystemExit(
+            f"❌ « {src.name} » n'est pas un GeoPackage lisible "
+            f"({src.stat().st_size / 1e6:.0f} Mo).\n"
+            "   Causes les plus fréquentes :\n"
+            "     • le fichier .zip n'a pas été décompressé (double-cliquez-le) ;\n"
+            "     • le téléchargement s'est interrompu — le vrai fichier pèse ~1 Go ;\n"
+            "     • ce n'est pas le bon fichier.\n"
+            "   Attendu : carreaux_200m_met.gpkg, issu du carroyage INSEE Filosofi.")
     if not table:
         raise SystemExit("❌ Aucune table de données dans ce GeoPackage.")
     table = table["table_name"]

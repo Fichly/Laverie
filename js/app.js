@@ -106,14 +106,17 @@ function couverture(d, rayon) {
 async function charger() {
   // La version autonome (fichier HTML unique) injecte les données dans window.__DATA__ ;
   // la version modulaire les charge depuis data/*.json via un serveur local.
-  const [lav, qua, bench, gen] = window.__DATA__
+  const [lav, qua, bench, gen, car] = window.__DATA__
     ? [window.__DATA__.laveries, window.__DATA__.quartiers,
-       window.__DATA__.benchmarks, window.__DATA__.generateurs]
+       window.__DATA__.benchmarks, window.__DATA__.generateurs,
+       window.__DATA__.carreaux]
     : await Promise.all([
       fetch('data/laveries.json').then(r => r.json()),
       fetch('data/quartiers.json').then(r => r.json()),
       fetch('data/benchmarks.json').then(r => r.json()),
       fetch('data/generateurs.json').then(r => r.json()),
+      // Facultatif : absent tant que le carroyage INSEE n'a pas été importé.
+      fetch('data/carreaux.json').then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
   state.laveries = lav.laveries;
   state.meta = lav.meta;            // conservé pour réécrire un fichier complet à l'export
@@ -122,6 +125,8 @@ async function charger() {
   state.benchmarks = bench;
   state.generateurs = (gen && gen.generateurs) || [];
   state.profilsGenerateurs = (gen && gen.meta && gen.meta.profils) || {};
+  state.carreaux = (car && car.carreaux) || null;
+  state.metaCarreaux = (car && car.meta) || null;
   initCarte();
   initUI();
   rafraichir();
@@ -164,6 +169,7 @@ function laveriesVisibles() {
 
 function rafraichir() {
   state._coefCal = null;   // le calibrage dépend des hypothèses courantes
+  state._indexDemande = null;
   dessinerMarqueurs();
   dessinerListe();
   dessinerCouverture();
@@ -763,9 +769,40 @@ function menagesGenerateur(g) {
   };
 }
 
+// Part de ménages sans lave-linge d'un carreau INSEE, déduite de la part de
+// ménages d'une seule personne — qui vivent très majoritairement en petit
+// logement. C'est la donnée MESURÉE qui remplace mes estimations à la main.
+function partSansLaveLingeCarreau(c) {
+  const cb = state.benchmarks.demande.clientele_reguliere;
+  const [pMin, pMax] = cb.part_menages_pct;
+  const menages = c.menages || c.ind / TAILLE_MENAGE;
+  if (!menages) return pMin / 100;
+  const partSeuls = (c.men_1ind || 0) / menages;
+  const facteur = Math.min(1, partSeuls / cb.seuil_petits_logements_borne_haute);
+  return (pMin + (pMax - pMin) * facteur) / 100 * state.hyp.facteurDemande;
+}
+
 function pointsDemande() {
   if (state._pointsDemande) return state._pointsDemande;
   const pts = [];
+
+  // Quand le carroyage INSEE est disponible, il REMPLACE les centroïdes de
+  // quartiers : population observée maille par maille au lieu d'estimations.
+  if (state.carreaux && state.carreaux.length) {
+    const [ppMin, ppMax] = state.benchmarks.demande.clientele_ponctuelle.part_menages_concernes_pct;
+    const partPonctuelle = ((ppMin + ppMax) / 2) / 100;
+    for (const c of state.carreaux) {
+      const menages = c.menages || c.ind / TAILLE_MENAGE;
+      const reg = menages * partSansLaveLingeCarreau(c);
+      pts.push({ carreau: c, lat: c.lat, lon: c.lon, part: 1,
+                 habitants: c.ind, menagesReguliers: reg,
+                 menagesPonctuels: (menages - reg) * partPonctuelle });
+    }
+    // Les résidences repérées sont déjà comptées dans les carreaux : on ne les
+    // ajoute pas une seconde fois, on garde seulement leur affichage.
+    state._pointsDemande = pts;
+    return pts;
+  }
 
   // Les habitants des résidences repérées sont DÉJÀ comptés dans la population
   // de leur quartier. On les en retire avant de les replacer à leur position
@@ -805,6 +842,44 @@ function pointsDemande() {
   return pts;
 }
 
+// INDEX SPATIAL des points de demande.
+//
+// Avec le carroyage INSEE, la demande passe de ~120 points à plusieurs milliers.
+// Sans index, repeindre la heatmap devient une opération à plusieurs millions de
+// distances : on range donc les points dans des cases et on ne visite que les
+// cases utiles. Le résultat est strictement identique, seul le temps change.
+const TAILLE_CASE_M = 500;
+
+function indexDemande() {
+  if (state._indexDemande) return state._indexDemande;
+  const pts = pointsDemande();
+  const cases = new Map();
+  const dLat = TAILLE_CASE_M / 111320;
+  for (const p of pts) {
+    const dLon = TAILLE_CASE_M / (111320 * Math.cos(p.lat * Math.PI / 180));
+    const cle = Math.round(p.lat / dLat) + ':' + Math.round(p.lon / dLon);
+    (cases.get(cle) || cases.set(cle, []).get(cle)).push(p);
+  }
+  state._indexDemande = { cases, dLat };
+  return state._indexDemande;
+}
+
+function pointsProches(lat, lon, R) {
+  const { cases, dLat } = indexDemande();
+  const dLon = TAILLE_CASE_M / (111320 * Math.cos(lat * Math.PI / 180));
+  // Au-delà de 1,8 R le noyau gaussien vaut moins de 4 % : inutile d'aller plus loin.
+  const portee = Math.ceil((R * 1.8) / TAILLE_CASE_M);
+  const ci = Math.round(lat / dLat), cj = Math.round(lon / dLon);
+  const proches = [];
+  for (let i = ci - portee; i <= ci + portee; i++) {
+    for (let j = cj - portee; j <= cj + portee; j++) {
+      const b = cases.get(i + ':' + j);
+      if (b) proches.push(...b);
+    }
+  }
+  return proches;
+}
+
 // Demande accessible depuis un point : agrège les points de demande voisins
 // pondérés par la distance. La demande ne s'arrête pas à la frontière d'un
 // quartier — un habitant du quartier d'à côté à 300 m est un client tout aussi
@@ -813,10 +888,10 @@ function demandeAccessible(lat, lon, R) {
   const [ppMin, ppMax] = state.benchmarks.demande.clientele_ponctuelle.part_menages_concernes_pct;
   const partPonctuelle = ((ppMin + ppMax) / 2) / 100;
   let pop = 0, reguliers = 0, ponctuels = 0;
-  for (const p of pointsDemande()) {
+  for (const p of pointsProches(lat, lon, R)) {
     const w = couverture(distanceM(lat, lon, p.lat, p.lon), R);
     if (w < 0.05) continue;
-    if (p.generateur) {
+    if (p.generateur || p.carreau) {
       // Bâtiment identifié : la demande est connue en logements, pas en habitants.
       pop += p.habitants * w;
       reguliers += p.menagesReguliers * w * state.hyp.facteurDemande;
@@ -1471,7 +1546,7 @@ function brancherEditionGenerateur(popup) {
       if (!g) return;
       g.logements = Math.max(0, Number(champ.value) || 0);
       g.logements_source = 'saisi à la main';
-      state._pointsDemande = null;    // la demande doit être recalculée
+      state._pointsDemande = null; state._indexDemande = null;    // la demande doit être recalculée
       state.modifie = true;
       map.closePopup();
       rafraichir();
@@ -1483,7 +1558,7 @@ function brancherEditionGenerateur(popup) {
       const g = state.generateurs.find(x => x.id === btn.dataset.excl);
       if (!g) return;
       g.exclu = true;
-      state._pointsDemande = null;
+      state._pointsDemande = null; state._indexDemande = null;
       state.modifie = true;
       map.closePopup();
       rafraichir();

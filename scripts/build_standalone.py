@@ -29,6 +29,9 @@ def main():
         "quartiers": json.loads(lire("data/quartiers.json")),
         "benchmarks": json.loads(lire("data/benchmarks.json")),
         "generateurs": json.loads(lire("data/generateurs.json")),
+        # Facultatif : présent seulement après import_insee_carreaux.py
+        "carreaux": (json.loads(lire("data/carreaux.json"))
+                     if (RACINE / "data" / "carreaux.json").exists() else None),
     }
 
     # On repart de index.html et on remplace les balises externes par leur contenu.

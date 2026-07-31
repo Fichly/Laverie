@@ -31,18 +31,37 @@ métropolitaine**. Formats : CSV, Shapefile, ou Parquet.
 `men_1ind` et `log_soc` sont exactement ce qui manque au modèle : ils
 remplacent mes `part_petits_logements_est` inventées à la main.
 
-**Import :**
+**Import — trois formats acceptés :**
+
+| Fichier téléchargé | Dépendance | Commande |
+|---|---|---|
+| `carreaux_200m_met.gpkg` (2019) | **aucune** | `python3 scripts/import_insee_carreaux.py <chemin>/carreaux_200m_met.gpkg` |
+| `carreaux-200m-met-3035-2021.parquet` | `pip install pyarrow` | `python3 scripts/import_insee_carreaux.py <chemin>/carreaux-200m-met-3035-2021.parquet` |
+| un `.csv` | aucune | idem avec le `.csv` |
+
+Puis dans tous les cas :
 
 ```bash
-mkdir -p data/source            # y déposer le CSV téléchargé
-python3 scripts/import_insee_carreaux.py data/source/<le_fichier>.csv
 python3 scripts/build_standalone.py
 ```
+
+**Le `.gpkg` est le plus simple** : un GeoPackage est une base SQLite, que Python
+lit nativement — ni GDAL, ni geopandas, ni QGIS à installer. Malgré ses 1,13 Go,
+la lecture est quasi instantanée : le script s'appuie sur l'index spatial R-tree
+du fichier pour n'extraire que les carreaux de Pessac, sans parcourir la France.
+
+Le Parquet 2021 est plus récent mais demande `pyarrow`. Si vous ne voulez rien
+installer, prenez le GeoPackage — l'écart entre les millésimes 2019 et 2021 est
+négligeable pour un choix d'emplacement.
 
 Le script détecte tout seul les noms de colonnes (l'INSEE les fait varier d'un
 millésime à l'autre), ne garde que les carreaux de l'emprise de Pessac, et
 convertit les coordonnées. Il commence toujours par un autotest de la
 projection — s'il échoue, il s'arrête plutôt que d'écrire des données fausses.
+
+Une fois `data/carreaux.json` créé, l'application **remplace automatiquement**
+les 15 centroïdes de quartiers par les carreaux mesurés. Sans ce fichier, elle
+continue de fonctionner sur les estimations : rien ne casse.
 
 **Le piège technique, déjà traité :** les identifiants de carreaux sont du type
 `CRS3035RES200mN2470400E3481600`. Ce ne sont ni des latitudes ni des Lambert 93,

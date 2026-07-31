@@ -145,6 +145,97 @@ def reperer(entetes):
     return trouve
 
 
+def emprise_laea():
+    """Emprise de la ville pilote convertie en EPSG:3035, pour filtrer côté SQL."""
+    coins = [(EMPRISE["sud"], EMPRISE["ouest"]), (EMPRISE["sud"], EMPRISE["est"]),
+             (EMPRISE["nord"], EMPRISE["ouest"]), (EMPRISE["nord"], EMPRISE["est"])]
+    xy = [wgs84_vers_laea(a, b) for a, b in coins]
+    xs, ys = [p[0] for p in xy], [p[1] for p in xy]
+    # Marge d'un carreau pour ne rien perdre au bord.
+    return min(xs) - 200, max(xs) + 200, min(ys) - 200, max(ys) + 200
+
+
+def lire_gpkg(src):
+    """Lit un GeoPackage INSEE.
+
+    Un .gpkg est une base SQLite : le module standard suffit, pas besoin de GDAL
+    ni de geopandas. On filtre directement en SQL sur l'index spatial R-tree
+    quand il existe, ce qui évite de parcourir le fichier entier (1,1 Go pour la
+    France métropolitaine).
+    """
+    import sqlite3
+    con = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
+    con.row_factory = sqlite3.Row
+    cur = con.cursor()
+
+    table = cur.execute(
+        "SELECT table_name FROM gpkg_contents ORDER BY table_name LIMIT 1").fetchone()
+    if not table:
+        raise SystemExit("❌ Aucune table de données dans ce GeoPackage.")
+    table = table["table_name"]
+    colonnes = [r["name"] for r in cur.execute(f'PRAGMA table_info("{table}")')]
+    print(f"Table « {table} » — {len(colonnes)} colonnes")
+
+    xmin, xmax, ymin, ymax = emprise_laea()
+    rtree = f"rtree_{table}_geom"
+    existe = cur.execute(
+        "SELECT 1 FROM sqlite_master WHERE type IN ('table','view') AND name=?",
+        (rtree,)).fetchone()
+
+    if existe:
+        print(f"Index spatial trouvé : filtrage direct sur l'emprise Pessac.")
+        req = (f'SELECT t.*, r.minx AS _minx, r.miny AS _miny, r.maxx AS _maxx, '
+               f'r.maxy AS _maxy FROM "{table}" t JOIN "{rtree}" r ON t.rowid = r.id '
+               f"WHERE r.maxx >= ? AND r.minx <= ? AND r.maxy >= ? AND r.miny <= ?")
+        lignes = cur.execute(req, (xmin, xmax, ymin, ymax))
+    else:
+        print("Pas d'index spatial : lecture complète (comptez quelques minutes).")
+        lignes = cur.execute(f'SELECT * FROM "{table}"')
+
+    for r in lignes:
+        yield dict(r)
+    con.close()
+
+
+def lire_parquet(src):
+    """Lit un Parquet INSEE. Nécessite pyarrow (pip install pyarrow)."""
+    try:
+        import pyarrow.parquet as pq
+    except ImportError:
+        raise SystemExit(
+            "❌ Le format Parquet demande pyarrow :\n"
+            "     pip install pyarrow\n"
+            "   Ou utilisez plutôt le GeoPackage (.gpkg), lu sans aucune dépendance.")
+    fichier = pq.ParquetFile(src)
+    for lot in fichier.iter_batches(batch_size=50000):
+        for ligne in lot.to_pylist():
+            yield ligne
+
+
+def lire_csv(src):
+    with src.open(encoding="utf-8-sig", newline="") as f:
+        debut = f.read(8192)
+        f.seek(0)
+        try:
+            dialecte = csv.Sniffer().sniff(debut, delimiters=";,\t")
+        except csv.Error:
+            dialecte = csv.excel
+            dialecte.delimiter = ";"
+        for ligne in csv.DictReader(f, dialect=dialecte):
+            yield ligne
+
+
+def lire_source(src):
+    ext = src.suffix.lower()
+    if ext == ".gpkg":
+        return lire_gpkg(src)
+    if ext == ".parquet":
+        return lire_parquet(src)
+    if ext in (".csv", ".txt"):
+        return lire_csv(src)
+    raise SystemExit(f"❌ Format non géré : {ext}. Attendu : .gpkg, .parquet ou .csv")
+
+
 def nombre(v):
     if v is None or v == "":
         return 0.0
@@ -156,7 +247,7 @@ def nombre(v):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("fichier", nargs="?", help="CSV des carreaux INSEE")
+    ap.add_argument("fichier", nargs="?", help="fichier INSEE (.gpkg, .parquet ou .csv)")
     ap.add_argument("--autotest", action="store_true", help="vérifier la projection puis sortir")
     args = ap.parse_args()
 
@@ -167,50 +258,50 @@ def main():
     if args.autotest:
         return
     if not args.fichier:
-        sys.exit("Indiquez le fichier CSV INSEE. Voir DONNEES_INSEE.md.")
+        sys.exit("Indiquez le fichier INSEE (.gpkg, .parquet ou .csv). Voir DONNEES_INSEE.md.")
 
     src = Path(args.fichier)
     if not src.exists():
         sys.exit(f"❌ Fichier introuvable : {src}")
+    print(f"Lecture de {src.name} ({src.stat().st_size / 1e6:.0f} Mo)\n")
 
-    # L'INSEE publie tantôt en ';' tantôt en ',' : on laisse csv le déterminer.
-    with src.open(encoding="utf-8-sig", newline="") as f:
-        debut = f.read(8192)
-        f.seek(0)
-        try:
-            dialecte = csv.Sniffer().sniff(debut, delimiters=";,\t")
-        except csv.Error:
-            dialecte = csv.excel
-            dialecte.delimiter = ";"
-        lecteur = csv.DictReader(f, dialect=dialecte)
-        cols = reperer(lecteur.fieldnames or [])
-        if "id" not in cols or "individus" not in cols:
-            sys.exit("❌ Colonnes attendues introuvables. Colonnes présentes :\n   "
-                     + ", ".join(lecteur.fieldnames or []))
-        print(f"Colonnes reconnues : {cols}\n")
+    carreaux, lus, hors, cols = [], 0, 0, None
+    for ligne in lire_source(src):
+        lus += 1
+        if cols is None:
+            cols = reperer(list(ligne.keys()))
+            print(f"Colonnes reconnues : {cols or 'AUCUNE'}")
+            if "individus" not in cols:
+                sys.exit("❌ Colonne de population introuvable. Colonnes présentes :\n   "
+                         + ", ".join(list(ligne.keys())[:40]))
 
-        carreaux, lus, hors = [], 0, 0
-        for ligne in lecteur:
-            lus += 1
-            m = MOTIF_ID.search(ligne[cols["id"]] or "")
-            if not m:
-                continue
-            # L'identifiant porte le coin SUD-OUEST du carreau : on vise le centre.
-            n, e = int(m.group(1)) + 100, int(m.group(2)) + 100
-            lat, lon = laea_vers_wgs84(e, n)
-            if not (EMPRISE["sud"] <= lat <= EMPRISE["nord"]
-                    and EMPRISE["ouest"] <= lon <= EMPRISE["est"]):
-                hors += 1
-                continue
-            ind = nombre(ligne.get(cols.get("individus")))
-            if ind <= 0:
-                continue
-            c = {"lat": round(lat, 6), "lon": round(lon, 6), "ind": round(ind, 1)}
-            for cle in ("menages", "men_1ind", "men_pauv", "log_soc"):
-                col = cols.get(cle)
-                if col:
-                    c[cle] = round(nombre(ligne.get(col)), 1)
-            carreaux.append(c)
+        # Position : par l'identifiant de carreau si présent, sinon par l'emprise
+        # fournie par l'index spatial du GeoPackage.
+        lat = lon = None
+        if cols.get("id"):
+            m = MOTIF_ID.search(str(ligne.get(cols["id"]) or ""))
+            if m:
+                # L'identifiant porte le coin SUD-OUEST : on vise le centre du carreau.
+                lat, lon = laea_vers_wgs84(int(m.group(2)) + 100, int(m.group(1)) + 100)
+        if lat is None and ligne.get("_minx") is not None:
+            lat, lon = laea_vers_wgs84((ligne["_minx"] + ligne["_maxx"]) / 2,
+                                       (ligne["_miny"] + ligne["_maxy"]) / 2)
+        if lat is None:
+            continue
+
+        if not (EMPRISE["sud"] <= lat <= EMPRISE["nord"]
+                and EMPRISE["ouest"] <= lon <= EMPRISE["est"]):
+            hors += 1
+            continue
+        ind = nombre(ligne.get(cols["individus"]))
+        if ind <= 0:
+            continue
+        c = {"lat": round(lat, 6), "lon": round(lon, 6), "ind": round(ind, 1)}
+        for cle in ("menages", "men_1ind", "men_pauv", "log_soc"):
+            col = cols.get(cle)
+            if col is not None and ligne.get(col) is not None:
+                c[cle] = round(nombre(ligne.get(col)), 1)
+        carreaux.append(c)
 
     if not carreaux:
         sys.exit(f"❌ Aucun carreau dans l'emprise ({lus} lignes lues, {hors} hors zone). "
@@ -228,7 +319,8 @@ def main():
         "carreaux": carreaux,
     }, ensure_ascii=False) + "\n", encoding="utf-8")
 
-    print(f"✅ {len(carreaux)} carreaux retenus — {round(total):,} habitants".replace(",", " "))
+    print(f"\n✅ {len(carreaux)} carreaux retenus — "
+          + f"{round(total):,} habitants".replace(",", " "))
     print(f"   {lus} lignes lues, {hors} hors emprise")
     print(f"   → {SORTIE}")
     print("\n   Régénérer l'application : python3 scripts/build_standalone.py")

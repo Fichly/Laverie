@@ -36,6 +36,8 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--ecrire", action="store_true",
                     help="applique les exclusions à data/laveries.json")
+    ap.add_argument("--silencieux", action="store_true",
+                    help="n'affiche que le résultat, sans relister les cas")
     ap.add_argument("--reactiver", action="store_true",
                     help="remet tous les exclus en actif, puis reclasse")
     args = ap.parse_args()
@@ -59,6 +61,17 @@ def main():
             exclus.append((l, motif))
         elif verdict == "douteux":
             douteux.append((l, motif))
+
+    if args.silencieux:
+        for l, motif in exclus:
+            l["statut"] = "exclu"
+            l["motif_exclusion"] = motif
+        if args.ecrire and exclus:
+            DATA.write_text(json.dumps(inventaire, ensure_ascii=False, indent=2) + "\n",
+                            encoding="utf-8")
+        print(f"✅ {len(exclus)} établissement(s) exclu(s), "
+              f"{len(douteux)} à vérifier.")
+        return
 
     print(f"\n{len(laveries)} établissements dans l'inventaire\n")
 

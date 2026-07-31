@@ -19,7 +19,9 @@ dit et l'application le signalera dans son interface.
 
 import argparse
 import getpass
+import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -35,6 +37,11 @@ DOSSIERS_RECHERCHE = ["Downloads", "Téléchargements", "Desktop", "Bureau",
                       "Documents"]
 MOTIFS_INSEE = ["carreaux*200m*.gpkg", "carreaux*200m*.parquet",
                 "carreaux*200m*.csv", "*carreaux*.gpkg"]
+
+# Fichiers construits par les imports. Ils ne sont pas dans le dépôt : sans
+# récupération, chaque nouvelle version repart de zéro et il faut tout refaire.
+DONNEES_PRODUITES = ["carreaux.json", "entreprises.json", "bodacc.json",
+                     "laveries.json"]
 
 
 # ─────────────────────────────────────────────────────────── affichage
@@ -114,6 +121,93 @@ def taille_lisible(chemin):
 
 def existe(nom):
     return (RACINE / "data" / nom).exists()
+
+
+# ─────────────────────────────────────────── récupération d'une version précédente
+
+def versions_precedentes():
+    """Autres copies du projet sur le disque, la plus récente d'abord."""
+    trouvees = []
+    for dossier in DOSSIERS_RECHERCHE:
+        base = Path.home() / dossier
+        if not base.is_dir():
+            continue
+        for marque in base.glob("*/data/laveries.json"):
+            projet = marque.parent.parent
+            if projet.resolve() != RACINE.resolve():
+                trouvees.append(projet)
+    return sorted(set(trouvees), key=lambda d: -(d / "data").stat().st_mtime)
+
+
+def recuperer_donnees(bilan):
+    """Reprend les fichiers produits par une installation précédente.
+
+    Sans cela, re-télécharger le projet oblige à refaire l'import INSEE (deux
+    minutes), le balayage Google (qui coûte des appels) et la récupération des
+    comptes annuels. C'est le principal irritant de l'installation.
+    """
+    manquants = [f for f in DONNEES_PRODUITES if not existe(f)]
+    # laveries.json est fourni par le dépôt : on le remplace seulement si la
+    # version précédente est plus riche (balayage métropole déjà effectué).
+    if "laveries.json" not in manquants:
+        manquants.append("laveries.json")
+
+    for ancienne in versions_precedentes():
+        a_reprendre = []
+        for f in manquants:
+            source = ancienne / "data" / f
+            if not source.exists():
+                continue
+            if f == "laveries.json":
+                try:
+                    n_a = len(json.loads(source.read_text(encoding="utf-8"))["laveries"])
+                    n_i = len(json.loads((RACINE / "data" / f).read_text(
+                        encoding="utf-8"))["laveries"])
+                except Exception:                           # noqa: BLE001
+                    continue
+                if n_a <= n_i:
+                    continue
+                a_reprendre.append((f, source, f"{n_a} laveries au lieu de {n_i}"))
+            else:
+                a_reprendre.append((f, source,
+                                    f"{source.stat().st_size / 1e6:.1f} Mo"))
+        if not a_reprendre:
+            continue
+
+        print()
+        dire(f"📦 J'ai trouvé une installation précédente :\n   {ancienne}\n\n"
+             "Elle contient des données déjà récupérées, qui ne sont pas dans le\n"
+             "téléchargement. Les reprendre évite de tout refaire.")
+        for f, _, detail in a_reprendre:
+            dire(f"   • {f} ({detail})")
+        if not demander("Je les reprends ?"):
+            return
+        for f, source, _ in a_reprendre:
+            shutil.copy2(source, RACINE / "data" / f)
+        bilan["Reprise"] = f"✅ {len(a_reprendre)} fichier(s) repris"
+        dire("✅ Données reprises.")
+        return
+
+
+def inventaire_elargi():
+    """Vrai si le balayage métropole a déjà été passé sur cet inventaire."""
+    try:
+        d = json.loads((RACINE / "data" / "laveries.json").read_text(encoding="utf-8"))
+        return len(d["laveries"]) > 40
+    except Exception:                                       # noqa: BLE001
+        return False
+
+
+def nettoyer(bilan, silencieux=False):
+    """Écarte les faux positifs du balayage : lavage auto, installateurs…"""
+    if not silencieux:
+        dire("\nVérification du métier de chaque établissement recensé…")
+    lancer("nettoyer_inventaire.py")
+    if demander("J'applique ces exclusions ?"):
+        ok = lancer("nettoyer_inventaire.py", "--ecrire", "--silencieux")
+        bilan["Nettoyage"] = "✅ faux positifs écartés" if ok else "❌ échec"
+    else:
+        bilan["Nettoyage"] = "ignoré à votre demande"
 
 
 # ────────────────────────────────────────────────── vérification préalable
@@ -226,6 +320,8 @@ largement couverts par le crédit mensuel offert par Google.
     ok = lancer("find_laveries_metropole.py", "--ecrire",
                 env_sup={"GOOGLE_MAPS_API_KEY": cle})
     bilan["Laveries métropole"] = "✅ recensées" if ok else "❌ échec"
+    if ok:
+        nettoyer(bilan)
 
 
 def etape_entreprises(bilan):
@@ -328,6 +424,7 @@ les autres se poursuivent et l'application vous dira ce qui lui manque.
 
     bilan = {}
     try:
+        recuperer_donnees(bilan)
         etape_insee(bilan)
         if reseau_ok:
             etape_laveries(bilan, cle)
@@ -336,6 +433,10 @@ les autres se poursuivent et l'application vous dira ce qui lui manque.
             bilan["Laveries métropole"] = "⏭ ignorée (pas d'accès internet)"
             bilan["Chiffres réels"] = "⏭ ignorée (pas d'accès internet)"
             bilan["Historique BODACC"] = "⏭ ignorée (pas d'accès internet)"
+        # Un inventaire élargi qui n'a pas encore été trié contient des stations
+        # de lavage auto et des installateurs : autant de concurrents fantômes.
+        if "Nettoyage" not in bilan and inventaire_elargi():
+            nettoyer(bilan)
         etape_construction(bilan)
     except KeyboardInterrupt:
         print("\n\n   ⏹  Interrompu. Les étapes déjà terminées sont conservées.")

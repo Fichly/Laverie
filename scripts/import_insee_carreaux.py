@@ -23,6 +23,7 @@ imposer l'installation de pyproj ou de GDAL.
 
 import argparse
 import csv
+import itertools
 import json
 import math
 import re
@@ -145,6 +146,65 @@ def reperer(entetes):
     return trouve
 
 
+# ---------------------------------------------------------------------------
+# Lambert 93 (EPSG:2154) — l'autre projection utilisée par l'INSEE selon les
+# millésimes et les formats. Conique conforme sécante, ellipsoïde GRS80.
+# ---------------------------------------------------------------------------
+L93_LON0, L93_LAT0 = math.radians(3.0), math.radians(46.5)
+L93_LAT1, L93_LAT2 = math.radians(44.0), math.radians(49.0)
+L93_X0, L93_Y0 = 700000.0, 6600000.0
+
+
+def _m(phi):
+    return math.cos(phi) / math.sqrt(1 - E2 * math.sin(phi) ** 2)
+
+
+def _t(phi):
+    return (math.tan(math.pi / 4 - phi / 2)
+            / ((1 - E * math.sin(phi)) / (1 + E * math.sin(phi))) ** (E / 2))
+
+
+_L93_N = (math.log(_m(L93_LAT1) / _m(L93_LAT2))
+          / math.log(_t(L93_LAT1) / _t(L93_LAT2)))
+_L93_F = _m(L93_LAT1) / (_L93_N * _t(L93_LAT1) ** _L93_N)
+_L93_RHO0 = A * _L93_F * _t(L93_LAT0) ** _L93_N
+
+
+def wgs84_vers_l93(lat, lon):
+    phi, lam = math.radians(lat), math.radians(lon)
+    rho = A * _L93_F * _t(phi) ** _L93_N
+    theta = _L93_N * (lam - L93_LON0)
+    return L93_X0 + rho * math.sin(theta), L93_Y0 + _L93_RHO0 - rho * math.cos(theta)
+
+
+def emprise_dans(projection):
+    """Emprise de la ville pilote dans la projection demandée."""
+    coins = [(EMPRISE["sud"], EMPRISE["ouest"]), (EMPRISE["sud"], EMPRISE["est"]),
+             (EMPRISE["nord"], EMPRISE["ouest"]), (EMPRISE["nord"], EMPRISE["est"])]
+    if projection == 4326:
+        xs, ys = [c[1] for c in coins], [c[0] for c in coins]
+        return min(xs) - 0.005, max(xs) + 0.005, min(ys) - 0.005, max(ys) + 0.005
+    conv = wgs84_vers_l93 if projection == 2154 else wgs84_vers_laea
+    xy = [conv(a, b) for a, b in coins]
+    xs, ys = [p[0] for p in xy], [p[1] for p in xy]
+    return min(xs) - 200, max(xs) + 200, min(ys) - 200, max(ys) + 200
+
+
+def deviner_projection(xmin, xmax, ymin, ymax):
+    """Déduit la projection des ordres de grandeur observés dans l'index spatial.
+
+    Le srs_id déclaré dans le GeoPackage n'est pas toujours celui des données :
+    on croise donc la déclaration avec ce qu'on mesure réellement.
+    """
+    if -180 <= xmin <= 180 and -90 <= ymin <= 90:
+        return 4326
+    if 5_000_000 < ymin < 8_000_000:      # Lambert 93 : Y autour de 6-7 millions
+        return 2154
+    if 1_000_000 < ymin < 4_000_000:      # LAEA : N autour de 2-3 millions
+        return 3035
+    return None
+
+
 def emprise_laea():
     """Emprise de la ville pilote convertie en EPSG:3035, pour filtrer côté SQL."""
     coins = [(EMPRISE["sud"], EMPRISE["ouest"]), (EMPRISE["sud"], EMPRISE["est"]),
@@ -176,20 +236,55 @@ def lire_gpkg(src):
     colonnes = [r["name"] for r in cur.execute(f'PRAGMA table_info("{table}")')]
     print(f"Table « {table} » — {len(colonnes)} colonnes")
 
-    xmin, xmax, ymin, ymax = emprise_laea()
-    rtree = f"rtree_{table}_geom"
-    existe = cur.execute(
-        "SELECT 1 FROM sqlite_master WHERE type IN ('table','view') AND name=?",
-        (rtree,)).fetchone()
+    # Le srs_id déclaré ne suffit pas : selon le millésime et l'outil de
+    # publication, la géométrie peut être en LAEA, en Lambert 93 ou en degrés.
+    # On mesure donc l'étendue réelle de l'index avant de filtrer.
+    srs = cur.execute("SELECT srs_id FROM gpkg_contents WHERE table_name=?",
+                      (table,)).fetchone()
+    srs = srs["srs_id"] if srs else None
 
-    if existe:
-        print(f"Index spatial trouvé : filtrage direct sur l'emprise Pessac.")
-        req = (f'SELECT t.*, r.minx AS _minx, r.miny AS _miny, r.maxx AS _maxx, '
-               f'r.maxy AS _maxy FROM "{table}" t JOIN "{rtree}" r ON t.rowid = r.id '
-               f"WHERE r.maxx >= ? AND r.minx <= ? AND r.maxy >= ? AND r.miny <= ?")
-        lignes = cur.execute(req, (xmin, xmax, ymin, ymax))
-    else:
-        print("Pas d'index spatial : lecture complète (comptez quelques minutes).")
+    rtree = None
+    for nom in [f"rtree_{table}_geom", f"rtree_{table}_geometry", f"rtree_{table}_the_geom"]:
+        if cur.execute("SELECT 1 FROM sqlite_master WHERE type IN ('table','view') "
+                       "AND name=?", (nom,)).fetchone():
+            rtree = nom
+            break
+
+    lignes = None
+    if rtree:
+        etendue = cur.execute(
+            f'SELECT MIN(minx) a, MAX(maxx) b, MIN(miny) c, MAX(maxy) d FROM "{rtree}"'
+        ).fetchone()
+        mesure = deviner_projection(etendue["a"], etendue["b"], etendue["c"], etendue["d"])
+        print(f"Index spatial : {rtree}")
+        print(f"  étendue X {etendue['a']:.0f} → {etendue['b']:.0f} · "
+              f"Y {etendue['c']:.0f} → {etendue['d']:.0f}")
+        print(f"  srs_id déclaré : {srs} · projection retenue : {mesure or 'indéterminée'}")
+
+        if mesure:
+            xmin, xmax, ymin, ymax = emprise_dans(mesure)
+            req = (f'SELECT t.*, r.minx AS _minx, r.miny AS _miny, r.maxx AS _maxx, '
+                   f'r.maxy AS _maxy FROM "{table}" t JOIN "{rtree}" r ON t.rowid = r.id '
+                   f"WHERE r.maxx >= ? AND r.minx <= ? AND r.maxy >= ? AND r.miny <= ?")
+            # On lit une première ligne pour savoir si le filtre donne quelque
+            # chose, puis on POURSUIT le même curseur — le ré-exécuter
+            # renverrait la première ligne une seconde fois.
+            curseur = cur.execute(req, (xmin, xmax, ymin, ymax))
+            premiere = curseur.fetchmany(1)
+            if premiere:
+                lignes = itertools.chain(premiere, curseur)
+                # _minx/_maxx ne servent de repli que si la géométrie est en LAEA :
+                # dans les autres projections, seul l'identifiant fait foi.
+                if mesure != 3035:
+                    lignes = ({k: v for k, v in dict(r).items()
+                               if not k.startswith("_")} for r in lignes)
+            else:
+                print("  ⚠ Le filtrage spatial ne renvoie rien : bascule en lecture "
+                      "complète (la projection déduite était probablement fausse).")
+
+    if lignes is None:
+        print("Projection non reconnue : lecture complète, positionnement par "
+              "l'identifiant de carreau (comptez une à deux minutes).")
         lignes = cur.execute(f'SELECT * FROM "{table}"')
 
     for r in lignes:

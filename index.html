@@ -13,146 +13,378 @@
       <button id="fiche-fermer" aria-label="Fermer la fiche">✕</button>
       <div id="fiche-contenu"></div>
     </aside>
+
     <aside id="sidebar">
-      <header>
-        <h1>🧺 Laverie Mapper</h1>
-        <p class="subtitle">Ville pilote : <strong>Pessac (33600)</strong></p>
+      <header class="app-tete">
+        <div class="marque">
+          <span class="logo">🧺</span>
+          <span class="marque-txt">
+            <b>Laverie Mapper</b>
+            <span>Ville pilote : Pessac (33600)</span>
+          </span>
+        </div>
+        <button id="chip-fiabilite" class="chip" title="Fiabilité du modèle — ouvrir l'onglet Modèle">–</button>
       </header>
 
-      <section id="stats" class="panel">
-        <h2>Marché local</h2>
-        <div class="stat-grid">
-          <div class="stat"><span class="stat-value" id="stat-count">–</span><span class="stat-label">laveries</span></div>
-          <div class="stat"><span class="stat-value" id="stat-open">–</span><span class="stat-label">grand public</span></div>
-          <div class="stat"><span class="stat-value" id="stat-pop">–</span><span class="stat-label">habitants</span></div>
-          <div class="stat"><span class="stat-value" id="stat-ratio">–</span><span class="stat-label">hab. / laverie</span></div>
-        </div>
-        <p class="hint" id="stat-verdict"></p>
-      </section>
+      <nav class="onglets" role="tablist">
+        <button class="onglet actif" data-onglet="carte" role="tab">Carte</button>
+        <button class="onglet" data-onglet="analyse" role="tab">Analyse</button>
+        <button class="onglet" data-onglet="laveries" role="tab">Laveries</button>
+        <button class="onglet" data-onglet="modele" role="tab">Modèle</button>
+      </nav>
 
-      <section class="panel">
-        <h2>Les laveries recensées <span id="liste-count" class="badge"></span></h2>
-        <p class="hint">Cliquez sur une ligne pour la localiser sur la carte et vérifier son emplacement.</p>
-        <ul id="liste-laveries" class="liste"></ul>
-        <div class="completude">
-          <span>Complétude des fiches</span>
-          <div class="bar"><div id="completude-bar"></div></div>
-          <span id="completude-txt"></span>
-        </div>
-      </section>
+      <div class="onglets-corps">
 
-      <section class="panel">
-        <h2>Filtres</h2>
-        <label class="check"><input type="checkbox" id="f-chaine" checked> <span class="dot dot-chaine"></span> Chaînes / réseaux</label>
-        <label class="check"><input type="checkbox" id="f-independant" checked> <span class="dot dot-independant"></span> Indépendants</label>
-        <label class="check"><input type="checkbox" id="f-captif" checked> <span class="dot dot-captif"></span> Captives (CROUS / résidences)</label>
-        <label class="check"><input type="checkbox" id="f-voisines"> <span class="dot" style="background:#94a3b8"></span> Communes voisines (concurrentes)</label>
-      </section>
+        <!-- ══════════════ CARTE ══════════════ -->
+        <div class="vue-onglet" id="tab-carte">
 
-      <section class="panel">
-        <h2>Couches d'analyse</h2>
-        <label class="check"><input type="checkbox" id="l-couverture" checked> Zones de chalandise (couverture)</label>
-        <div class="slider-row">
-          <label for="rayon">Rayon piéton : <strong><span id="rayon-val">800</span> m</strong></label>
-          <input type="range" id="rayon" min="300" max="1000" step="50" value="800">
-        </div>
-        <label class="check"><input type="checkbox" id="l-heat-potentiel" checked> <strong>🔥 Heatmap du potentiel</strong></label>
-        <div class="legend" id="legende-potentiel">
-          <span class="lg"><i style="background:#1c5cab"></i> Très en dessous</span>
-          <span class="lg"><i style="background:#5598e7"></i> En dessous</span>
-          <span class="lg"><i style="background:#6e6e69"></i> Au niveau</span>
-          <span class="lg"><i style="background:#e66767"></i> Au-dessus</span>
-          <span class="lg"><i style="background:#d03b3b"></i> Nettement au-dessus</span>
-          <span style="flex-basis:100%;margin-top:4px">Chaque maille de 140 m est évaluée par le modèle. Référence : le CA d'une laverie moyenne de Pessac. Rouge = une nouvelle laverie y ferait mieux.</span>
-        </div>
-        <label class="check"><input type="checkbox" id="l-heat-demande"> <strong>🏢 Heatmap de la demande captive</strong></label>
-        <div class="legend" id="legende-demande">
-          <span class="lg"><span class="dot" style="background:#eda100;width:10px;height:10px"></span> Résidence étudiante</span>
-          <span class="lg"><span class="dot" style="background:#e87ba4;width:10px;height:10px"></span> Logement social</span>
-          <span class="lg"><span class="dot" style="background:#1baf7a;width:10px;height:10px"></span> Hébergement touristique</span>
-          <span style="flex-basis:100%;margin-top:2px">Densité de ménages sans lave-linge, agrégée sur 320 m : une grappe d'immeubles forme <strong>une seule zone chaude</strong>, comme la résidence Compostelle. Plus l'orange est soutenu, plus la demande est concentrée.</span>
-          <span style="flex-basis:100%;margin-top:4px;color:#fbbf24">⚠ Le nombre de logements est une valeur par défaut : cliquez un point pour le corriger.</span>
-        </div>
-        <label class="check"><input type="checkbox" id="l-heat-offre"> Carte de chaleur — concentration de l'offre</label>
-        <label class="check"><input type="checkbox" id="l-tension" checked> Potentiel par quartier (demande vs concurrence)</label>
-        <div class="legend" id="legende-tension">
-          <span class="lg"><i style="background:#dc2626"></i> Place pour une laverie</span>
-          <span class="lg"><i style="background:#eab308"></i> Limite</span>
-          <span class="lg"><i style="background:#15803d"></i> Pas de place</span>
-          <span style="flex-basis:100%;margin-top:4px">Rouge = une nouvelle laverie y ferait mieux qu'une laverie moyenne de Pessac. Rayon de référence : 800 m.</span>
-        </div>
-      </section>
+          <details class="guide" open>
+            <summary>Comment lire cette carte</summary>
+            <div class="guide-corps">
+              <p>La carte répond à <b>une seule question</b> : si j'ouvrais une laverie ici,
+              ferait-elle mieux ou moins bien qu'une laverie moyenne de Pessac ?</p>
+              <p><b>Rouge</b> = mieux. <b>Bleu</b> = moins bien. <b>Gris</b> = au même niveau.
+              Les zones sans habitants restent transparentes.</p>
+              <p>Choisissez ci-dessous ce que la carte doit montrer. Une seule vue à la fois :
+              deux surfaces superposées ne se lisent pas.</p>
+            </div>
+          </details>
 
-      <section class="panel">
-        <h2>Fiabilité du modèle</h2>
-        <div id="fiabilite"></div>
-      </section>
+          <section class="bloc">
+            <h2>Que montre la carte ?</h2>
+            <div class="vues">
+              <label class="vue">
+                <input type="radio" name="vue" value="potentiel" checked>
+                <span class="vue-corps">
+                  <b>🔥 Potentiel d'implantation</b>
+                  <span>Où une nouvelle laverie ferait-elle mieux que la moyenne locale ?</span>
+                </span>
+              </label>
+              <label class="vue">
+                <input type="radio" name="vue" value="demande">
+                <span class="vue-corps">
+                  <b>🏢 Demande captive</b>
+                  <span>Résidences étudiantes et logements sociaux : d'où vient la demande.</span>
+                </span>
+              </label>
+              <label class="vue">
+                <input type="radio" name="vue" value="quartiers">
+                <span class="vue-corps">
+                  <b>🎯 Diagnostic par quartier</b>
+                  <span>Le même calcul, résumé en une pastille cliquable par quartier.</span>
+                </span>
+              </label>
+              <label class="vue">
+                <input type="radio" name="vue" value="offre">
+                <span class="vue-corps">
+                  <b>📍 Concentration de l'offre</b>
+                  <span>Où sont les laveries existantes, pondérées par leur force.</span>
+                </span>
+              </label>
+              <label class="vue">
+                <input type="radio" name="vue" value="aucune">
+                <span class="vue-corps">
+                  <b>⬚ Fond de carte seul</b>
+                  <span>Rien que les laveries. Utile pour repérer les rues et les locaux.</span>
+                </span>
+              </label>
+            </div>
+            <div class="legende" id="legende-vue"></div>
+          </section>
 
-      <section class="panel">
-        <h2>🎯 Où implanter ? Classement des zones</h2>
-        <p class="hint">Zones classées par CA potentiel d'une nouvelle laverie. Cliquez pour vous y rendre et lancer la simulation.</p>
-        <ol id="classement" class="classement"></ol>
-      </section>
+          <section class="bloc">
+            <h2>Rayon de chalandise</h2>
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="rayon">Distance qu'un client accepte de parcourir</label>
+                <output><span id="rayon-val">800</span> m</output>
+              </div>
+              <input type="range" id="rayon" min="300" max="1000" step="50" value="800">
+              <div class="reperes"><span>300 m</span><span>800 m · secteur</span><span>1 000 m</span></div>
+              <details class="aide">
+                <summary>À quoi sert ce curseur&nbsp;?</summary>
+                <div class="aide-corps">
+                  <p><b>Ce qu'il change</b></p>
+                  <ul>
+                    <li>la taille des cercles dessinés autour de chaque laverie ;</li>
+                    <li>la <b>heatmap du potentiel</b> : chaque maille de 140 m additionne les
+                        habitants situés dans ce rayon, pondérés par la distance — et les
+                        concurrents dans le même rayon ;</li>
+                    <li>le <b>simulateur</b> : le CA estimé du local que vous testez.</li>
+                  </ul>
+                  <p><b>Ce qu'il ne change pas</b> — le classement des zones et les pastilles de
+                  diagnostic par quartier, volontairement figés à 800 m. Sinon les couleurs
+                  changeraient de sens à chaque mouvement du curseur et deux captures d'écran ne
+                  seraient plus comparables.</p>
+                  <p><b>Pourquoi l'effet est modéré</b> — élargir le rayon ajoute des habitants,
+                  mais aussi des concurrents. Les deux se compensent en grande partie. Un
+                  classement qui s'effondrerait au moindre réglage ne vaudrait rien : sa
+                  stabilité est un bon signe.</p>
+                  <p><b>Comment le régler</b> — 400 m : ce qu'on fait à pied avec un sac de linge.
+                  800 m : la référence du secteur, valeur par défaut. Au-delà de 1 000 m vous
+                  décrivez une clientèle motorisée : réglez plutôt « Portée des laveries avec
+                  parking » dans l'onglet <b>Modèle</b>.</p>
+                </div>
+              </details>
+            </div>
+          </section>
 
-      <section class="panel">
-        <h2>Simulateur d'implantation</h2>
-        <p class="hint">Testez un local précis : collez son lien Google Maps ou ses coordonnées, ou cliquez directement sur la carte.</p>
-        <div class="rangee-adresse">
-          <input type="text" id="adresse-input" placeholder="Lien Google Maps, ou 44.7911, -0.6325">
-          <button id="btn-aller">Aller</button>
+          <section class="bloc">
+            <h2>Repères sur la carte</h2>
+            <label class="check"><input type="checkbox" id="l-couverture" checked>
+              <span>Cercles de chalandise autour des laveries</span></label>
+            <h3 class="sous-titre">Laveries affichées</h3>
+            <label class="check"><input type="checkbox" id="f-chaine" checked>
+              <span class="dot dot-chaine"></span><span>Chaînes / réseaux</span></label>
+            <label class="check"><input type="checkbox" id="f-independant" checked>
+              <span class="dot dot-independant"></span><span>Indépendants</span></label>
+            <label class="check"><input type="checkbox" id="f-captif" checked>
+              <span class="dot dot-captif"></span><span>Captives (CROUS / résidences)</span></label>
+            <label class="check"><input type="checkbox" id="f-voisines">
+              <span class="dot" style="background:#94a3b8"></span><span>Communes voisines</span></label>
+            <p class="note">Décocher une case la retire <b>de la carte seulement</b>. Les
+            laveries voisines restent comptées comme concurrentes dans tous les calculs : la
+            demande déborde de Pessac, la concurrence aussi.</p>
+          </section>
         </div>
-        <p class="hint" id="adresse-erreur"></p>
-        <button id="btn-simu">📍 Activer le clic sur la carte</button>
-        <div id="simu-result" class="hidden"></div>
-        <button id="btn-garder" class="hidden btn-second">➕ Garder cet emplacement</button>
-      </section>
 
-      <section class="panel">
-        <h2>Emplacements candidats <span id="candidats-count" class="badge"></span></h2>
-        <p class="hint" id="candidats-vide">Aucun emplacement gardé. Lancez une simulation puis cliquez « Garder cet emplacement » pour les comparer ici.</p>
-        <div id="candidats-tableau"></div>
-      </section>
+        <!-- ══════════════ ANALYSE ══════════════ -->
+        <div class="vue-onglet hidden" id="tab-analyse">
 
-      <section class="panel">
-        <h2>Hypothèses du modèle</h2>
-        <p class="hint">Le modèle est calé sur le marché local : les euros affichés dépendent du CA moyen constaté à Pessac. Les deux autres curseurs testent la robustesse — s'ils ne changent presque rien au classement, c'est bon signe, cela veut dire qu'une erreur uniforme sur mes estimations de population n'affecte pas le choix de zone.</p>
-        <div class="slider-row">
-          <label>Dépense annuelle d'un ménage sans lave-linge : <strong><span id="h-depense-val">500</span> €</strong></label>
-          <input type="range" id="h-depense" min="250" max="800" step="25" value="500">
-        </div>
-        <div class="slider-row">
-          <label>Niveau de demande : <strong><span id="h-demande-val">100</span> %</strong></label>
-          <input type="range" id="h-demande" min="50" max="150" step="5" value="100">
-        </div>
-        <div class="slider-row">
-          <label>CA moyen constaté d'une laverie à Pessac : <strong><span id="h-caref-val">50 000</span> €</strong></label>
-          <input type="range" id="h-caref" min="25000" max="90000" step="2500" value="50000">
-        </div>
-        <div class="slider-row">
-          <label>Loyer mensuel du local : <strong><span id="h-loyer-val">1 050</span> €</strong></label>
-          <input type="range" id="h-loyer" min="300" max="2500" step="50" value="1050">
-        </div>
-        <div class="slider-row">
-          <label>Portée des laveries avec parking : <strong>×<span id="h-portee-val">2.0</span></strong>
-            <span style="display:block;font-size:0.72rem">Le dossier situe le rayon voiture à 5-10 min (2 à 4 km) contre 800 m à pied. Toute la clientèle ne vient pas en voiture, d'où ce facteur mixte. Mettez ×1.0 pour annuler l'effet.</span></label>
-          <input type="range" id="h-portee" min="1" max="3" step="0.1" value="2">
-        </div>
-        <label class="check-inline"><input type="checkbox" id="h-energie"> Scénario stressé : énergie et eau +30 %</label>
-        <button id="btn-reset-hyp" class="btn-second hidden">↺ Rétablir les valeurs du secteur</button>
-      </section>
+          <section class="bloc">
+            <h2><span class="etape">1</span> Les zones les plus prometteuses</h2>
+            <p class="note">Classées par CA potentiel d'une nouvelle laverie, rayon de référence
+            800 m. Cliquez une zone : la carte s'y rend et lance la simulation.</p>
+            <ol id="classement" class="classement"></ol>
+          </section>
 
-      <section class="panel">
-        <h2>Benchmarks secteur</h2>
-        <div id="benchmarks" class="bench"></div>
-      </section>
+          <section class="bloc">
+            <h2><span class="etape">2</span> Tester un local précis</h2>
+            <p class="note">Collez le lien Google Maps du local, ses coordonnées, ou cliquez
+            directement sur la carte.</p>
+            <div class="rangee-adresse">
+              <input type="text" id="adresse-input" placeholder="Lien Google Maps, ou 44.7911, -0.6325">
+              <button id="btn-aller">Aller</button>
+            </div>
+            <p class="note erreur" id="adresse-erreur"></p>
+            <button id="btn-simu" class="btn-bloc">📍 Activer le clic sur la carte</button>
+            <div id="simu-result" class="hidden"></div>
+            <button id="btn-garder" class="hidden btn-bloc btn-second">➕ Garder cet emplacement</button>
+          </section>
 
-      <footer>
-        <p>Données : OSM / annuaires web, coordonnées estimées.<br>
-        Population par quartier : estimations à remplacer par l'INSEE carroyé.<br>
-        <strong>Outil d'aide à la décision — pas une étude de marché certifiée.</strong></p>
-      </footer>
+          <section class="bloc">
+            <h2><span class="etape">3</span> Comparer vos candidats <span id="candidats-count" class="badge"></span></h2>
+            <p class="note" id="candidats-vide">Aucun emplacement gardé pour l'instant. Lancez une
+            simulation, puis « Garder cet emplacement » pour les comparer ici.</p>
+            <div id="candidats-tableau"></div>
+          </section>
+        </div>
+
+        <!-- ══════════════ LAVERIES ══════════════ -->
+        <div class="vue-onglet hidden" id="tab-laveries">
+
+          <section class="bloc">
+            <h2>Le marché de Pessac</h2>
+            <div class="stat-grid">
+              <div class="stat"><span class="stat-value" id="stat-count">–</span><span class="stat-label">laveries</span></div>
+              <div class="stat"><span class="stat-value" id="stat-open">–</span><span class="stat-label">grand public</span></div>
+              <div class="stat"><span class="stat-value" id="stat-pop">–</span><span class="stat-label">habitants</span></div>
+              <div class="stat"><span class="stat-value" id="stat-ratio">–</span><span class="stat-label">hab. / laverie</span></div>
+            </div>
+            <p class="note" id="stat-verdict"></p>
+          </section>
+
+          <section class="bloc">
+            <h2>Inventaire <span id="liste-count" class="badge"></span></h2>
+            <p class="note">Cliquez une ligne pour la localiser et ouvrir sa fiche complète. Un
+            cerclage orange sur la carte signale une laverie mal notée : c'est une cible.</p>
+            <ul id="liste-laveries" class="liste"></ul>
+            <div class="completude">
+              <span>Fiches complètes</span>
+              <div class="bar"><div id="completude-bar"></div></div>
+              <span id="completude-txt"></span>
+            </div>
+            <p class="note">Ce qui manque se relève sur le terrain : surface, nombre de machines,
+            prix du cycle, horaires. Ouvrez une fiche puis « Compléter ».</p>
+          </section>
+        </div>
+
+        <!-- ══════════════ MODÈLE ══════════════ -->
+        <div class="vue-onglet hidden" id="tab-modele">
+
+          <section class="bloc">
+            <h2>Le modèle tient-il debout&nbsp;?</h2>
+            <div id="fiabilite"></div>
+          </section>
+
+          <section class="bloc">
+            <h2>Réglages du modèle</h2>
+            <p class="note">Ces curseurs servent à <b>tester la robustesse</b> du classement.
+            Bougez-les : si les zones gardent le même ordre, c'est que le résultat ne dépend pas
+            de mes hypothèses. Chaque mouvement affiche son effet réel en bas de la carte.</p>
+            <p class="note">Résultat du balayage complet sur Pessac : <b>la zone n°1 ne change
+            avec aucun de ces curseurs</b>, sur toute leur plage. Au pire, 6 quartiers sur 15
+            permutent — tous en milieu de tableau. Autrement dit, la tête du classement se
+            défend ; les rangs 5 à 10 se départagent sur le terrain, pas sur la carte.</p>
+
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="h-depense">Dépense annuelle d'un ménage sans lave-linge</label>
+                <output><span id="h-depense-val">500</span> €</output>
+              </div>
+              <input type="range" id="h-depense" min="250" max="800" step="25" value="500">
+              <div class="reperes"><span>250 €</span><span>500 € · secteur</span><span>800 €</span></div>
+              <details class="aide">
+                <summary>Effet attendu&nbsp;: quasi nul sur les euros</summary>
+                <div class="aide-corps">
+                  <p>Le modèle est <b>recalé sur le CA moyen constaté à Pessac</b>. Doubler cette
+                  dépense double aussi le total à répartir : l'effet s'annule presque entièrement.</p>
+                  <p>Ce qui bouge réellement, c'est le <b>poids de la clientèle régulière face à la
+                  clientèle ponctuelle</b>. Monter ce curseur avantage les zones de petits
+                  logements ; le baisser avantage les zones de familles qui viennent laver couettes
+                  et gros volumes.</p>
+                  <p>Autrement dit : il ne change pas le niveau, il change l'arbitrage entre deux
+                  profils de quartier.</p>
+                  <p><b>Mesuré sur Pessac</b> — de 250 € à 800 €, la zone n°1 ne change pas ; deux
+                  quartiers de milieu de tableau permutent. C'est le genre de résultat qu'on veut :
+                  la tête du classement ne dépend pas de cette hypothèse.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="h-demande">Niveau général de la demande</label>
+                <output><span id="h-demande-val">100</span> %</output>
+              </div>
+              <input type="range" id="h-demande" min="50" max="150" step="5" value="100">
+              <div class="reperes"><span>50 %</span><span>100 % · secteur</span><span>150 %</span></div>
+              <details class="aide">
+                <summary>Effet attendu&nbsp;: test de robustesse</summary>
+                <div class="aide-corps">
+                  <p>Suppose que la part de ménages sans lave-linge est plus forte ou plus faible
+                  que ce que dit le secteur. Comme le curseur précédent, l'essentiel est absorbé par
+                  le recalage sur le marché local.</p>
+                  <p>C'est justement l'intérêt : si le classement résiste à ±50 % d'erreur sur la
+                  demande, vous pouvez le défendre devant un banquier sans avoir à prouver le
+                  chiffre exact.</p>
+                  <p><b>Mesuré sur Pessac</b> — entre 50 % et 150 %, la zone n°1 reste la même et
+                  au plus 4 quartiers sur 15 permutent, tous en milieu de tableau. La tête du
+                  classement est robuste ; les rangs 5 à 10 sont à départager sur le terrain, pas
+                  sur la carte.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="h-caref">CA moyen d'une laverie à Pessac</label>
+                <output><span id="h-caref-val">50 000</span> €</output>
+              </div>
+              <input type="range" id="h-caref" min="25000" max="90000" step="2500" value="50000">
+              <div class="reperes"><span>25 k€</span><span>50 k€ · secteur</span><span>90 k€</span></div>
+              <details class="aide">
+                <summary>Le curseur le plus important</summary>
+                <div class="aide-corps">
+                  <p>C'est l'<b>ancre du modèle</b> : tous les euros affichés en découlent. Le modèle
+                  force les laveries existantes de Pessac à totaliser ce chiffre, puis en déduit ce
+                  que vaudrait une nouvelle implantation.</p>
+                  <p><b>Ce qu'il change</b> — tous les montants en euros, proportionnellement :
+                  simulateur, compte d'exploitation, point mort, retour sur investissement.</p>
+                  <p><b>Ce qu'il ne change pas</b> — l'ordre des zones, à aucune valeur testée entre
+                  25 k€ et 90 k€ : la heatmap compare toujours à <i>une laverie moyenne de
+                  Pessac</i>, quel que soit son niveau.</p>
+                  <p><b>La seule exception</b> — au-delà d'environ 65 000 €, les meilleures zones
+                  butent sur le <b>plafond de capacité</b> : ce qu'un local peut physiquement
+                  encaisser avec ses machines. Leur indice se tasse alors et les couleurs de la
+                  heatmap s'aplatissent en haut de l'échelle. Ce n'est pas un défaut — c'est le
+                  modèle qui refuse d'annoncer un CA que les machines ne produiraient pas.</p>
+                  <p><b>Quand le bouger</b> — le jour où vous obtenez un vrai chiffre : bilan d'un
+                  cédant, discussion avec un exploitant, relevé de compteur. C'est le réglage qui
+                  transforme un indice relatif en euros défendables.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="h-portee">Portée des laveries avec parking</label>
+                <output>×<span id="h-portee-val">2.0</span></output>
+              </div>
+              <input type="range" id="h-portee" min="1" max="3" step="0.1" value="2">
+              <div class="reperes"><span>×1 · aucun effet</span><span>×2 · défaut</span><span>×3</span></div>
+              <details class="aide">
+                <summary>Piéton ou voiture&nbsp;: deux métiers différents</summary>
+                <div class="aide-corps">
+                  <p>Une laverie de rue capte à 800 m à pied. Une laverie de centre commercial avec
+                  parking capte une clientèle motorisée, que le dossier situe à 5-10 minutes de
+                  voiture, soit 2 à 4 km. Leur appliquer le même rayon revient à sous-estimer
+                  massivement les secondes.</p>
+                  <p><b>Ce qu'il change</b> — la pression concurrentielle des laveries équipées d'un
+                  parking, donc la heatmap, le classement et le simulateur.</p>
+                  <p>Toute la clientèle ne vient pas en voiture : ×2 est un compromis issu des rayons
+                  du dossier, <b>pas une valeur calée pour faire joli</b>. Mettez ×1.0 pour annuler
+                  le mécanisme et voir ce qu'il apportait.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="h-loyer">Loyer mensuel du local</label>
+                <output><span id="h-loyer-val">1 050</span> €</output>
+              </div>
+              <input type="range" id="h-loyer" min="300" max="2500" step="50" value="1050">
+              <div class="reperes"><span>300 € · rural</span><span>1 050 € · défaut</span><span>2 500 € · centre</span></div>
+              <details class="aide">
+                <summary>N'affecte que le compte d'exploitation</summary>
+                <div class="aide-corps">
+                  <p>Le loyer ne change ni le chiffre d'affaires, ni la carte, ni le classement. Il
+                  change le <b>résultat net</b>, le <b>point mort</b> et le <b>retour sur
+                  investissement</b> affichés dans le simulateur.</p>
+                  <p>C'est le poste qui varie le plus d'un local à l'autre : renseignez le loyer réel
+                  demandé dès que vous en avez un, avant de conclure qu'un emplacement est
+                  finançable.</p>
+                </div>
+              </details>
+            </div>
+
+            <label class="check"><input type="checkbox" id="h-energie">
+              <span>Scénario stressé : énergie et eau +30 %</span></label>
+            <p class="note">Point de vigilance du dossier de marché. N'affecte que les charges du
+            compte d'exploitation, pas le chiffre d'affaires.</p>
+
+            <button id="btn-reset-hyp" class="btn-bloc btn-second hidden">↺ Rétablir les valeurs du secteur</button>
+          </section>
+
+          <section class="bloc">
+            <h2>Repères du secteur</h2>
+            <div id="benchmarks" class="bench"></div>
+          </section>
+
+          <section class="bloc">
+            <h2>D'où viennent les données</h2>
+            <p class="note">
+              <b>Laveries</b> — API Google Places (notes, avis, horaires, position exacte),
+              complétée par OpenStreetMap et les annuaires.<br>
+              <b>Population</b> — carroyage INSEE Filosofi 200 m si le fichier a été importé,
+              sinon estimations par quartier.<br>
+              <b>Générateurs de demande</b> — résidences étudiantes et logements sociaux repérés
+              via Google Places ; le nombre de logements est une valeur par défaut, à corriger en
+              cliquant chaque point.<br>
+              <b>Repères économiques</b> — dossier de marché fourni, sources citées valeur par
+              valeur dans <code>data/benchmarks.json</code>.
+            </p>
+            <p class="note avert"><b>Outil d'aide à la décision, pas une étude de marché
+            certifiée.</b> Deux comptages de machines occupées sur place valent mieux que
+            n'importe quel réglage de curseur.</p>
+          </section>
+        </div>
+      </div>
     </aside>
+
     <div id="map"></div>
+    <div id="toast-impact" class="hidden"></div>
     <div id="barre-export" class="hidden">
       <span id="modifs-info"></span>
       <button id="btn-export">💾 Exporter laveries.json</button>

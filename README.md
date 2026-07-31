@@ -22,6 +22,29 @@ Après toute modification de `data/*.json`, régénérer le fichier autonome :
 python3 scripts/build_standalone.py
 ```
 
+## L'interface en quatre onglets
+
+| Onglet | Ce qu'on y fait |
+|---|---|
+| **Carte** | Choisir *une* vue d'analyse (potentiel, demande captive, diagnostic par quartier, concentration de l'offre, ou aucune), régler le rayon de chalandise, filtrer ce qui s'affiche. |
+| **Analyse** | Le parcours en trois étapes : classement des zones → test d'un local précis → comparaison des candidats. |
+| **Laveries** | Les statistiques du marché et l'inventaire complet, indépendant des filtres de la carte. |
+| **Modèle** | Le contrôle de fiabilité, les cinq réglages du modèle et les repères du secteur. |
+
+Deux principes de conception valent d'être connus :
+
+- **Une seule surface d'analyse à la fois.** Superposer une heatmap divergente,
+  une heatmap séquentielle et des pastilles colorées produit une carte que
+  personne ne sait lire. Le choix est donc exclusif, et seule la légende de la
+  vue active est affichée.
+- **Chaque réglage annonce son effet réel.** Bouger un curseur affiche en bas de
+  la carte ce qui a changé : rang de la zone n°1, nombre de zones déplacées,
+  variation du CA modélisé — y compris quand la réponse est « rien ». Un modèle
+  qui ne montre pas ses propres réactions demande un acte de foi.
+
+Chaque curseur porte une aide dépliable « ce que ça change / ce que ça ne change
+pas », renseignée à partir de balayages mesurés sur Pessac, pas d'intentions.
+
 ## Ce que fait la Phase 1 (version actuelle)
 
 - **Inventaire cartographié** : 9 points de lavage recensés à Pessac
@@ -45,10 +68,13 @@ python3 scripts/build_standalone.py
 - **Emplacements candidats** : garder plusieurs locaux étudiés, les comparer
   dans un tableau trié par CA potentiel, les retrouver sur la carte. Ils sont
   conservés dans le fichier exporté.
-- **Hypothèses ajustables** : trois curseurs (dépense annuelle d'un ménage sans
-  lave-linge, niveau de demande, CA de référence) recalculent tout en direct.
-  C'est le meilleur moyen de vérifier qu'un classement tient malgré
-  l'incertitude sur les données de population.
+- **Hypothèses ajustables** : cinq curseurs (dépense annuelle d'un ménage sans
+  lave-linge, niveau de demande, CA de référence, portée des laveries avec
+  parking, loyer) recalculent tout en direct. C'est le meilleur moyen de
+  vérifier qu'un classement tient malgré l'incertitude sur les données de
+  population. Résultat du balayage complet sur Pessac : **la zone n°1 ne change
+  avec aucun d'eux**, et au pire 6 quartiers sur 15 permutent en milieu de
+  tableau.
 - **Tendance des avis** : la note moyenne masque l'évolution. Une laverie à 4,3
   dont tous les avis récents sont à 1★ se dégrade — donc une opportunité que la
   note seule ne montre pas.

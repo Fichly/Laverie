@@ -672,123 +672,416 @@ svg.leaflet-image-layer.leaflet-interactive path {
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg: #0f172a;
-  --panel: #1e293b;
-  --panel-2: #273449;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
+  --bg: #0b111f;
+  --surface: #151d2e;
+  --surface-2: #1d2739;
+  --surface-3: #27334a;
+  --line: #2a3448;
+  --text: #e5ecf7;
+  --muted: #93a1b8;
+  --faint: #6b7a92;
   --accent: #38bdf8;
+  --accent-fonce: #06263a;
+  --accent-doux: rgba(56, 189, 248, 0.13);
+  --vert: #16a34a;
+  --jaune: #eab308;
+  --rouge: #dc2626;
+  --orange: #f97316;
   --chaine: #2563eb;
   --independant: #16a34a;
   --captif: #6b7280;
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 13px;
 }
 
-body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
 
 #app { display: flex; height: 100vh; }
-
-#sidebar {
-  width: 360px;
-  min-width: 360px;
-  overflow-y: auto;
-  background: var(--bg);
-  padding: 16px;
-  border-right: 1px solid #334155;
-}
-
 #map { flex: 1; }
 
-header h1 { font-size: 1.3rem; }
-.subtitle { color: var(--muted); font-size: 0.85rem; margin: 4px 0 12px; }
+/* ══════════════ COLONNE LATÉRALE ══════════════ */
 
-.panel {
-  background: var(--panel);
-  border-radius: 10px;
-  padding: 12px 14px;
+#sidebar {
+  width: 388px;
+  min-width: 388px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.app-tete {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.marque { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.marque .logo { font-size: 1.25rem; }
+.marque-txt { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.marque-txt b { font-size: 0.95rem; letter-spacing: -0.01em; }
+.marque-txt span {
+  font-size: 0.72rem; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.chip {
+  flex-shrink: 0; width: auto;
+  background: var(--surface-2); color: var(--muted);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 5px 11px; font-size: 0.72rem; font-weight: 600; white-space: nowrap;
+}
+.chip:hover { border-color: var(--faint); }
+.chip.bon { background: rgba(22, 163, 74, 0.15); color: #86efac; border-color: #14532d; }
+.chip.faible { background: rgba(234, 179, 8, 0.15); color: #fde047; border-color: #713f12; }
+.chip.nul { background: rgba(220, 38, 38, 0.15); color: #fca5a5; border-color: #7f1d1d; }
+
+/* ---- Onglets ---- */
+.onglets {
+  display: flex; gap: 2px;
+  padding: 8px 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.onglet {
+  flex: 1; width: auto;
+  background: none; color: var(--muted);
+  border: none; border-bottom: 2px solid transparent; border-radius: 0;
+  padding: 9px 4px 8px; font-size: 0.8rem; font-weight: 600;
+  transition: color 0.12s, border-color 0.12s;
+}
+.onglet:hover { color: var(--text); background: none; filter: none; }
+.onglet.actif { color: var(--accent); border-bottom-color: var(--accent); }
+
+.onglets-corps { flex: 1; overflow-y: auto; padding: 14px 16px 60px; }
+.vue-onglet.hidden { display: none; }
+
+/* ---- Blocs ---- */
+.bloc {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 13px 15px 15px;
   margin-bottom: 12px;
 }
-.panel h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 10px; }
+.bloc h2 {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--muted); font-weight: 700; margin-bottom: 11px;
+}
+.sous-titre {
+  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--faint); font-weight: 700; margin: 13px 0 6px;
+}
+.etape {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 19px; height: 19px; border-radius: 50%;
+  background: var(--accent-doux); color: var(--accent);
+  font-size: 0.7rem; font-weight: 800;
+}
 
-.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.stat { background: var(--panel-2); border-radius: 8px; padding: 8px; text-align: center; }
-.stat-value { display: block; font-size: 1.4rem; font-weight: 700; }
-.stat-label { font-size: 0.7rem; color: var(--muted); }
+.note { font-size: 0.78rem; color: var(--muted); line-height: 1.5; margin: 8px 0 0; }
+.note:first-child { margin-top: 0; }
+.note code { background: var(--surface-2); padding: 1px 4px; border-radius: 3px; font-size: 0.72rem; }
+.note.erreur { color: #fca5a5; }
+.note.erreur:empty { display: none; }
+.note.avert { color: #fbbf24; }
+.hidden { display: none; }
 
-.hint { font-size: 0.78rem; color: var(--muted); margin: 8px 0; line-height: 1.4; }
+/* ---- Guide de lecture ---- */
+.guide {
+  background: linear-gradient(180deg, var(--accent-doux), transparent);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: var(--r-lg);
+  padding: 11px 14px; margin-bottom: 12px;
+}
+.guide summary {
+  cursor: pointer; font-size: 0.78rem; font-weight: 700; color: var(--accent);
+  list-style: none;
+}
+.guide summary::-webkit-details-marker { display: none; }
+.guide summary::before { content: '▸ '; }
+.guide[open] summary::before { content: '▾ '; }
+.guide-corps { margin-top: 8px; font-size: 0.78rem; line-height: 1.55; color: var(--muted); }
+.guide-corps p + p { margin-top: 6px; }
+.guide-corps b { color: var(--text); }
 
-.check { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; padding: 4px 0; cursor: pointer; }
-.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+/* ---- Sélecteur de vue ---- */
+.vues { display: flex; flex-direction: column; gap: 5px; }
+.vue { display: block; position: relative; cursor: pointer; }
+/* Le bouton radio reste dans le flux (1 px, masqué visuellement) plutôt que
+   supprimé : il garde le focus clavier et reste annoncé par un lecteur d'écran. */
+.vue input {
+  position: absolute; width: 1px; height: 1px;
+  margin: 0; opacity: 0; pointer-events: none;
+}
+.vue-corps {
+  display: block;
+  background: var(--surface-2);
+  border: 1px solid transparent; border-left: 3px solid var(--surface-3);
+  border-radius: var(--r-md);
+  padding: 8px 11px;
+  transition: background 0.12s, border-color 0.12s;
+}
+.vue-corps b { display: block; font-size: 0.83rem; font-weight: 600; line-height: 1.3; }
+.vue-corps > span { display: block; font-size: 0.72rem; color: var(--faint); line-height: 1.4; margin-top: 2px; }
+.vue:hover .vue-corps { background: var(--surface-3); }
+.vue input:checked ~ .vue-corps {
+  background: var(--accent-doux);
+  border-color: rgba(56, 189, 248, 0.35); border-left-color: var(--accent);
+}
+.vue input:checked ~ .vue-corps b { color: var(--accent); }
+.vue input:checked ~ .vue-corps > span { color: var(--muted); }
+.vue input:focus-visible ~ .vue-corps { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---- Légende ---- */
+.legende {
+  display: flex; flex-wrap: wrap; gap: 5px 12px;
+  margin-top: 11px; padding-top: 11px; border-top: 1px solid var(--line);
+  font-size: 0.72rem; color: var(--muted); line-height: 1.45;
+}
+.legende:empty { display: none; }
+.legende .lg { display: inline-flex; align-items: center; gap: 4px; }
+.legende i { width: 11px; height: 11px; display: inline-block; border-radius: 3px; flex-shrink: 0; }
+.legende .texte { flex-basis: 100%; margin-top: 3px; }
+.legende b { color: var(--text); }
+
+/* ---- Champs de réglage ---- */
+.champ { padding: 10px 0; border-top: 1px solid var(--line); }
+.champ:first-of-type { border-top: none; padding-top: 0; margin-top: 4px; }
+.champ-tete { display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px; }
+.champ-tete label { flex: 1; font-size: 0.79rem; color: var(--text); line-height: 1.35; cursor: pointer; }
+.champ-tete output {
+  font-size: 0.85rem; font-weight: 700; color: var(--accent);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.reperes {
+  display: flex; justify-content: space-between;
+  font-size: 0.66rem; color: var(--faint); margin-top: -2px;
+}
+.reperes span:nth-child(2) { text-align: center; }
+.reperes span:last-child { text-align: right; }
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 20px; background: transparent; cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 4px; background: var(--surface-3); border-radius: 2px;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 15px; height: 15px; margin-top: -5.5px;
+  border-radius: 50%; background: var(--accent); border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+input[type=range]::-moz-range-track { height: 4px; background: var(--surface-3); border-radius: 2px; }
+input[type=range]::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--accent);
+}
+input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-doux); }
+input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px var(--accent-doux); }
+
+/* ---- Aide contextuelle ---- */
+.aide { margin-top: 8px; }
+.aide summary {
+  display: inline-block; cursor: pointer; list-style: none;
+  font-size: 0.72rem; font-weight: 600; color: var(--accent);
+  background: var(--accent-doux); border-radius: 999px; padding: 3px 10px;
+}
+.aide summary::-webkit-details-marker { display: none; }
+.aide summary::before { content: 'ⓘ '; }
+.aide summary:hover { background: rgba(56, 189, 248, 0.2); }
+.aide-corps {
+  margin-top: 7px; padding: 10px 12px;
+  background: var(--surface-2); border-left: 2px solid var(--accent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-size: 0.755rem; line-height: 1.55; color: var(--muted);
+}
+.aide-corps p + p, .aide-corps ul + p { margin-top: 7px; }
+.aide-corps b { color: var(--text); }
+.aide-corps ul { margin: 4px 0 0 15px; }
+.aide-corps li { margin-bottom: 3px; }
+
+/* ---- Cases à cocher ---- */
+.check {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.81rem; padding: 5px 0; cursor: pointer; line-height: 1.3;
+}
+.check input { accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+.check:hover { color: #fff; }
+.dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
 .dot-chaine { background: var(--chaine); }
 .dot-independant { background: var(--independant); }
 .dot-captif { background: var(--captif); }
 
-.slider-row { padding: 6px 0 10px 24px; font-size: 0.8rem; color: var(--muted); }
-.slider-row input[type=range] { width: 100%; margin-top: 4px; }
-
-.legend { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 6px 0 0 24px; font-size: 0.72rem; color: var(--muted); line-height: 1.4; }
-.legend i { width: 10px; height: 10px; display: inline-block; border-radius: 2px; margin-right: 3px; }
-
-button {
-  width: 100%;
-  background: var(--accent);
-  color: #082f49;
-  font-weight: 700;
-  border: none;
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 0.9rem;
-  cursor: pointer;
+/* ---- Statistiques ---- */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.stat {
+  background: var(--surface-2); border-radius: var(--r-md);
+  padding: 9px 8px; text-align: center;
 }
-button:hover { filter: brightness(1.1); }
-button.active { background: #f97316; color: #431407; }
+.stat-value { display: block; font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat-label { font-size: 0.68rem; color: var(--faint); }
 
-#simu-result { margin-top: 10px; background: var(--panel-2); border-radius: 8px; padding: 10px; font-size: 0.82rem; line-height: 1.5; }
-#simu-result h3 { font-size: 0.9rem; margin-bottom: 6px; }
-#simu-result .ca { font-size: 1.15rem; font-weight: 700; color: var(--accent); }
-#simu-result .verdict { margin-top: 6px; padding: 6px 8px; border-radius: 6px; font-weight: 600; }
-.verdict.bon { background: #14532d; color: #86efac; }
-.verdict.moyen { background: #713f12; color: #fde047; }
-.verdict.faible { background: #7f1d1d; color: #fca5a5; }
-.hidden { display: none; }
+/* ---- Boutons ---- */
+button {
+  font: inherit; cursor: pointer; border: none;
+  border-radius: var(--r-md);
+  background: var(--accent); color: var(--accent-fonce);
+  font-weight: 700; font-size: 0.83rem; padding: 9px 13px;
+}
+button:hover { filter: brightness(1.08); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-bloc { width: 100%; margin-top: 9px; }
+.btn-second { background: var(--surface-3); color: var(--text); }
+button.active { background: var(--orange); color: #431407; }
 
-.bench { font-size: 0.78rem; line-height: 1.6; color: var(--muted); }
-.bench b { color: var(--text); }
+.badge {
+  background: var(--surface-3); color: var(--muted);
+  border-radius: 999px; padding: 2px 8px; font-size: 0.68rem;
+  font-weight: 600; margin-left: auto;
+}
 
-.badge { background: var(--panel-2); color: var(--muted); border-radius: 10px; padding: 1px 7px; font-size: 0.7rem; margin-left: 4px; }
-
+/* ---- Liste des laveries ---- */
 .liste { list-style: none; margin: 4px 0 10px; }
 .liste li {
   display: flex; align-items: center; gap: 8px;
-  padding: 7px 8px; border-radius: 6px; cursor: pointer;
-  font-size: 0.82rem; line-height: 1.3;
+  padding: 7px 8px; border-radius: var(--r-sm); cursor: pointer;
+  font-size: 0.81rem; line-height: 1.3;
   border-left: 3px solid transparent;
 }
-.liste li:hover { background: var(--panel-2); }
-.liste li.actif { background: var(--panel-2); border-left-color: var(--accent); }
+.liste li:hover { background: var(--surface-2); }
+.liste li.actif { background: var(--surface-2); border-left-color: var(--accent); }
+.liste li.masquee { opacity: 0.45; }
 .liste .nom { flex: 1; }
-.liste .meta { display: block; font-size: 0.7rem; color: var(--muted); }
-.liste .note { font-size: 0.72rem; font-weight: 700; padding: 2px 5px; border-radius: 4px; white-space: nowrap; }
-.note-bonne { background: #14532d; color: #86efac; }
-.note-moyenne { background: #713f12; color: #fde047; }
-.note-mauvaise { background: #7f1d1d; color: #fca5a5; }
-.note-inconnue { background: #334155; color: #94a3b8; }
+.liste .meta { display: block; font-size: 0.69rem; color: var(--faint); }
+.liste .note-pastille {
+  font-size: 0.71rem; font-weight: 700; padding: 3px 6px;
+  border-radius: var(--r-sm); white-space: nowrap; text-align: center;
+}
+.note-bonne { background: rgba(22, 163, 74, 0.2); color: #86efac; }
+.note-moyenne { background: rgba(234, 179, 8, 0.18); color: #fde047; }
+.note-mauvaise { background: rgba(220, 38, 38, 0.18); color: #fca5a5; }
+.note-inconnue { background: var(--surface-3); color: var(--faint); }
 
-/* ---- Fiche détaillée façon Google Maps ---- */
+.completude { display: flex; align-items: center; gap: 8px; font-size: 0.71rem; color: var(--muted); }
+.completude .bar { flex: 1; height: 5px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.completude .bar div { height: 100%; background: var(--accent); }
+
+/* ---- Classement des zones ---- */
+.classement { list-style: none; counter-reset: rang; }
+.classement li {
+  counter-increment: rang;
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; margin-bottom: 4px; border-radius: var(--r-md);
+  background: var(--surface-2); cursor: pointer; font-size: 0.82rem;
+  border-left: 3px solid transparent;
+}
+.classement li:hover { background: var(--surface-3); }
+.classement li::before {
+  content: counter(rang);
+  font-weight: 800; color: var(--faint); min-width: 13px; font-size: 0.75rem;
+}
+.classement .z-nom { flex: 1; line-height: 1.3; }
+.classement .z-ca { display: block; font-size: 0.7rem; color: var(--faint); }
+.classement .z-ind {
+  font-weight: 700; font-size: 0.72rem; padding: 3px 7px;
+  border-radius: var(--r-sm); white-space: nowrap;
+}
+
+/* ---- Simulateur ---- */
+.rangee-adresse { display: flex; gap: 6px; }
+.rangee-adresse input {
+  flex: 1; min-width: 0; background: var(--surface-2);
+  border: 1px solid var(--line); color: var(--text);
+  border-radius: var(--r-md); padding: 8px 10px; font-size: 0.78rem; font-family: inherit;
+}
+.rangee-adresse input:focus { outline: none; border-color: var(--accent); }
+.rangee-adresse button { width: auto; padding: 8px 13px; font-size: 0.78rem; }
+
+#simu-result {
+  margin-top: 11px; background: var(--surface-2);
+  border-radius: var(--r-md); padding: 11px 12px;
+  font-size: 0.79rem; line-height: 1.55;
+}
+#simu-result h3 { font-size: 0.88rem; margin-bottom: 7px; }
+#simu-result .ca { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+#simu-result .verdict { margin-top: 8px; padding: 7px 9px; border-radius: var(--r-sm); font-weight: 600; }
+.verdict.bon { background: rgba(22, 163, 74, 0.18); color: #86efac; }
+.verdict.moyen { background: rgba(234, 179, 8, 0.16); color: #fde047; }
+.verdict.faible { background: rgba(220, 38, 38, 0.16); color: #fca5a5; }
+
+.bench { font-size: 0.78rem; line-height: 1.65; color: var(--muted); }
+.bench b { color: var(--text); }
+
+/* ---- Tableaux ---- */
+.tab-candidats, .tab-fiabilite { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.tab-candidats th, .tab-fiabilite th {
+  text-align: left; color: var(--faint); font-weight: 700; font-size: 0.66rem;
+  text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 4px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.tab-candidats td, .tab-fiabilite td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tab-candidats tr { cursor: pointer; }
+.tab-candidats tr:hover td { background: var(--surface-2); }
+.tab-candidats .nom-cand { font-weight: 600; }
+.tab-candidats .sous { display: block; color: var(--faint); font-size: 0.68rem; }
+.tab-candidats .ca { white-space: nowrap; }
+.tab-candidats .sup { background: none; color: #fca5a5; width: 18px; padding: 0; font-size: 0.7rem; }
+.tab-fiabilite .ca { text-align: right; font-variant-numeric: tabular-nums; }
+.pastille { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+
+/* ---- Bandeau d'impact au-dessus de la carte ---- */
+#toast-impact {
+  position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+  z-index: 1100; max-width: 560px;
+  background: rgba(21, 29, 46, 0.96); border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md); padding: 9px 14px;
+  font-size: 0.76rem; line-height: 1.5; color: var(--muted);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+}
+#toast-impact.hidden { display: none; }
+#toast-impact b { color: var(--text); }
+#toast-impact .titre { color: var(--accent); font-weight: 700; }
+#toast-impact.bouge { border-left-color: var(--orange); }
+#toast-impact.bouge .titre { color: var(--orange); }
+
+/* Barre d'export flottante au-dessus de la carte : jamais masquée par la fiche. */
+#barre-export {
+  position: absolute; right: 16px; bottom: 26px; z-index: 1100;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--surface-3); border-radius: var(--r-md);
+  padding: 9px 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+#barre-export.hidden { display: none; }
+#barre-export button { width: auto; font-size: 0.78rem; padding: 7px 12px; }
+#modifs-info { font-size: 0.75rem; color: #fbbf24; }
+
+/* ══════════════ FICHE DÉTAILLÉE FAÇON GOOGLE MAPS ══════════════ */
 #fiche {
   position: absolute; top: 0; left: 0; bottom: 0;
-  width: 360px; z-index: 1000;
-  background: var(--bg); border-right: 1px solid #334155;
+  width: 388px; z-index: 1000;
+  background: var(--bg); border-right: 1px solid var(--line);
   overflow-y: auto; box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
 }
 #fiche.hidden { display: none; }
 #fiche-fermer {
   position: absolute; top: 10px; right: 10px; z-index: 2;
   width: 30px; height: 30px; padding: 0; border-radius: 50%;
-  background: rgba(15, 23, 42, 0.85); color: var(--text);
+  background: rgba(11, 17, 31, 0.85); color: var(--text);
   font-size: 0.9rem; font-weight: 400; line-height: 1;
 }
 
-.galerie { position: relative; background: var(--panel-2); }
+.galerie { position: relative; background: var(--surface-2); }
 .galerie img { width: 100%; height: 190px; object-fit: cover; display: block; }
 .galerie-vide {
   height: 190px; display: flex; flex-direction: column;
@@ -796,14 +1089,14 @@ button.active { background: #f97316; color: #431407; }
   color: var(--muted); font-size: 0.78rem; text-align: center; padding: 0 24px;
 }
 .galerie-vide .ico { font-size: 1.8rem; opacity: 0.5; }
-.galerie-miniatures { display: flex; gap: 3px; padding: 3px; background: var(--panel-2); }
+.galerie-miniatures { display: flex; gap: 3px; padding: 3px; background: var(--surface-2); }
 .galerie-miniatures img { height: 52px; flex: 1; object-fit: cover; cursor: pointer; border-radius: 3px; }
-.galerie-attrib { font-size: 0.62rem; color: #64748b; padding: 4px 14px; line-height: 1.3; }
+.galerie-attrib { font-size: 0.62rem; color: var(--faint); padding: 4px 14px; line-height: 1.3; }
 
-.fiche-corps { padding: 12px 14px 24px; }
+.fiche-corps { padding: 13px 15px 24px; }
 .fiche-corps h2 { font-size: 1.15rem; line-height: 1.25; margin-bottom: 6px; }
 
-.note-ligne { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 0.85rem; }
+.note-ligne { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 0.85rem; flex-wrap: wrap; }
 .note-chiffre { font-weight: 700; }
 .etoiles { color: #fbbf24; letter-spacing: 1px; }
 .note-nb { color: var(--muted); font-size: 0.8rem; }
@@ -813,13 +1106,13 @@ button.active { background: #f97316; color: #431407; }
   display: inline-block; font-size: 0.62rem; text-transform: uppercase;
   letter-spacing: 0.04em; padding: 2px 6px; border-radius: 4px; font-weight: 700;
 }
-.fia-officielle { background: #14532d; color: #86efac; }
-.fia-bonne { background: #1e3a8a; color: #bfdbfe; }
-.fia-moyenne { background: #713f12; color: #fde047; }
-.fia-faible { background: #7f1d1d; color: #fca5a5; }
+.fia-officielle { background: rgba(22, 163, 74, 0.2); color: #86efac; }
+.fia-bonne { background: rgba(37, 99, 235, 0.22); color: #bfdbfe; }
+.fia-moyenne { background: rgba(234, 179, 8, 0.18); color: #fde047; }
+.fia-faible { background: rgba(220, 38, 38, 0.18); color: #fca5a5; }
 
 .fiche-infos { font-size: 0.82rem; line-height: 1.6; }
-.fiche-infos .ligne { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px solid #26334a; }
+.fiche-infos .ligne { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); }
 .fiche-infos .ligne .ic { width: 16px; flex-shrink: 0; opacity: 0.7; }
 .fiche-infos .ligne .val { flex: 1; }
 .fiche-infos .manquant { color: #fbbf24; font-style: italic; }
@@ -827,126 +1120,92 @@ button.active { background: #f97316; color: #431407; }
 .fiche-actions { display: flex; gap: 6px; margin: 12px 0; }
 .fiche-actions a {
   flex: 1; text-align: center; text-decoration: none;
-  background: var(--panel-2); color: var(--accent);
-  border-radius: 8px; padding: 8px 4px; font-size: 0.75rem; font-weight: 600;
+  background: var(--surface-2); color: var(--accent);
+  border-radius: var(--r-md); padding: 8px 4px; font-size: 0.75rem; font-weight: 600;
 }
-.fiche-actions a:hover { background: #33415a; }
+.fiche-actions a:hover { background: var(--surface-3); }
 
 .avis-liste { margin-top: 6px; }
-.avis-item { background: var(--panel); border-radius: 8px; padding: 9px 11px; margin-bottom: 7px; font-size: 0.8rem; line-height: 1.45; }
+.avis-item { background: var(--surface); border-radius: var(--r-md); padding: 9px 11px; margin-bottom: 7px; font-size: 0.8rem; line-height: 1.45; }
 .avis-tete { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .avis-auteur { font-weight: 600; font-size: 0.78rem; }
 .avis-date { color: var(--muted); font-size: 0.7rem; margin-left: auto; }
 .avis-texte { color: #cbd5e1; }
-.avis-src { color: #64748b; font-size: 0.66rem; margin-top: 4px; }
+.avis-src { color: var(--faint); font-size: 0.66rem; margin-top: 4px; }
 
 .encart {
-  background: var(--panel); border-left: 3px solid var(--accent);
-  border-radius: 6px; padding: 9px 11px; margin-top: 12px;
-  font-size: 0.76rem; line-height: 1.5; color: var(--muted);
+  background: var(--surface); border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm); padding: 9px 11px; margin-top: 12px;
+  font-size: 0.76rem; line-height: 1.55; color: var(--muted);
 }
 .encart b { color: var(--text); }
-.encart code { background: var(--panel-2); padding: 1px 4px; border-radius: 3px; font-size: 0.72rem; }
+.encart code { background: var(--surface-2); padding: 1px 4px; border-radius: 3px; font-size: 0.72rem; }
 
 /* ---- Formulaire de saisie manuelle ---- */
 .form-google { margin-top: 12px; }
 .form-google .rangee { margin-bottom: 8px; }
 .form-google label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 3px; }
 .form-google input, .form-google textarea, .form-google select {
-  width: 100%; background: var(--panel-2); border: 1px solid #3b4a63;
-  color: var(--text); border-radius: 6px; padding: 6px 8px;
+  width: 100%; background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--text); border-radius: var(--r-sm); padding: 6px 8px;
   font-size: 0.8rem; font-family: inherit;
 }
-.form-google input:focus, .form-google textarea:focus { outline: 1px solid var(--accent); }
+.form-google input:focus, .form-google textarea:focus { outline: none; border-color: var(--accent); }
 .form-google .duo { display: flex; gap: 6px; }
 .form-google .duo > * { flex: 1; }
 .form-google textarea { resize: vertical; min-height: 52px; }
 
 .zone-photo {
-  border: 2px dashed #3b4a63; border-radius: 8px; padding: 14px 10px;
+  border: 2px dashed var(--surface-3); border-radius: var(--r-md); padding: 14px 10px;
   text-align: center; font-size: 0.75rem; color: var(--muted); cursor: pointer;
 }
-.zone-photo.survol { border-color: var(--accent); background: rgba(56, 189, 248, 0.08); }
+.zone-photo.survol { border-color: var(--accent); background: var(--accent-doux); }
 .apercus { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .apercus .vignette { position: relative; }
 .apercus img { height: 50px; border-radius: 4px; display: block; }
 .apercus button {
   position: absolute; top: -5px; right: -5px; width: 17px; height: 17px;
-  padding: 0; border-radius: 50%; background: #dc2626; color: #fff;
+  padding: 0; border-radius: 50%; background: var(--rouge); color: #fff;
   font-size: 0.65rem; line-height: 1;
 }
 .form-boutons { display: flex; gap: 6px; margin-top: 10px; }
-.form-boutons button { font-size: 0.78rem; padding: 8px; }
-.btn-second { background: var(--panel-2); color: var(--text); }
+.form-boutons button { flex: 1; font-size: 0.78rem; padding: 8px; }
 
-/* Barre d'export flottante au-dessus de la carte : jamais masquée par la fiche. */
-#barre-export {
-  position: absolute; right: 16px; bottom: 26px; z-index: 1100;
-  display: flex; align-items: center; gap: 10px;
-  background: var(--panel); border: 1px solid #475569; border-radius: 10px;
-  padding: 9px 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+.edit-gen { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.edit-gen label { display: block; font-size: 0.7rem; color: var(--muted); margin-bottom: 3px; }
+.edit-gen input {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--line);
+  color: var(--text); border-radius: var(--r-sm); padding: 5px 7px;
+  font-size: 0.8rem; font-family: inherit;
 }
-#barre-export.hidden { display: none; }
-#barre-export button { width: auto; font-size: 0.78rem; padding: 7px 12px; }
-#modifs-info { font-size: 0.75rem; color: #fbbf24; }
-
-.rangee-adresse { display: flex; gap: 6px; margin-bottom: 6px; }
-.rangee-adresse input {
-  flex: 1; min-width: 0; background: var(--panel-2); border: 1px solid #3b4a63;
-  color: var(--text); border-radius: 6px; padding: 7px 8px; font-size: 0.78rem;
-  font-family: inherit;
+.edit-gen button {
+  width: 100%; margin-top: 6px; background: var(--surface-3); color: #fca5a5;
+  font-size: 0.7rem; font-weight: 600; padding: 5px;
 }
-.rangee-adresse input:focus { outline: 1px solid var(--accent); }
-.rangee-adresse button { width: auto; padding: 7px 12px; font-size: 0.78rem; }
-#adresse-erreur:empty { display: none; }
-#adresse-erreur { color: #fca5a5; }
 
-.tab-candidats, .tab-fiabilite { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-.tab-candidats th, .tab-fiabilite th {
-  text-align: left; color: var(--muted); font-weight: 600; font-size: 0.68rem;
-  text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 4px 6px;
-  border-bottom: 1px solid #334155;
+/* ---- Compte d'exploitation ---- */
+.expl { margin-top: 10px; background: var(--surface); border-radius: var(--r-md); padding: 9px 11px; }
+.expl summary { cursor: pointer; font-size: 0.79rem; font-weight: 700; color: var(--accent); }
+.expl[open] summary { margin-bottom: 8px; }
+.tab-pl { width: 100%; border-collapse: collapse; font-size: 0.755rem; }
+.tab-pl td { padding: 3px 2px; border-bottom: 1px solid var(--line); }
+.tab-pl td.ca { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tab-pl tr.sous td { color: var(--faint); font-size: 0.68rem; border-bottom: none; padding-top: 0; }
+.tab-pl tr.total td { border-top: 1px solid var(--surface-3); border-bottom: none; font-weight: 700; padding-top: 5px; }
+.verdict-pl {
+  margin-top: 8px; padding: 7px 9px; background: var(--surface-2);
+  border-left: 3px solid var(--accent); border-radius: var(--r-sm);
+  font-size: 0.755rem; line-height: 1.45;
 }
-.tab-candidats td, .tab-fiabilite td { padding: 6px 4px; border-bottom: 1px solid #26334a; vertical-align: top; }
-.tab-candidats tr { cursor: pointer; }
-.tab-candidats tr:hover td { background: var(--panel-2); }
-.tab-candidats .nom-cand { font-weight: 600; }
-.tab-candidats .sous { display: block; color: var(--muted); font-size: 0.68rem; }
-.tab-candidats .ca { white-space: nowrap; }
-.tab-candidats .sup { background: none; color: #fca5a5; width: 18px; padding: 0; font-size: 0.7rem; }
-.pastille { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
 
-.classement { list-style: none; counter-reset: rang; }
-.classement li {
-  counter-increment: rang;
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 8px; margin-bottom: 3px; border-radius: 6px;
-  background: var(--panel-2); cursor: pointer; font-size: 0.82rem;
-  border-left: 3px solid transparent;
-}
-.classement li:hover { filter: brightness(1.2); }
-.classement li::before {
-  content: counter(rang);
-  font-weight: 700; color: var(--muted); min-width: 14px; font-size: 0.75rem;
-}
-.classement .z-nom { flex: 1; line-height: 1.25; }
-.classement .z-ca { display: block; font-size: 0.7rem; color: var(--muted); }
-.classement .z-ind { font-weight: 700; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
-
-.completude { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: var(--muted); }
-.completude .bar { flex: 1; height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
-.completude .bar div { height: 100%; background: var(--accent); }
-
-footer { font-size: 0.7rem; color: #64748b; padding: 8px 4px 20px; line-height: 1.5; }
-
-/* Popups */
-.leaflet-popup-content-wrapper { background: var(--panel); color: var(--text); border-radius: 10px; }
-.leaflet-popup-tip { background: var(--panel); }
+/* ---- Popups Leaflet ---- */
+.leaflet-popup-content-wrapper { background: var(--surface); color: var(--text); border-radius: var(--r-lg); }
+.leaflet-popup-tip { background: var(--surface); }
 .leaflet-popup-content { font-size: 0.82rem; line-height: 1.5; margin: 12px 14px; }
 .popup h3 { font-size: 0.95rem; margin-bottom: 4px; }
 .tag {
   display: inline-block; color: #fff;
-  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.03em; padding: 3px 7px; border-radius: 4px; margin-bottom: 6px;
 }
 .tag-chaine { background: var(--chaine); }
@@ -957,31 +1216,19 @@ footer { font-size: 0.7rem; color: #64748b; padding: 8px 4px 20px; line-height: 
 .popup td:first-child { color: var(--muted); padding-right: 8px; white-space: nowrap; }
 .popup .warn { color: #fbbf24; font-size: 0.72rem; margin-top: 6px; }
 
-@media (max-width: 800px) {
-  #app { flex-direction: column; }
-  #sidebar { width: 100%; min-width: 0; max-height: 45vh; }
+/* ---- Barre de défilement discrète ---- */
+.onglets-corps::-webkit-scrollbar, #fiche::-webkit-scrollbar { width: 9px; }
+.onglets-corps::-webkit-scrollbar-thumb, #fiche::-webkit-scrollbar-thumb {
+  background: var(--surface-3); border-radius: 5px; border: 2px solid var(--bg);
 }
+.onglets-corps::-webkit-scrollbar-track, #fiche::-webkit-scrollbar-track { background: transparent; }
 
-/* ---- Compte d'exploitation ---- */
-.expl { margin-top: 10px; background: var(--panel); border-radius: 8px; padding: 8px 10px; }
-.expl summary { cursor: pointer; font-size: 0.8rem; font-weight: 700; color: var(--accent); }
-.expl[open] summary { margin-bottom: 8px; }
-.tab-pl { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
-.tab-pl td { padding: 3px 2px; border-bottom: 1px solid #26334a; }
-.tab-pl td.ca { text-align: right; white-space: nowrap; }
-.tab-pl tr.sous td { color: var(--muted); font-size: 0.68rem; border-bottom: none; padding-top: 0; }
-.tab-pl tr.total td { border-top: 1px solid #475569; border-bottom: none; font-weight: 700; padding-top: 5px; }
-.verdict-pl { margin-top: 8px; padding: 7px 9px; background: var(--panel-2);
-  border-left: 3px solid var(--accent); border-radius: 6px; font-size: 0.76rem; line-height: 1.4; }
-.check-inline { display: flex; align-items: center; gap: 8px; font-size: 0.78rem;
-  color: var(--muted); padding: 4px 0 0 24px; cursor: pointer; }
-
-.edit-gen { margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155; }
-.edit-gen label { display: block; font-size: 0.7rem; color: var(--muted); margin-bottom: 3px; }
-.edit-gen input { width: 100%; background: var(--panel-2); border: 1px solid #3b4a63;
-  color: var(--text); border-radius: 6px; padding: 5px 7px; font-size: 0.8rem; font-family: inherit; }
-.edit-gen button { margin-top: 6px; background: var(--panel-2); color: #fca5a5;
-  font-size: 0.7rem; font-weight: 600; padding: 5px; }
+@media (max-width: 860px) {
+  #app { flex-direction: column; }
+  #sidebar { width: 100%; min-width: 0; max-height: 52vh; }
+  #fiche { width: 100%; }
+  #toast-impact { max-width: calc(100% - 32px); }
+}
 
 </style>
 </head>
@@ -991,146 +1238,378 @@ footer { font-size: 0.7rem; color: #64748b; padding: 8px 4px 20px; line-height: 
       <button id="fiche-fermer" aria-label="Fermer la fiche">✕</button>
       <div id="fiche-contenu"></div>
     </aside>
+
     <aside id="sidebar">
-      <header>
-        <h1>🧺 Laverie Mapper</h1>
-        <p class="subtitle">Ville pilote : <strong>Pessac (33600)</strong></p>
+      <header class="app-tete">
+        <div class="marque">
+          <span class="logo">🧺</span>
+          <span class="marque-txt">
+            <b>Laverie Mapper</b>
+            <span>Ville pilote : Pessac (33600)</span>
+          </span>
+        </div>
+        <button id="chip-fiabilite" class="chip" title="Fiabilité du modèle — ouvrir l'onglet Modèle">–</button>
       </header>
 
-      <section id="stats" class="panel">
-        <h2>Marché local</h2>
-        <div class="stat-grid">
-          <div class="stat"><span class="stat-value" id="stat-count">–</span><span class="stat-label">laveries</span></div>
-          <div class="stat"><span class="stat-value" id="stat-open">–</span><span class="stat-label">grand public</span></div>
-          <div class="stat"><span class="stat-value" id="stat-pop">–</span><span class="stat-label">habitants</span></div>
-          <div class="stat"><span class="stat-value" id="stat-ratio">–</span><span class="stat-label">hab. / laverie</span></div>
-        </div>
-        <p class="hint" id="stat-verdict"></p>
-      </section>
+      <nav class="onglets" role="tablist">
+        <button class="onglet actif" data-onglet="carte" role="tab">Carte</button>
+        <button class="onglet" data-onglet="analyse" role="tab">Analyse</button>
+        <button class="onglet" data-onglet="laveries" role="tab">Laveries</button>
+        <button class="onglet" data-onglet="modele" role="tab">Modèle</button>
+      </nav>
 
-      <section class="panel">
-        <h2>Les laveries recensées <span id="liste-count" class="badge"></span></h2>
-        <p class="hint">Cliquez sur une ligne pour la localiser sur la carte et vérifier son emplacement.</p>
-        <ul id="liste-laveries" class="liste"></ul>
-        <div class="completude">
-          <span>Complétude des fiches</span>
-          <div class="bar"><div id="completude-bar"></div></div>
-          <span id="completude-txt"></span>
-        </div>
-      </section>
+      <div class="onglets-corps">
 
-      <section class="panel">
-        <h2>Filtres</h2>
-        <label class="check"><input type="checkbox" id="f-chaine" checked> <span class="dot dot-chaine"></span> Chaînes / réseaux</label>
-        <label class="check"><input type="checkbox" id="f-independant" checked> <span class="dot dot-independant"></span> Indépendants</label>
-        <label class="check"><input type="checkbox" id="f-captif" checked> <span class="dot dot-captif"></span> Captives (CROUS / résidences)</label>
-        <label class="check"><input type="checkbox" id="f-voisines"> <span class="dot" style="background:#94a3b8"></span> Communes voisines (concurrentes)</label>
-      </section>
+        <!-- ══════════════ CARTE ══════════════ -->
+        <div class="vue-onglet" id="tab-carte">
 
-      <section class="panel">
-        <h2>Couches d'analyse</h2>
-        <label class="check"><input type="checkbox" id="l-couverture" checked> Zones de chalandise (couverture)</label>
-        <div class="slider-row">
-          <label for="rayon">Rayon piéton : <strong><span id="rayon-val">800</span> m</strong></label>
-          <input type="range" id="rayon" min="300" max="1000" step="50" value="800">
-        </div>
-        <label class="check"><input type="checkbox" id="l-heat-potentiel" checked> <strong>🔥 Heatmap du potentiel</strong></label>
-        <div class="legend" id="legende-potentiel">
-          <span class="lg"><i style="background:#1c5cab"></i> Très en dessous</span>
-          <span class="lg"><i style="background:#5598e7"></i> En dessous</span>
-          <span class="lg"><i style="background:#6e6e69"></i> Au niveau</span>
-          <span class="lg"><i style="background:#e66767"></i> Au-dessus</span>
-          <span class="lg"><i style="background:#d03b3b"></i> Nettement au-dessus</span>
-          <span style="flex-basis:100%;margin-top:4px">Chaque maille de 140 m est évaluée par le modèle. Référence : le CA d'une laverie moyenne de Pessac. Rouge = une nouvelle laverie y ferait mieux.</span>
-        </div>
-        <label class="check"><input type="checkbox" id="l-heat-demande"> <strong>🏢 Heatmap de la demande captive</strong></label>
-        <div class="legend" id="legende-demande">
-          <span class="lg"><span class="dot" style="background:#eda100;width:10px;height:10px"></span> Résidence étudiante</span>
-          <span class="lg"><span class="dot" style="background:#e87ba4;width:10px;height:10px"></span> Logement social</span>
-          <span class="lg"><span class="dot" style="background:#1baf7a;width:10px;height:10px"></span> Hébergement touristique</span>
-          <span style="flex-basis:100%;margin-top:2px">Densité de ménages sans lave-linge, agrégée sur 320 m : une grappe d'immeubles forme <strong>une seule zone chaude</strong>, comme la résidence Compostelle. Plus l'orange est soutenu, plus la demande est concentrée.</span>
-          <span style="flex-basis:100%;margin-top:4px;color:#fbbf24">⚠ Le nombre de logements est une valeur par défaut : cliquez un point pour le corriger.</span>
-        </div>
-        <label class="check"><input type="checkbox" id="l-heat-offre"> Carte de chaleur — concentration de l'offre</label>
-        <label class="check"><input type="checkbox" id="l-tension" checked> Potentiel par quartier (demande vs concurrence)</label>
-        <div class="legend" id="legende-tension">
-          <span class="lg"><i style="background:#dc2626"></i> Place pour une laverie</span>
-          <span class="lg"><i style="background:#eab308"></i> Limite</span>
-          <span class="lg"><i style="background:#15803d"></i> Pas de place</span>
-          <span style="flex-basis:100%;margin-top:4px">Rouge = une nouvelle laverie y ferait mieux qu'une laverie moyenne de Pessac. Rayon de référence : 800 m.</span>
-        </div>
-      </section>
+          <details class="guide" open>
+            <summary>Comment lire cette carte</summary>
+            <div class="guide-corps">
+              <p>La carte répond à <b>une seule question</b> : si j'ouvrais une laverie ici,
+              ferait-elle mieux ou moins bien qu'une laverie moyenne de Pessac ?</p>
+              <p><b>Rouge</b> = mieux. <b>Bleu</b> = moins bien. <b>Gris</b> = au même niveau.
+              Les zones sans habitants restent transparentes.</p>
+              <p>Choisissez ci-dessous ce que la carte doit montrer. Une seule vue à la fois :
+              deux surfaces superposées ne se lisent pas.</p>
+            </div>
+          </details>
 
-      <section class="panel">
-        <h2>Fiabilité du modèle</h2>
-        <div id="fiabilite"></div>
-      </section>
+          <section class="bloc">
+            <h2>Que montre la carte ?</h2>
+            <div class="vues">
+              <label class="vue">
+                <input type="radio" name="vue" value="potentiel" checked>
+                <span class="vue-corps">
+                  <b>🔥 Potentiel d'implantation</b>
+                  <span>Où une nouvelle laverie ferait-elle mieux que la moyenne locale ?</span>
+                </span>
+              </label>
+              <label class="vue">
+                <input type="radio" name="vue" value="demande">
+                <span class="vue-corps">
+                  <b>🏢 Demande captive</b>
+                  <span>Résidences étudiantes et logements sociaux : d'où vient la demande.</span>
+                </span>
+              </label>
+              <label class="vue">
+                <input type="radio" name="vue" value="quartiers">
+                <span class="vue-corps">
+                  <b>🎯 Diagnostic par quartier</b>
+                  <span>Le même calcul, résumé en une pastille cliquable par quartier.</span>
+                </span>
+              </label>
+              <label class="vue">
+                <input type="radio" name="vue" value="offre">
+                <span class="vue-corps">
+                  <b>📍 Concentration de l'offre</b>
+                  <span>Où sont les laveries existantes, pondérées par leur force.</span>
+                </span>
+              </label>
+              <label class="vue">
+                <input type="radio" name="vue" value="aucune">
+                <span class="vue-corps">
+                  <b>⬚ Fond de carte seul</b>
+                  <span>Rien que les laveries. Utile pour repérer les rues et les locaux.</span>
+                </span>
+              </label>
+            </div>
+            <div class="legende" id="legende-vue"></div>
+          </section>
 
-      <section class="panel">
-        <h2>🎯 Où implanter ? Classement des zones</h2>
-        <p class="hint">Zones classées par CA potentiel d'une nouvelle laverie. Cliquez pour vous y rendre et lancer la simulation.</p>
-        <ol id="classement" class="classement"></ol>
-      </section>
+          <section class="bloc">
+            <h2>Rayon de chalandise</h2>
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="rayon">Distance qu'un client accepte de parcourir</label>
+                <output><span id="rayon-val">800</span> m</output>
+              </div>
+              <input type="range" id="rayon" min="300" max="1000" step="50" value="800">
+              <div class="reperes"><span>300 m</span><span>800 m · secteur</span><span>1 000 m</span></div>
+              <details class="aide">
+                <summary>À quoi sert ce curseur&nbsp;?</summary>
+                <div class="aide-corps">
+                  <p><b>Ce qu'il change</b></p>
+                  <ul>
+                    <li>la taille des cercles dessinés autour de chaque laverie ;</li>
+                    <li>la <b>heatmap du potentiel</b> : chaque maille de 140 m additionne les
+                        habitants situés dans ce rayon, pondérés par la distance — et les
+                        concurrents dans le même rayon ;</li>
+                    <li>le <b>simulateur</b> : le CA estimé du local que vous testez.</li>
+                  </ul>
+                  <p><b>Ce qu'il ne change pas</b> — le classement des zones et les pastilles de
+                  diagnostic par quartier, volontairement figés à 800 m. Sinon les couleurs
+                  changeraient de sens à chaque mouvement du curseur et deux captures d'écran ne
+                  seraient plus comparables.</p>
+                  <p><b>Pourquoi l'effet est modéré</b> — élargir le rayon ajoute des habitants,
+                  mais aussi des concurrents. Les deux se compensent en grande partie. Un
+                  classement qui s'effondrerait au moindre réglage ne vaudrait rien : sa
+                  stabilité est un bon signe.</p>
+                  <p><b>Comment le régler</b> — 400 m : ce qu'on fait à pied avec un sac de linge.
+                  800 m : la référence du secteur, valeur par défaut. Au-delà de 1 000 m vous
+                  décrivez une clientèle motorisée : réglez plutôt « Portée des laveries avec
+                  parking » dans l'onglet <b>Modèle</b>.</p>
+                </div>
+              </details>
+            </div>
+          </section>
 
-      <section class="panel">
-        <h2>Simulateur d'implantation</h2>
-        <p class="hint">Testez un local précis : collez son lien Google Maps ou ses coordonnées, ou cliquez directement sur la carte.</p>
-        <div class="rangee-adresse">
-          <input type="text" id="adresse-input" placeholder="Lien Google Maps, ou 44.7911, -0.6325">
-          <button id="btn-aller">Aller</button>
+          <section class="bloc">
+            <h2>Repères sur la carte</h2>
+            <label class="check"><input type="checkbox" id="l-couverture" checked>
+              <span>Cercles de chalandise autour des laveries</span></label>
+            <h3 class="sous-titre">Laveries affichées</h3>
+            <label class="check"><input type="checkbox" id="f-chaine" checked>
+              <span class="dot dot-chaine"></span><span>Chaînes / réseaux</span></label>
+            <label class="check"><input type="checkbox" id="f-independant" checked>
+              <span class="dot dot-independant"></span><span>Indépendants</span></label>
+            <label class="check"><input type="checkbox" id="f-captif" checked>
+              <span class="dot dot-captif"></span><span>Captives (CROUS / résidences)</span></label>
+            <label class="check"><input type="checkbox" id="f-voisines">
+              <span class="dot" style="background:#94a3b8"></span><span>Communes voisines</span></label>
+            <p class="note">Décocher une case la retire <b>de la carte seulement</b>. Les
+            laveries voisines restent comptées comme concurrentes dans tous les calculs : la
+            demande déborde de Pessac, la concurrence aussi.</p>
+          </section>
         </div>
-        <p class="hint" id="adresse-erreur"></p>
-        <button id="btn-simu">📍 Activer le clic sur la carte</button>
-        <div id="simu-result" class="hidden"></div>
-        <button id="btn-garder" class="hidden btn-second">➕ Garder cet emplacement</button>
-      </section>
 
-      <section class="panel">
-        <h2>Emplacements candidats <span id="candidats-count" class="badge"></span></h2>
-        <p class="hint" id="candidats-vide">Aucun emplacement gardé. Lancez une simulation puis cliquez « Garder cet emplacement » pour les comparer ici.</p>
-        <div id="candidats-tableau"></div>
-      </section>
+        <!-- ══════════════ ANALYSE ══════════════ -->
+        <div class="vue-onglet hidden" id="tab-analyse">
 
-      <section class="panel">
-        <h2>Hypothèses du modèle</h2>
-        <p class="hint">Le modèle est calé sur le marché local : les euros affichés dépendent du CA moyen constaté à Pessac. Les deux autres curseurs testent la robustesse — s'ils ne changent presque rien au classement, c'est bon signe, cela veut dire qu'une erreur uniforme sur mes estimations de population n'affecte pas le choix de zone.</p>
-        <div class="slider-row">
-          <label>Dépense annuelle d'un ménage sans lave-linge : <strong><span id="h-depense-val">500</span> €</strong></label>
-          <input type="range" id="h-depense" min="250" max="800" step="25" value="500">
-        </div>
-        <div class="slider-row">
-          <label>Niveau de demande : <strong><span id="h-demande-val">100</span> %</strong></label>
-          <input type="range" id="h-demande" min="50" max="150" step="5" value="100">
-        </div>
-        <div class="slider-row">
-          <label>CA moyen constaté d'une laverie à Pessac : <strong><span id="h-caref-val">50 000</span> €</strong></label>
-          <input type="range" id="h-caref" min="25000" max="90000" step="2500" value="50000">
-        </div>
-        <div class="slider-row">
-          <label>Loyer mensuel du local : <strong><span id="h-loyer-val">1 050</span> €</strong></label>
-          <input type="range" id="h-loyer" min="300" max="2500" step="50" value="1050">
-        </div>
-        <div class="slider-row">
-          <label>Portée des laveries avec parking : <strong>×<span id="h-portee-val">2.0</span></strong>
-            <span style="display:block;font-size:0.72rem">Le dossier situe le rayon voiture à 5-10 min (2 à 4 km) contre 800 m à pied. Toute la clientèle ne vient pas en voiture, d'où ce facteur mixte. Mettez ×1.0 pour annuler l'effet.</span></label>
-          <input type="range" id="h-portee" min="1" max="3" step="0.1" value="2">
-        </div>
-        <label class="check-inline"><input type="checkbox" id="h-energie"> Scénario stressé : énergie et eau +30 %</label>
-        <button id="btn-reset-hyp" class="btn-second hidden">↺ Rétablir les valeurs du secteur</button>
-      </section>
+          <section class="bloc">
+            <h2><span class="etape">1</span> Les zones les plus prometteuses</h2>
+            <p class="note">Classées par CA potentiel d'une nouvelle laverie, rayon de référence
+            800 m. Cliquez une zone : la carte s'y rend et lance la simulation.</p>
+            <ol id="classement" class="classement"></ol>
+          </section>
 
-      <section class="panel">
-        <h2>Benchmarks secteur</h2>
-        <div id="benchmarks" class="bench"></div>
-      </section>
+          <section class="bloc">
+            <h2><span class="etape">2</span> Tester un local précis</h2>
+            <p class="note">Collez le lien Google Maps du local, ses coordonnées, ou cliquez
+            directement sur la carte.</p>
+            <div class="rangee-adresse">
+              <input type="text" id="adresse-input" placeholder="Lien Google Maps, ou 44.7911, -0.6325">
+              <button id="btn-aller">Aller</button>
+            </div>
+            <p class="note erreur" id="adresse-erreur"></p>
+            <button id="btn-simu" class="btn-bloc">📍 Activer le clic sur la carte</button>
+            <div id="simu-result" class="hidden"></div>
+            <button id="btn-garder" class="hidden btn-bloc btn-second">➕ Garder cet emplacement</button>
+          </section>
 
-      <footer>
-        <p>Données : OSM / annuaires web, coordonnées estimées.<br>
-        Population par quartier : estimations à remplacer par l'INSEE carroyé.<br>
-        <strong>Outil d'aide à la décision — pas une étude de marché certifiée.</strong></p>
-      </footer>
+          <section class="bloc">
+            <h2><span class="etape">3</span> Comparer vos candidats <span id="candidats-count" class="badge"></span></h2>
+            <p class="note" id="candidats-vide">Aucun emplacement gardé pour l'instant. Lancez une
+            simulation, puis « Garder cet emplacement » pour les comparer ici.</p>
+            <div id="candidats-tableau"></div>
+          </section>
+        </div>
+
+        <!-- ══════════════ LAVERIES ══════════════ -->
+        <div class="vue-onglet hidden" id="tab-laveries">
+
+          <section class="bloc">
+            <h2>Le marché de Pessac</h2>
+            <div class="stat-grid">
+              <div class="stat"><span class="stat-value" id="stat-count">–</span><span class="stat-label">laveries</span></div>
+              <div class="stat"><span class="stat-value" id="stat-open">–</span><span class="stat-label">grand public</span></div>
+              <div class="stat"><span class="stat-value" id="stat-pop">–</span><span class="stat-label">habitants</span></div>
+              <div class="stat"><span class="stat-value" id="stat-ratio">–</span><span class="stat-label">hab. / laverie</span></div>
+            </div>
+            <p class="note" id="stat-verdict"></p>
+          </section>
+
+          <section class="bloc">
+            <h2>Inventaire <span id="liste-count" class="badge"></span></h2>
+            <p class="note">Cliquez une ligne pour la localiser et ouvrir sa fiche complète. Un
+            cerclage orange sur la carte signale une laverie mal notée : c'est une cible.</p>
+            <ul id="liste-laveries" class="liste"></ul>
+            <div class="completude">
+              <span>Fiches complètes</span>
+              <div class="bar"><div id="completude-bar"></div></div>
+              <span id="completude-txt"></span>
+            </div>
+            <p class="note">Ce qui manque se relève sur le terrain : surface, nombre de machines,
+            prix du cycle, horaires. Ouvrez une fiche puis « Compléter ».</p>
+          </section>
+        </div>
+
+        <!-- ══════════════ MODÈLE ══════════════ -->
+        <div class="vue-onglet hidden" id="tab-modele">
+
+          <section class="bloc">
+            <h2>Le modèle tient-il debout&nbsp;?</h2>
+            <div id="fiabilite"></div>
+          </section>
+
+          <section class="bloc">
+            <h2>Réglages du modèle</h2>
+            <p class="note">Ces curseurs servent à <b>tester la robustesse</b> du classement.
+            Bougez-les : si les zones gardent le même ordre, c'est que le résultat ne dépend pas
+            de mes hypothèses. Chaque mouvement affiche son effet réel en bas de la carte.</p>
+            <p class="note">Résultat du balayage complet sur Pessac : <b>la zone n°1 ne change
+            avec aucun de ces curseurs</b>, sur toute leur plage. Au pire, 6 quartiers sur 15
+            permutent — tous en milieu de tableau. Autrement dit, la tête du classement se
+            défend ; les rangs 5 à 10 se départagent sur le terrain, pas sur la carte.</p>
+
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="h-depense">Dépense annuelle d'un ménage sans lave-linge</label>
+                <output><span id="h-depense-val">500</span> €</output>
+              </div>
+              <input type="range" id="h-depense" min="250" max="800" step="25" value="500">
+              <div class="reperes"><span>250 €</span><span>500 € · secteur</span><span>800 €</span></div>
+              <details class="aide">
+                <summary>Effet attendu&nbsp;: quasi nul sur les euros</summary>
+                <div class="aide-corps">
+                  <p>Le modèle est <b>recalé sur le CA moyen constaté à Pessac</b>. Doubler cette
+                  dépense double aussi le total à répartir : l'effet s'annule presque entièrement.</p>
+                  <p>Ce qui bouge réellement, c'est le <b>poids de la clientèle régulière face à la
+                  clientèle ponctuelle</b>. Monter ce curseur avantage les zones de petits
+                  logements ; le baisser avantage les zones de familles qui viennent laver couettes
+                  et gros volumes.</p>
+                  <p>Autrement dit : il ne change pas le niveau, il change l'arbitrage entre deux
+                  profils de quartier.</p>
+                  <p><b>Mesuré sur Pessac</b> — de 250 € à 800 €, la zone n°1 ne change pas ; deux
+                  quartiers de milieu de tableau permutent. C'est le genre de résultat qu'on veut :
+                  la tête du classement ne dépend pas de cette hypothèse.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="h-demande">Niveau général de la demande</label>
+                <output><span id="h-demande-val">100</span> %</output>
+              </div>
+              <input type="range" id="h-demande" min="50" max="150" step="5" value="100">
+              <div class="reperes"><span>50 %</span><span>100 % · secteur</span><span>150 %</span></div>
+              <details class="aide">
+                <summary>Effet attendu&nbsp;: test de robustesse</summary>
+                <div class="aide-corps">
+                  <p>Suppose que la part de ménages sans lave-linge est plus forte ou plus faible
+                  que ce que dit le secteur. Comme le curseur précédent, l'essentiel est absorbé par
+                  le recalage sur le marché local.</p>
+                  <p>C'est justement l'intérêt : si le classement résiste à ±50 % d'erreur sur la
+                  demande, vous pouvez le défendre devant un banquier sans avoir à prouver le
+                  chiffre exact.</p>
+                  <p><b>Mesuré sur Pessac</b> — entre 50 % et 150 %, la zone n°1 reste la même et
+                  au plus 4 quartiers sur 15 permutent, tous en milieu de tableau. La tête du
+                  classement est robuste ; les rangs 5 à 10 sont à départager sur le terrain, pas
+                  sur la carte.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="h-caref">CA moyen d'une laverie à Pessac</label>
+                <output><span id="h-caref-val">50 000</span> €</output>
+              </div>
+              <input type="range" id="h-caref" min="25000" max="90000" step="2500" value="50000">
+              <div class="reperes"><span>25 k€</span><span>50 k€ · secteur</span><span>90 k€</span></div>
+              <details class="aide">
+                <summary>Le curseur le plus important</summary>
+                <div class="aide-corps">
+                  <p>C'est l'<b>ancre du modèle</b> : tous les euros affichés en découlent. Le modèle
+                  force les laveries existantes de Pessac à totaliser ce chiffre, puis en déduit ce
+                  que vaudrait une nouvelle implantation.</p>
+                  <p><b>Ce qu'il change</b> — tous les montants en euros, proportionnellement :
+                  simulateur, compte d'exploitation, point mort, retour sur investissement.</p>
+                  <p><b>Ce qu'il ne change pas</b> — l'ordre des zones, à aucune valeur testée entre
+                  25 k€ et 90 k€ : la heatmap compare toujours à <i>une laverie moyenne de
+                  Pessac</i>, quel que soit son niveau.</p>
+                  <p><b>La seule exception</b> — au-delà d'environ 65 000 €, les meilleures zones
+                  butent sur le <b>plafond de capacité</b> : ce qu'un local peut physiquement
+                  encaisser avec ses machines. Leur indice se tasse alors et les couleurs de la
+                  heatmap s'aplatissent en haut de l'échelle. Ce n'est pas un défaut — c'est le
+                  modèle qui refuse d'annoncer un CA que les machines ne produiraient pas.</p>
+                  <p><b>Quand le bouger</b> — le jour où vous obtenez un vrai chiffre : bilan d'un
+                  cédant, discussion avec un exploitant, relevé de compteur. C'est le réglage qui
+                  transforme un indice relatif en euros défendables.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="h-portee">Portée des laveries avec parking</label>
+                <output>×<span id="h-portee-val">2.0</span></output>
+              </div>
+              <input type="range" id="h-portee" min="1" max="3" step="0.1" value="2">
+              <div class="reperes"><span>×1 · aucun effet</span><span>×2 · défaut</span><span>×3</span></div>
+              <details class="aide">
+                <summary>Piéton ou voiture&nbsp;: deux métiers différents</summary>
+                <div class="aide-corps">
+                  <p>Une laverie de rue capte à 800 m à pied. Une laverie de centre commercial avec
+                  parking capte une clientèle motorisée, que le dossier situe à 5-10 minutes de
+                  voiture, soit 2 à 4 km. Leur appliquer le même rayon revient à sous-estimer
+                  massivement les secondes.</p>
+                  <p><b>Ce qu'il change</b> — la pression concurrentielle des laveries équipées d'un
+                  parking, donc la heatmap, le classement et le simulateur.</p>
+                  <p>Toute la clientèle ne vient pas en voiture : ×2 est un compromis issu des rayons
+                  du dossier, <b>pas une valeur calée pour faire joli</b>. Mettez ×1.0 pour annuler
+                  le mécanisme et voir ce qu'il apportait.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="champ">
+              <div class="champ-tete">
+                <label for="h-loyer">Loyer mensuel du local</label>
+                <output><span id="h-loyer-val">1 050</span> €</output>
+              </div>
+              <input type="range" id="h-loyer" min="300" max="2500" step="50" value="1050">
+              <div class="reperes"><span>300 € · rural</span><span>1 050 € · défaut</span><span>2 500 € · centre</span></div>
+              <details class="aide">
+                <summary>N'affecte que le compte d'exploitation</summary>
+                <div class="aide-corps">
+                  <p>Le loyer ne change ni le chiffre d'affaires, ni la carte, ni le classement. Il
+                  change le <b>résultat net</b>, le <b>point mort</b> et le <b>retour sur
+                  investissement</b> affichés dans le simulateur.</p>
+                  <p>C'est le poste qui varie le plus d'un local à l'autre : renseignez le loyer réel
+                  demandé dès que vous en avez un, avant de conclure qu'un emplacement est
+                  finançable.</p>
+                </div>
+              </details>
+            </div>
+
+            <label class="check"><input type="checkbox" id="h-energie">
+              <span>Scénario stressé : énergie et eau +30 %</span></label>
+            <p class="note">Point de vigilance du dossier de marché. N'affecte que les charges du
+            compte d'exploitation, pas le chiffre d'affaires.</p>
+
+            <button id="btn-reset-hyp" class="btn-bloc btn-second hidden">↺ Rétablir les valeurs du secteur</button>
+          </section>
+
+          <section class="bloc">
+            <h2>Repères du secteur</h2>
+            <div id="benchmarks" class="bench"></div>
+          </section>
+
+          <section class="bloc">
+            <h2>D'où viennent les données</h2>
+            <p class="note">
+              <b>Laveries</b> — API Google Places (notes, avis, horaires, position exacte),
+              complétée par OpenStreetMap et les annuaires.<br>
+              <b>Population</b> — carroyage INSEE Filosofi 200 m si le fichier a été importé,
+              sinon estimations par quartier.<br>
+              <b>Générateurs de demande</b> — résidences étudiantes et logements sociaux repérés
+              via Google Places ; le nombre de logements est une valeur par défaut, à corriger en
+              cliquant chaque point.<br>
+              <b>Repères économiques</b> — dossier de marché fourni, sources citées valeur par
+              valeur dans <code>data/benchmarks.json</code>.
+            </p>
+            <p class="note avert"><b>Outil d'aide à la décision, pas une étude de marché
+            certifiée.</b> Deux comptages de machines occupées sur place valent mieux que
+            n'importe quel réglage de curseur.</p>
+          </section>
+        </div>
+      </div>
     </aside>
+
     <div id="map"></div>
+    <div id="toast-impact" class="hidden"></div>
     <div id="barre-export" class="hidden">
       <span id="modifs-info"></span>
       <button id="btn-export">💾 Exporter laveries.json</button>
@@ -1182,6 +1661,10 @@ const state = {
   quartiers: [],
   benchmarks: null,
   rayon: RAYON_TENSION,
+  // Une seule surface d'analyse à la fois. Superposer une heatmap divergente,
+  // une heatmap séquentielle et des pastilles colorées ne se lit pas : on force
+  // le choix plutôt que de laisser l'utilisateur fabriquer une carte illisible.
+  vue: 'potentiel',
   simulation: false,
   layers: {},
   candidats: [],
@@ -1325,8 +1808,12 @@ function initCarte() {
   state.layers.demande = L.layerGroup().addTo(map);
   state.layers.heat = null;
 
+  // Le résultat d'une simulation s'affiche dans l'onglet Analyse : on y bascule,
+  // sinon un clic sur la carte semble ne rien produire.
   map.on('click', (e) => {
-    if (state.simulation) simuler(e.latlng.lat, e.latlng.lng);
+    if (!state.simulation) return;
+    simuler(e.latlng.lat, e.latlng.lng);
+    montrerSimulation();
   });
 }
 
@@ -1757,7 +2244,7 @@ function ouvrirEdition(id) {
   document.getElementById('fiche-contenu').innerHTML = `
     <div class="fiche-corps">
       <h2>Compléter « ${l.nom} »</h2>
-      <p class="hint">Recopiez ce que vous lisez sur la fiche Google Maps.
+      <p class="note">Recopiez ce que vous lisez sur la fiche Google Maps.
       Les champs vides restent inchangés côté affichage.</p>
       ${formulaireGoogle(l)}
     </div>`;
@@ -1837,23 +2324,25 @@ function surlignerListe(id) {
 
 function dessinerListe() {
   const ul = document.getElementById('liste-laveries');
-  const visibles = laveriesVisibles().filter(l => !l.hors_commune);
-  ul.innerHTML = visibles.map(l => {
+  // L'inventaire liste TOUTES les laveries de la commune, indépendamment des
+  // cases de l'onglet Carte : celles-ci ne pilotent que l'affichage sur la
+  // carte. Une ligne grisée signale simplement « masquée sur la carte ».
+  const toutes = state.laveries.filter(l => !l.hors_commune && l.statut === 'actif');
+  const surCarte = new Set(laveriesVisibles().map(l => l.id));
+  ul.innerHTML = toutes.map(l => {
     const note = l.note_google != null
       ? `${l.note_google}★${l.nb_avis != null ? `<br><span style="font-weight:400;font-size:0.62rem">${l.nb_avis} avis</span>` : ''}`
       : 'n.c.';
-    const voisine = l.hors_commune
-      ? '<span class="meta" style="color:#94a3b8">hors Pessac — concurrente</span>' : '';
     const cible = estVulnerable(l)
       ? '<span class="meta" style="color:#f97316">🎯 cible : mal notée, zone à reprendre</span>' : '';
-    return `<li data-id="${l.id}">
+    return `<li data-id="${l.id}" class="${surCarte.has(l.id) ? '' : 'masquee'}">
       <span class="dot dot-${l.type}"></span>
-      <span class="nom">${l.nom}<span class="meta">${l.quartier ?? 'quartier à définir'}</span>${voisine}${cible}</span>
-      <span class="note ${classeNote(l.note_google)}">${note}</span>
+      <span class="nom">${l.nom}<span class="meta">${l.quartier ?? 'quartier à définir'}</span>${cible}</span>
+      <span class="note-pastille ${classeNote(l.note_google)}">${note}</span>
     </li>`;
   }).join('');
 
-  document.getElementById('liste-count').textContent = visibles.length;
+  document.getElementById('liste-count').textContent = toutes.length;
 
   for (const li of ul.querySelectorAll('li')) {
     li.addEventListener('click', () => {
@@ -1891,7 +2380,7 @@ function dessinerCouverture() {
 
 function dessinerHeat() {
   if (state.layers.heat) { map.removeLayer(state.layers.heat); state.layers.heat = null; }
-  if (!document.getElementById('l-heat-offre').checked) return;
+  if (state.vue !== 'offre') return;
   const points = laveriesVisibles().map(l => [l.lat, l.lon, attractivite(l)]);
   state.layers.heat = L.heatLayer(points, { radius: 45, blur: 30, maxZoom: 15, max: 1.5 }).addTo(map);
 }
@@ -1966,7 +2455,10 @@ function partSansLaveLingeCarreau(c) {
   if (!menages) return pMin / 100;
   const partSeuls = (c.men_1ind || 0) / menages;
   const facteur = Math.min(1, partSeuls / cb.seuil_petits_logements_borne_haute);
-  return (pMin + (pMax - pMin) * facteur) / 100 * state.hyp.facteurDemande;
+  // Pas de facteurDemande ici : il est appliqué une seule fois, dans
+  // demandeAccessible(). L'appliquer aussi à ce niveau le compterait deux fois —
+  // et cette part est mise en cache dans pointsDemande(), donc figée.
+  return (pMin + (pMax - pMin) * facteur) / 100;
 }
 
 function pointsDemande() {
@@ -2226,7 +2718,7 @@ function couleurTension(i) {
 
 function dessinerTension() {
   state.layers.tension.clearLayers();
-  if (!document.getElementById('l-tension').checked) return;
+  if (state.vue !== 'quartiers') return;
   for (const q of state.quartiers) {
     const t = tensionQuartier(q);
     const label = t.indice < 0.6 ? 'Pas de place pour une laverie'
@@ -2254,10 +2746,20 @@ function dessinerTension() {
 
 function dessinerClassement() {
   const ol = document.getElementById('classement');
-  const zones = state.quartiers
+  const toutes = state.quartiers
     .map(q => ({ q, t: tensionQuartier(q) }))
-    .sort((a, b) => b.t.indice - a.t.indice)
-    .slice(0, 6);
+    .sort((a, b) => b.t.indice - a.t.indice);
+
+  // Empreinte du classement complet : sert à mesurer l'effet réel d'un réglage
+  // (voir afficherImpact). On la prend AVANT de tronquer à 6.
+  state._empreinteAvant = state._empreinte;
+  state._empreinte = {
+    ordre: toutes.map(z => z.q.id),
+    noms: Object.fromEntries(toutes.map(z => [z.q.id, z.q.nom])),
+    ca: Object.fromEntries(toutes.map(z => [z.q.id, z.t.caMed])),
+  };
+
+  const zones = toutes.slice(0, 6);
 
   ol.innerHTML = zones.map(({ q, t }) => {
     const cls = t.indice >= 1 ? 'verdict bon' : (t.indice >= 0.6 ? 'verdict moyen' : 'verdict faible');
@@ -2278,6 +2780,7 @@ function dessinerClassement() {
       btn.classList.add('active');
       btn.textContent = '🎯 Cliquez sur la carte… (cliquer ici pour quitter)';
       simuler(q.lat, q.lon);
+      montrerSimulation();
     });
   }
 }
@@ -2285,8 +2788,10 @@ function dessinerClassement() {
 // ---------- statistiques ----------
 
 function majStats() {
-  const visibles = laveriesVisibles().filter(l => !l.hors_commune);
-  const grandPublic = laveriesCommune().filter(l => l.type !== 'captif');
+  // Les statistiques décrivent le marché, pas l'affichage : elles ne suivent
+  // donc pas les cases de filtrage de la carte.
+  const visibles = laveriesCommune();
+  const grandPublic = visibles.filter(l => l.type !== 'captif');
   const pop = state.quartiers.reduce((s, q) => s + q.population, 0);
   document.getElementById('stat-count').textContent = visibles.length;
   document.getElementById('stat-open').textContent = grandPublic.length;
@@ -2357,7 +2862,7 @@ function simuler(lat, lon) {
     Résultat net indicatif (${margeMin}–${margeMax} % du CA) : ${fmtEur(caMin * margeMin / 100)} – ${fmtEur(caMax * margeMax / 100)}
     <div class="verdict ${verdictCls}">${verdictTxt}</div>
     ${blocExploitation((caMin + caMax) / 2)}
-    <p class="hint">Modèle de Huff pondéré par l'attractivité, rayon ${R} m, demande étalée par quartier. Les hypothèses sont dans data/benchmarks.json.</p>`;
+    <p class="note">Modèle de Huff pondéré par l'attractivité, rayon ${R} m, demande étalée par quartier. Les hypothèses sont dans data/benchmarks.json.</p>`;
 }
 
 // ---------- COMPTE D'EXPLOITATION PRÉVISIONNEL ----------
@@ -2478,7 +2983,7 @@ function blocExploitation(ca) {
           x.roiAnnees != null ? x.roiAnnees.toFixed(1) + ' ans' : '—'}</td></tr>
       </table>
       <div class="verdict-pl" style="border-left-color:${couleur}">${verdict}</div>
-      <p class="hint">${state.benchmarks.financement.point_mort_reference.bfr_demarrage}</p>
+      <p class="note">${state.benchmarks.financement.point_mort_reference.bfr_demarrage}</p>
     </details>`;
 }
 
@@ -2533,11 +3038,22 @@ const VERDICT_FIABILITE = {
         + 'localisées. Correctif : import du carroyage INSEE 200 m.', '#dc2626'],
 };
 
+// Pastille permanente en tête de colonne : l'état de santé du modèle doit être
+// visible en continu, pas seulement quand on pense à ouvrir le bon onglet.
+function majChipFiabilite(f) {
+  const chip = document.getElementById('chip-fiabilite');
+  if (!chip) return;
+  if (!f) { chip.textContent = 'fiabilité n.d.'; chip.className = 'chip'; return; }
+  chip.textContent = `fiabilité ${f.rho >= 0 ? '+' : ''}${f.rho.toFixed(2)}`;
+  chip.className = 'chip ' + f.verdict;
+}
+
 function dessinerFiabilite() {
   const zone = document.getElementById('fiabilite');
   if (!zone) return;
   const f = controleFiabilite();
-  if (!f) { zone.innerHTML = '<p class="hint">Pas assez de laveries notées pour tester.</p>'; return; }
+  majChipFiabilite(f);
+  if (!f) { zone.innerHTML = '<p class="note">Pas assez de laveries notées pour tester.</p>'; return; }
   const [titre, texte, couleur] = VERDICT_FIABILITE[f.verdict];
   zone.innerHTML = `
     <div class="encart" style="border-left-color:${couleur};margin-top:0">
@@ -2550,7 +3066,7 @@ function dessinerFiabilite() {
       <tbody>${f.lignes.map(l => `<tr><td>${l.nom}</td>
         <td class="ca">${fmtEur(l.ca)}</td><td>${l.avis}</td></tr>`).join('')}</tbody>
     </table>
-    <p class="hint">Le nombre d'avis est un proxy imparfait de la fréquentation, mais il a
+    <p class="note">Le nombre d'avis est un proxy imparfait de la fréquentation, mais il a
     l'avantage d'être indépendant du modèle. Si les deux colonnes ne vont pas dans le
     même sens, le modèle décrit mal le terrain.</p>`;
 }
@@ -2586,7 +3102,7 @@ function dessinerHeatPotentiel() {
     map.removeLayer(state.layers.potentiel);
     state.layers.potentiel = null;
   }
-  if (!document.getElementById('l-heat-potentiel')?.checked) return;
+  if (state.vue !== 'potentiel') return;
 
   // Emprise : les quartiers connus, élargis d'une marge.
   const lats = state.quartiers.map(q => q.lat);
@@ -2671,7 +3187,7 @@ function dessinerDemandeCaptive() {
     map.removeLayer(state.layers.demandeSurface);
     state.layers.demandeSurface = null;
   }
-  if (!document.getElementById('l-heat-demande')?.checked) return;
+  if (state.vue !== 'demande') return;
 
   const gens = (state.generateurs || []).filter(g => !g.exclu);
   if (!gens.length) return;
@@ -2822,6 +3338,7 @@ function allerAAdresse() {
   err.textContent = '';
   map.flyTo([c.lat, c.lon], 16, { duration: 0.8 });
   simuler(c.lat, c.lon);
+  montrerSimulation();
 }
 
 // ---------- emplacements candidats ----------
@@ -2909,9 +3426,152 @@ function dessinerCandidats() {
   }
 }
 
+// ---------- NAVIGATION PAR ONGLETS ----------
+//
+// Dix panneaux empilés dans une colonne qui défile, c'est une liste de courses,
+// pas une interface. On regroupe par intention : ce que la carte montre, ce
+// qu'on en tire, l'inventaire, et les réglages du modèle.
+
+function ouvrirOnglet(nom) {
+  for (const b of document.querySelectorAll('.onglet')) {
+    b.classList.toggle('actif', b.dataset.onglet === nom);
+  }
+  for (const v of document.querySelectorAll('.vue-onglet')) {
+    v.classList.toggle('hidden', v.id !== 'tab-' + nom);
+  }
+  const corps = document.querySelector('.onglets-corps');
+  if (corps) corps.scrollTop = 0;
+}
+
+// Le résultat d'une simulation vit en bas de l'onglet Analyse : sans ce défilement,
+// une simulation lancée depuis la carte semble ne rien produire.
+function montrerSimulation() {
+  ouvrirOnglet('analyse');
+  const el = document.getElementById('simu-result');
+  if (el && !el.classList.contains('hidden')) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// ---------- LÉGENDE DE LA VUE ACTIVE ----------
+//
+// Une seule légende affichée, celle de la vue en cours. Afficher les quatre en
+// permanence obligeait le lecteur à deviner laquelle s'applique.
+
+const LEGENDES = {
+  potentiel: `
+    <span class="lg"><i style="background:#1c5cab"></i> Très en dessous</span>
+    <span class="lg"><i style="background:#5598e7"></i> En dessous</span>
+    <span class="lg"><i style="background:#6e6e69"></i> Au niveau</span>
+    <span class="lg"><i style="background:#e66767"></i> Au-dessus</span>
+    <span class="lg"><i style="background:#d03b3b"></i> Nettement au-dessus</span>
+    <span class="texte">Chaque maille de 140 m est évaluée par le modèle. La référence,
+    c'est le CA d'une <b>laverie moyenne de Pessac</b> : rouge = une nouvelle laverie
+    y ferait mieux. Les zones sans habitants restent transparentes.</span>`,
+
+  demande: `
+    <span class="lg"><i style="background:#f5be5a"></i> Demande diffuse</span>
+    <span class="lg"><i style="background:#d75220"></i> Grappe dense</span>
+    <span class="texte">Densité de ménages sans lave-linge, agrégée sur 320 m : une grappe
+    d'immeubles forme <b>une seule zone chaude</b>, comme la résidence Compostelle, au lieu
+    de cinq pastilles côte à côte.</span>
+    <span class="lg"><span class="dot" style="background:#eda100"></span> Résidence étudiante</span>
+    <span class="lg"><span class="dot" style="background:#e87ba4"></span> Logement social</span>
+    <span class="lg"><span class="dot" style="background:#1baf7a"></span> Hébergement touristique</span>
+    <span class="texte" style="color:#fbbf24">⚠ Le nombre de logements est une valeur par
+    défaut : cliquez un point pour le corriger.</span>`,
+
+  quartiers: `
+    <span class="lg"><i style="background:#dc2626"></i> Place pour une laverie</span>
+    <span class="lg"><i style="background:#eab308"></i> Limite</span>
+    <span class="lg"><i style="background:#15803d"></i> Pas de place</span>
+    <span class="texte">Même calcul que la heatmap, résumé par quartier, à rayon fixe de
+    800 m. Cliquez une pastille : population, concurrence en place, part de marché et CA
+    attendu.</span>`,
+
+  offre: `
+    <span class="texte">Chaleur = concentration des laveries existantes, pondérée par leur
+    force concurrentielle (note Google lissée × machines en service). Cette vue ne montre
+    <b>que l'offre</b> : une zone froide n'est pas forcément une opportunité, elle peut
+    n'avoir aucun habitant.</span>`,
+
+  aucune: `
+    <span class="texte">Aucune surface d'analyse. Les laveries et leurs cercles de
+    chalandise restent affichés — pratique pour repérer les rues et les locaux vacants.</span>`,
+};
+
+function majLegendeVue() {
+  const el = document.getElementById('legende-vue');
+  if (el) el.innerHTML = LEGENDES[state.vue] || '';
+}
+
+// ---------- MESURE DE L'EFFET D'UN RÉGLAGE ----------
+//
+// « Je ne comprends pas ce que ce curseur va impacter » est une critique juste :
+// un modèle qui ne montre pas ses propres réactions demande un acte de foi. On
+// affiche donc, après chaque mouvement, ce qui a RÉELLEMENT changé — le rang des
+// zones et les euros —, y compris quand la réponse est « rien ».
+
+function afficherToast(titre, corps, bouge) {
+  const el = document.getElementById('toast-impact');
+  if (!el) return;
+  el.className = bouge ? 'bouge' : '';
+  el.innerHTML = `<span class="titre">${titre}</span> — ${corps}`;
+  clearTimeout(afficherToast._t);
+  afficherToast._t = setTimeout(() => el.classList.add('hidden'), 9000);
+}
+
+function afficherImpact(libelle) {
+  const av = state._empreinteAvant, ap = state._empreinte;
+  if (!av || !ap) return;
+
+  const tete = ap.ordre[0];
+  const rangsChanges = ap.ordre.filter((id, i) => av.ordre[i] !== id).length;
+  const teteChange = av.ordre[0] !== tete;
+  const caAv = av.ca[tete], caAp = ap.ca[tete];
+  const variation = caAv ? (caAp - caAv) / caAv : 0;
+  const signe = variation >= 0 ? '+' : '−';
+
+  if (!rangsChanges && Math.abs(variation) < 0.005) {
+    afficherToast(`Impact de « ${libelle} »`,
+      'aucun effet mesurable. Ni le classement des zones, ni les euros ne bougent — '
+      + 'le résultat ne dépend donc pas de cette hypothèse.', false);
+    return;
+  }
+
+  const bloc1 = teteChange
+    ? `<b>la zone n°1 change : ${av.noms[av.ordre[0]]} → ${ap.noms[tete]}</b>`
+    : `zone n°1 inchangée (<b>${ap.noms[tete]}</b>)`;
+  const bloc2 = rangsChanges
+    ? `${rangsChanges} zone${rangsChanges > 1 ? 's' : ''} sur ${ap.ordre.length} `
+      + `${rangsChanges > 1 ? 'ont' : 'a'} changé de rang`
+    : `aucune zone n'a changé de rang`;
+  const bloc3 = Math.abs(variation) < 0.005
+    ? 'son CA modélisé ne bouge pas'
+    : `son CA modélisé : ${fmtEur(caAv)} → <b>${fmtEur(caAp)}</b> `
+      + `(${signe}${Math.abs(variation * 100).toFixed(1)} %)`;
+
+  afficherToast(`Impact de « ${libelle} »`, `${bloc1} · ${bloc2} · ${bloc3}`, teteChange);
+}
+
+// Les curseurs déclenchent un recalcul complet de la heatmap : on attend une
+// courte pause avant de repeindre, sinon un glissement de souris déclenche
+// cinquante recalculs et l'interface devient poisseuse.
+function differer(cle, ms, fn) {
+  differer._t = differer._t || {};
+  clearTimeout(differer._t[cle]);
+  differer._t[cle] = setTimeout(fn, ms);
+}
+
 // ---------- UI ----------
 
 function initUI() {
+  for (const b of document.querySelectorAll('.onglet')) {
+    b.addEventListener('click', () => ouvrirOnglet(b.dataset.onglet));
+  }
+  document.getElementById('chip-fiabilite').addEventListener('click',
+    () => ouvrirOnglet('modele'));
+
   document.getElementById('fiche-fermer').addEventListener('click', fermerFiche);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerFiche(); });
   document.getElementById('btn-export').addEventListener('click', exporterDonnees);
@@ -2919,18 +3579,48 @@ function initUI() {
     if (state.modifie) { e.preventDefault(); e.returnValue = ''; }
   });
 
-  for (const id of ['f-chaine', 'f-independant', 'f-captif', 'f-voisines', 'l-couverture',
-                    'l-heat-offre', 'l-heat-potentiel',
-                    'l-heat-demande', 'l-tension']) {
+  for (const id of ['f-chaine', 'f-independant', 'f-captif', 'f-voisines', 'l-couverture']) {
     document.getElementById(id).addEventListener('change', rafraichir);
   }
+
+  // Choix de la vue : une surface d'analyse à la fois.
+  for (const r of document.querySelectorAll('input[name="vue"]')) {
+    r.addEventListener('change', () => {
+      if (!r.checked) return;
+      state.vue = r.value;
+      majLegendeVue();
+      rafraichir();
+    });
+  }
+  majLegendeVue();
+
   const slider = document.getElementById('rayon');
   slider.addEventListener('input', () => {
     state.rayon = parseInt(slider.value, 10);
     document.getElementById('rayon-val').textContent = state.rayon;
-    dessinerCouverture();
-    dessinerHeatPotentiel();
-  dessinerDemandeCaptive();
+    differer('rayon', 110, () => {
+      const avant = state.derniereSimulation
+        ? (state.derniereSimulation.caMin + state.derniereSimulation.caMax) / 2 : null;
+      dessinerCouverture();
+      dessinerHeatPotentiel();
+      dessinerDemandeCaptive();
+      if (state.derniereSimulation) {
+        const d = state.derniereSimulation;
+        simuler(d.lat, d.lon);
+      }
+      const apres = state.derniereSimulation
+        ? (state.derniereSimulation.caMin + state.derniereSimulation.caMax) / 2 : null;
+      // Le classement des quartiers est figé à 800 m par construction : le dire
+      // explicitement évite de chercher un effet qui ne viendra pas.
+      const simu = (avant && apres)
+        ? ` Le local simulé passe de ${fmtEur(avant)} à <b>${fmtEur(apres)}</b>.`
+        : '';
+      afficherToast('Rayon de chalandise',
+        `cercles, heatmap et simulateur recalculés à <b>${state.rayon} m</b>. `
+        + `Le classement des zones, lui, ne bouge pas : il est volontairement figé `
+        + `à ${RAYON_TENSION} m pour rester comparable d'une capture à l'autre.${simu}`,
+        false);
+    });
   });
 
   // Localiser un local précis
@@ -2940,30 +3630,55 @@ function initUI() {
   });
   document.getElementById('btn-garder').addEventListener('click', garderCandidat);
 
-  // Hypothèses ajustables : tout recalculer à chaque mouvement
+  // Hypothèses ajustables : tout recalculer à chaque mouvement, puis annoncer ce
+  // que le mouvement a réellement changé.
+  //
+  // `modele: false` marque les réglages qui ne touchent QUE le compte
+  // d'exploitation. Leur appliquer la mesure d'impact ordinaire afficherait
+  // « aucun effet », ce qui serait faux : ils changent le résultat net.
   const hyps = [
-    ['h-depense', 'h-depense-val', v => { state.hyp.depenseMediane = v; return fmtInt(v); }],
-    ['h-demande', 'h-demande-val', v => { state.hyp.facteurDemande = v / 100; return v; }],
-    ['h-caref', 'h-caref-val', v => { state.hyp.caReference = v; return fmtInt(v); }],
-    ['h-loyer', 'h-loyer-val', v => { state.hyp.loyer = v; return fmtInt(v); }],
-    ['h-portee', 'h-portee-val', v => { state.hyp.porteeParking = v; return v.toFixed(1); }],
+    { id: 'h-depense', val: 'h-depense-val', libelle: 'Dépense annuelle', modele: true,
+      appliquer: v => { state.hyp.depenseMediane = v; return fmtInt(v); } },
+    { id: 'h-demande', val: 'h-demande-val', libelle: 'Niveau de demande', modele: true,
+      appliquer: v => { state.hyp.facteurDemande = v / 100; return v; } },
+    { id: 'h-caref', val: 'h-caref-val', libelle: 'CA moyen à Pessac', modele: true,
+      appliquer: v => { state.hyp.caReference = v; return fmtInt(v); } },
+    { id: 'h-portee', val: 'h-portee-val', libelle: 'Portée avec parking', modele: true,
+      appliquer: v => { state.hyp.porteeParking = v; return v.toFixed(1); } },
+    { id: 'h-loyer', val: 'h-loyer-val', libelle: 'Loyer mensuel', modele: false,
+      appliquer: v => { state.hyp.loyer = v; return fmtInt(v); } },
   ];
-  for (const [id, idVal, appliquer] of hyps) {
-    const s = document.getElementById(id);
+  for (const h of hyps) {
+    const s = document.getElementById(h.id);
     s.addEventListener('input', () => {
-      document.getElementById(idVal).textContent = appliquer(Number(s.value));
+      document.getElementById(h.val).textContent = h.appliquer(Number(s.value));
       document.getElementById('btn-reset-hyp').classList.remove('hidden');
-      rafraichir();
-      if (state.derniereSimulation) {
-        const d = state.derniereSimulation;
-        simuler(d.lat, d.lon);
-      }
+      differer('hyp', 130, () => {
+        rafraichir();
+        if (state.derniereSimulation) {
+          const d = state.derniereSimulation;
+          simuler(d.lat, d.lon);
+        }
+        if (h.modele) {
+          afficherImpact(h.libelle);
+        } else {
+          afficherToast(h.libelle,
+            "ne change ni le chiffre d'affaires, ni la carte, ni le classement — "
+            + 'seulement le résultat net, le point mort et le retour sur investissement '
+            + 'du compte d\'exploitation.', false);
+        }
+      });
     });
   }
   document.getElementById('h-energie').addEventListener('change', (e) => {
     state.hyp.stressEnergie = e.target.checked;
     document.getElementById('btn-reset-hyp').classList.remove('hidden');
     if (state.derniereSimulation) simuler(state.derniereSimulation.lat, state.derniereSimulation.lon);
+    afficherToast('Scénario stressé',
+      e.target.checked
+        ? "énergie et eau majorées de 30 % dans les charges. Le chiffre d'affaires et le "
+          + 'classement sont inchangés : seul le résultat net se dégrade.'
+        : 'charges revenues au niveau du secteur.', false);
   });
 
   document.getElementById('btn-reset-hyp').addEventListener('click', () => {
@@ -2984,13 +3699,14 @@ function initUI() {
     document.getElementById('btn-reset-hyp').classList.add('hidden');
     rafraichir();
     if (state.derniereSimulation) simuler(state.derniereSimulation.lat, state.derniereSimulation.lon);
+    afficherImpact('Retour aux valeurs du secteur');
   });
 
   const btn = document.getElementById('btn-simu');
   btn.addEventListener('click', () => {
     state.simulation = !state.simulation;
     btn.classList.toggle('active', state.simulation);
-    btn.textContent = state.simulation ? '🎯 Cliquez sur la carte… (cliquer ici pour quitter)' : '📍 Activer le mode simulation';
+    btn.textContent = state.simulation ? '🎯 Cliquez sur la carte… (cliquer ici pour quitter)' : '📍 Activer le clic sur la carte';
     if (!state.simulation) {
       state.layers.simulation.clearLayers();
       document.getElementById('simu-result').classList.add('hidden');

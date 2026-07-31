@@ -18,6 +18,10 @@ const state = {
   quartiers: [],
   benchmarks: null,
   rayon: RAYON_TENSION,
+  // Une seule surface d'analyse à la fois. Superposer une heatmap divergente,
+  // une heatmap séquentielle et des pastilles colorées ne se lit pas : on force
+  // le choix plutôt que de laisser l'utilisateur fabriquer une carte illisible.
+  vue: 'potentiel',
   simulation: false,
   layers: {},
   candidats: [],
@@ -161,8 +165,12 @@ function initCarte() {
   state.layers.demande = L.layerGroup().addTo(map);
   state.layers.heat = null;
 
+  // Le résultat d'une simulation s'affiche dans l'onglet Analyse : on y bascule,
+  // sinon un clic sur la carte semble ne rien produire.
   map.on('click', (e) => {
-    if (state.simulation) simuler(e.latlng.lat, e.latlng.lng);
+    if (!state.simulation) return;
+    simuler(e.latlng.lat, e.latlng.lng);
+    montrerSimulation();
   });
 }
 
@@ -593,7 +601,7 @@ function ouvrirEdition(id) {
   document.getElementById('fiche-contenu').innerHTML = `
     <div class="fiche-corps">
       <h2>Compléter « ${l.nom} »</h2>
-      <p class="hint">Recopiez ce que vous lisez sur la fiche Google Maps.
+      <p class="note">Recopiez ce que vous lisez sur la fiche Google Maps.
       Les champs vides restent inchangés côté affichage.</p>
       ${formulaireGoogle(l)}
     </div>`;
@@ -673,23 +681,25 @@ function surlignerListe(id) {
 
 function dessinerListe() {
   const ul = document.getElementById('liste-laveries');
-  const visibles = laveriesVisibles().filter(l => !l.hors_commune);
-  ul.innerHTML = visibles.map(l => {
+  // L'inventaire liste TOUTES les laveries de la commune, indépendamment des
+  // cases de l'onglet Carte : celles-ci ne pilotent que l'affichage sur la
+  // carte. Une ligne grisée signale simplement « masquée sur la carte ».
+  const toutes = state.laveries.filter(l => !l.hors_commune && l.statut === 'actif');
+  const surCarte = new Set(laveriesVisibles().map(l => l.id));
+  ul.innerHTML = toutes.map(l => {
     const note = l.note_google != null
       ? `${l.note_google}★${l.nb_avis != null ? `<br><span style="font-weight:400;font-size:0.62rem">${l.nb_avis} avis</span>` : ''}`
       : 'n.c.';
-    const voisine = l.hors_commune
-      ? '<span class="meta" style="color:#94a3b8">hors Pessac — concurrente</span>' : '';
     const cible = estVulnerable(l)
       ? '<span class="meta" style="color:#f97316">🎯 cible : mal notée, zone à reprendre</span>' : '';
-    return `<li data-id="${l.id}">
+    return `<li data-id="${l.id}" class="${surCarte.has(l.id) ? '' : 'masquee'}">
       <span class="dot dot-${l.type}"></span>
-      <span class="nom">${l.nom}<span class="meta">${l.quartier ?? 'quartier à définir'}</span>${voisine}${cible}</span>
-      <span class="note ${classeNote(l.note_google)}">${note}</span>
+      <span class="nom">${l.nom}<span class="meta">${l.quartier ?? 'quartier à définir'}</span>${cible}</span>
+      <span class="note-pastille ${classeNote(l.note_google)}">${note}</span>
     </li>`;
   }).join('');
 
-  document.getElementById('liste-count').textContent = visibles.length;
+  document.getElementById('liste-count').textContent = toutes.length;
 
   for (const li of ul.querySelectorAll('li')) {
     li.addEventListener('click', () => {
@@ -727,7 +737,7 @@ function dessinerCouverture() {
 
 function dessinerHeat() {
   if (state.layers.heat) { map.removeLayer(state.layers.heat); state.layers.heat = null; }
-  if (!document.getElementById('l-heat-offre').checked) return;
+  if (state.vue !== 'offre') return;
   const points = laveriesVisibles().map(l => [l.lat, l.lon, attractivite(l)]);
   state.layers.heat = L.heatLayer(points, { radius: 45, blur: 30, maxZoom: 15, max: 1.5 }).addTo(map);
 }
@@ -802,7 +812,10 @@ function partSansLaveLingeCarreau(c) {
   if (!menages) return pMin / 100;
   const partSeuls = (c.men_1ind || 0) / menages;
   const facteur = Math.min(1, partSeuls / cb.seuil_petits_logements_borne_haute);
-  return (pMin + (pMax - pMin) * facteur) / 100 * state.hyp.facteurDemande;
+  // Pas de facteurDemande ici : il est appliqué une seule fois, dans
+  // demandeAccessible(). L'appliquer aussi à ce niveau le compterait deux fois —
+  // et cette part est mise en cache dans pointsDemande(), donc figée.
+  return (pMin + (pMax - pMin) * facteur) / 100;
 }
 
 function pointsDemande() {
@@ -1062,7 +1075,7 @@ function couleurTension(i) {
 
 function dessinerTension() {
   state.layers.tension.clearLayers();
-  if (!document.getElementById('l-tension').checked) return;
+  if (state.vue !== 'quartiers') return;
   for (const q of state.quartiers) {
     const t = tensionQuartier(q);
     const label = t.indice < 0.6 ? 'Pas de place pour une laverie'
@@ -1090,10 +1103,20 @@ function dessinerTension() {
 
 function dessinerClassement() {
   const ol = document.getElementById('classement');
-  const zones = state.quartiers
+  const toutes = state.quartiers
     .map(q => ({ q, t: tensionQuartier(q) }))
-    .sort((a, b) => b.t.indice - a.t.indice)
-    .slice(0, 6);
+    .sort((a, b) => b.t.indice - a.t.indice);
+
+  // Empreinte du classement complet : sert à mesurer l'effet réel d'un réglage
+  // (voir afficherImpact). On la prend AVANT de tronquer à 6.
+  state._empreinteAvant = state._empreinte;
+  state._empreinte = {
+    ordre: toutes.map(z => z.q.id),
+    noms: Object.fromEntries(toutes.map(z => [z.q.id, z.q.nom])),
+    ca: Object.fromEntries(toutes.map(z => [z.q.id, z.t.caMed])),
+  };
+
+  const zones = toutes.slice(0, 6);
 
   ol.innerHTML = zones.map(({ q, t }) => {
     const cls = t.indice >= 1 ? 'verdict bon' : (t.indice >= 0.6 ? 'verdict moyen' : 'verdict faible');
@@ -1114,6 +1137,7 @@ function dessinerClassement() {
       btn.classList.add('active');
       btn.textContent = '🎯 Cliquez sur la carte… (cliquer ici pour quitter)';
       simuler(q.lat, q.lon);
+      montrerSimulation();
     });
   }
 }
@@ -1121,8 +1145,10 @@ function dessinerClassement() {
 // ---------- statistiques ----------
 
 function majStats() {
-  const visibles = laveriesVisibles().filter(l => !l.hors_commune);
-  const grandPublic = laveriesCommune().filter(l => l.type !== 'captif');
+  // Les statistiques décrivent le marché, pas l'affichage : elles ne suivent
+  // donc pas les cases de filtrage de la carte.
+  const visibles = laveriesCommune();
+  const grandPublic = visibles.filter(l => l.type !== 'captif');
   const pop = state.quartiers.reduce((s, q) => s + q.population, 0);
   document.getElementById('stat-count').textContent = visibles.length;
   document.getElementById('stat-open').textContent = grandPublic.length;
@@ -1193,7 +1219,7 @@ function simuler(lat, lon) {
     Résultat net indicatif (${margeMin}–${margeMax} % du CA) : ${fmtEur(caMin * margeMin / 100)} – ${fmtEur(caMax * margeMax / 100)}
     <div class="verdict ${verdictCls}">${verdictTxt}</div>
     ${blocExploitation((caMin + caMax) / 2)}
-    <p class="hint">Modèle de Huff pondéré par l'attractivité, rayon ${R} m, demande étalée par quartier. Les hypothèses sont dans data/benchmarks.json.</p>`;
+    <p class="note">Modèle de Huff pondéré par l'attractivité, rayon ${R} m, demande étalée par quartier. Les hypothèses sont dans data/benchmarks.json.</p>`;
 }
 
 // ---------- COMPTE D'EXPLOITATION PRÉVISIONNEL ----------
@@ -1314,7 +1340,7 @@ function blocExploitation(ca) {
           x.roiAnnees != null ? x.roiAnnees.toFixed(1) + ' ans' : '—'}</td></tr>
       </table>
       <div class="verdict-pl" style="border-left-color:${couleur}">${verdict}</div>
-      <p class="hint">${state.benchmarks.financement.point_mort_reference.bfr_demarrage}</p>
+      <p class="note">${state.benchmarks.financement.point_mort_reference.bfr_demarrage}</p>
     </details>`;
 }
 
@@ -1369,11 +1395,22 @@ const VERDICT_FIABILITE = {
         + 'localisées. Correctif : import du carroyage INSEE 200 m.', '#dc2626'],
 };
 
+// Pastille permanente en tête de colonne : l'état de santé du modèle doit être
+// visible en continu, pas seulement quand on pense à ouvrir le bon onglet.
+function majChipFiabilite(f) {
+  const chip = document.getElementById('chip-fiabilite');
+  if (!chip) return;
+  if (!f) { chip.textContent = 'fiabilité n.d.'; chip.className = 'chip'; return; }
+  chip.textContent = `fiabilité ${f.rho >= 0 ? '+' : ''}${f.rho.toFixed(2)}`;
+  chip.className = 'chip ' + f.verdict;
+}
+
 function dessinerFiabilite() {
   const zone = document.getElementById('fiabilite');
   if (!zone) return;
   const f = controleFiabilite();
-  if (!f) { zone.innerHTML = '<p class="hint">Pas assez de laveries notées pour tester.</p>'; return; }
+  majChipFiabilite(f);
+  if (!f) { zone.innerHTML = '<p class="note">Pas assez de laveries notées pour tester.</p>'; return; }
   const [titre, texte, couleur] = VERDICT_FIABILITE[f.verdict];
   zone.innerHTML = `
     <div class="encart" style="border-left-color:${couleur};margin-top:0">
@@ -1386,7 +1423,7 @@ function dessinerFiabilite() {
       <tbody>${f.lignes.map(l => `<tr><td>${l.nom}</td>
         <td class="ca">${fmtEur(l.ca)}</td><td>${l.avis}</td></tr>`).join('')}</tbody>
     </table>
-    <p class="hint">Le nombre d'avis est un proxy imparfait de la fréquentation, mais il a
+    <p class="note">Le nombre d'avis est un proxy imparfait de la fréquentation, mais il a
     l'avantage d'être indépendant du modèle. Si les deux colonnes ne vont pas dans le
     même sens, le modèle décrit mal le terrain.</p>`;
 }
@@ -1422,7 +1459,7 @@ function dessinerHeatPotentiel() {
     map.removeLayer(state.layers.potentiel);
     state.layers.potentiel = null;
   }
-  if (!document.getElementById('l-heat-potentiel')?.checked) return;
+  if (state.vue !== 'potentiel') return;
 
   // Emprise : les quartiers connus, élargis d'une marge.
   const lats = state.quartiers.map(q => q.lat);
@@ -1507,7 +1544,7 @@ function dessinerDemandeCaptive() {
     map.removeLayer(state.layers.demandeSurface);
     state.layers.demandeSurface = null;
   }
-  if (!document.getElementById('l-heat-demande')?.checked) return;
+  if (state.vue !== 'demande') return;
 
   const gens = (state.generateurs || []).filter(g => !g.exclu);
   if (!gens.length) return;
@@ -1658,6 +1695,7 @@ function allerAAdresse() {
   err.textContent = '';
   map.flyTo([c.lat, c.lon], 16, { duration: 0.8 });
   simuler(c.lat, c.lon);
+  montrerSimulation();
 }
 
 // ---------- emplacements candidats ----------
@@ -1745,9 +1783,152 @@ function dessinerCandidats() {
   }
 }
 
+// ---------- NAVIGATION PAR ONGLETS ----------
+//
+// Dix panneaux empilés dans une colonne qui défile, c'est une liste de courses,
+// pas une interface. On regroupe par intention : ce que la carte montre, ce
+// qu'on en tire, l'inventaire, et les réglages du modèle.
+
+function ouvrirOnglet(nom) {
+  for (const b of document.querySelectorAll('.onglet')) {
+    b.classList.toggle('actif', b.dataset.onglet === nom);
+  }
+  for (const v of document.querySelectorAll('.vue-onglet')) {
+    v.classList.toggle('hidden', v.id !== 'tab-' + nom);
+  }
+  const corps = document.querySelector('.onglets-corps');
+  if (corps) corps.scrollTop = 0;
+}
+
+// Le résultat d'une simulation vit en bas de l'onglet Analyse : sans ce défilement,
+// une simulation lancée depuis la carte semble ne rien produire.
+function montrerSimulation() {
+  ouvrirOnglet('analyse');
+  const el = document.getElementById('simu-result');
+  if (el && !el.classList.contains('hidden')) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// ---------- LÉGENDE DE LA VUE ACTIVE ----------
+//
+// Une seule légende affichée, celle de la vue en cours. Afficher les quatre en
+// permanence obligeait le lecteur à deviner laquelle s'applique.
+
+const LEGENDES = {
+  potentiel: `
+    <span class="lg"><i style="background:#1c5cab"></i> Très en dessous</span>
+    <span class="lg"><i style="background:#5598e7"></i> En dessous</span>
+    <span class="lg"><i style="background:#6e6e69"></i> Au niveau</span>
+    <span class="lg"><i style="background:#e66767"></i> Au-dessus</span>
+    <span class="lg"><i style="background:#d03b3b"></i> Nettement au-dessus</span>
+    <span class="texte">Chaque maille de 140 m est évaluée par le modèle. La référence,
+    c'est le CA d'une <b>laverie moyenne de Pessac</b> : rouge = une nouvelle laverie
+    y ferait mieux. Les zones sans habitants restent transparentes.</span>`,
+
+  demande: `
+    <span class="lg"><i style="background:#f5be5a"></i> Demande diffuse</span>
+    <span class="lg"><i style="background:#d75220"></i> Grappe dense</span>
+    <span class="texte">Densité de ménages sans lave-linge, agrégée sur 320 m : une grappe
+    d'immeubles forme <b>une seule zone chaude</b>, comme la résidence Compostelle, au lieu
+    de cinq pastilles côte à côte.</span>
+    <span class="lg"><span class="dot" style="background:#eda100"></span> Résidence étudiante</span>
+    <span class="lg"><span class="dot" style="background:#e87ba4"></span> Logement social</span>
+    <span class="lg"><span class="dot" style="background:#1baf7a"></span> Hébergement touristique</span>
+    <span class="texte" style="color:#fbbf24">⚠ Le nombre de logements est une valeur par
+    défaut : cliquez un point pour le corriger.</span>`,
+
+  quartiers: `
+    <span class="lg"><i style="background:#dc2626"></i> Place pour une laverie</span>
+    <span class="lg"><i style="background:#eab308"></i> Limite</span>
+    <span class="lg"><i style="background:#15803d"></i> Pas de place</span>
+    <span class="texte">Même calcul que la heatmap, résumé par quartier, à rayon fixe de
+    800 m. Cliquez une pastille : population, concurrence en place, part de marché et CA
+    attendu.</span>`,
+
+  offre: `
+    <span class="texte">Chaleur = concentration des laveries existantes, pondérée par leur
+    force concurrentielle (note Google lissée × machines en service). Cette vue ne montre
+    <b>que l'offre</b> : une zone froide n'est pas forcément une opportunité, elle peut
+    n'avoir aucun habitant.</span>`,
+
+  aucune: `
+    <span class="texte">Aucune surface d'analyse. Les laveries et leurs cercles de
+    chalandise restent affichés — pratique pour repérer les rues et les locaux vacants.</span>`,
+};
+
+function majLegendeVue() {
+  const el = document.getElementById('legende-vue');
+  if (el) el.innerHTML = LEGENDES[state.vue] || '';
+}
+
+// ---------- MESURE DE L'EFFET D'UN RÉGLAGE ----------
+//
+// « Je ne comprends pas ce que ce curseur va impacter » est une critique juste :
+// un modèle qui ne montre pas ses propres réactions demande un acte de foi. On
+// affiche donc, après chaque mouvement, ce qui a RÉELLEMENT changé — le rang des
+// zones et les euros —, y compris quand la réponse est « rien ».
+
+function afficherToast(titre, corps, bouge) {
+  const el = document.getElementById('toast-impact');
+  if (!el) return;
+  el.className = bouge ? 'bouge' : '';
+  el.innerHTML = `<span class="titre">${titre}</span> — ${corps}`;
+  clearTimeout(afficherToast._t);
+  afficherToast._t = setTimeout(() => el.classList.add('hidden'), 9000);
+}
+
+function afficherImpact(libelle) {
+  const av = state._empreinteAvant, ap = state._empreinte;
+  if (!av || !ap) return;
+
+  const tete = ap.ordre[0];
+  const rangsChanges = ap.ordre.filter((id, i) => av.ordre[i] !== id).length;
+  const teteChange = av.ordre[0] !== tete;
+  const caAv = av.ca[tete], caAp = ap.ca[tete];
+  const variation = caAv ? (caAp - caAv) / caAv : 0;
+  const signe = variation >= 0 ? '+' : '−';
+
+  if (!rangsChanges && Math.abs(variation) < 0.005) {
+    afficherToast(`Impact de « ${libelle} »`,
+      'aucun effet mesurable. Ni le classement des zones, ni les euros ne bougent — '
+      + 'le résultat ne dépend donc pas de cette hypothèse.', false);
+    return;
+  }
+
+  const bloc1 = teteChange
+    ? `<b>la zone n°1 change : ${av.noms[av.ordre[0]]} → ${ap.noms[tete]}</b>`
+    : `zone n°1 inchangée (<b>${ap.noms[tete]}</b>)`;
+  const bloc2 = rangsChanges
+    ? `${rangsChanges} zone${rangsChanges > 1 ? 's' : ''} sur ${ap.ordre.length} `
+      + `${rangsChanges > 1 ? 'ont' : 'a'} changé de rang`
+    : `aucune zone n'a changé de rang`;
+  const bloc3 = Math.abs(variation) < 0.005
+    ? 'son CA modélisé ne bouge pas'
+    : `son CA modélisé : ${fmtEur(caAv)} → <b>${fmtEur(caAp)}</b> `
+      + `(${signe}${Math.abs(variation * 100).toFixed(1)} %)`;
+
+  afficherToast(`Impact de « ${libelle} »`, `${bloc1} · ${bloc2} · ${bloc3}`, teteChange);
+}
+
+// Les curseurs déclenchent un recalcul complet de la heatmap : on attend une
+// courte pause avant de repeindre, sinon un glissement de souris déclenche
+// cinquante recalculs et l'interface devient poisseuse.
+function differer(cle, ms, fn) {
+  differer._t = differer._t || {};
+  clearTimeout(differer._t[cle]);
+  differer._t[cle] = setTimeout(fn, ms);
+}
+
 // ---------- UI ----------
 
 function initUI() {
+  for (const b of document.querySelectorAll('.onglet')) {
+    b.addEventListener('click', () => ouvrirOnglet(b.dataset.onglet));
+  }
+  document.getElementById('chip-fiabilite').addEventListener('click',
+    () => ouvrirOnglet('modele'));
+
   document.getElementById('fiche-fermer').addEventListener('click', fermerFiche);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerFiche(); });
   document.getElementById('btn-export').addEventListener('click', exporterDonnees);
@@ -1755,18 +1936,48 @@ function initUI() {
     if (state.modifie) { e.preventDefault(); e.returnValue = ''; }
   });
 
-  for (const id of ['f-chaine', 'f-independant', 'f-captif', 'f-voisines', 'l-couverture',
-                    'l-heat-offre', 'l-heat-potentiel',
-                    'l-heat-demande', 'l-tension']) {
+  for (const id of ['f-chaine', 'f-independant', 'f-captif', 'f-voisines', 'l-couverture']) {
     document.getElementById(id).addEventListener('change', rafraichir);
   }
+
+  // Choix de la vue : une surface d'analyse à la fois.
+  for (const r of document.querySelectorAll('input[name="vue"]')) {
+    r.addEventListener('change', () => {
+      if (!r.checked) return;
+      state.vue = r.value;
+      majLegendeVue();
+      rafraichir();
+    });
+  }
+  majLegendeVue();
+
   const slider = document.getElementById('rayon');
   slider.addEventListener('input', () => {
     state.rayon = parseInt(slider.value, 10);
     document.getElementById('rayon-val').textContent = state.rayon;
-    dessinerCouverture();
-    dessinerHeatPotentiel();
-  dessinerDemandeCaptive();
+    differer('rayon', 110, () => {
+      const avant = state.derniereSimulation
+        ? (state.derniereSimulation.caMin + state.derniereSimulation.caMax) / 2 : null;
+      dessinerCouverture();
+      dessinerHeatPotentiel();
+      dessinerDemandeCaptive();
+      if (state.derniereSimulation) {
+        const d = state.derniereSimulation;
+        simuler(d.lat, d.lon);
+      }
+      const apres = state.derniereSimulation
+        ? (state.derniereSimulation.caMin + state.derniereSimulation.caMax) / 2 : null;
+      // Le classement des quartiers est figé à 800 m par construction : le dire
+      // explicitement évite de chercher un effet qui ne viendra pas.
+      const simu = (avant && apres)
+        ? ` Le local simulé passe de ${fmtEur(avant)} à <b>${fmtEur(apres)}</b>.`
+        : '';
+      afficherToast('Rayon de chalandise',
+        `cercles, heatmap et simulateur recalculés à <b>${state.rayon} m</b>. `
+        + `Le classement des zones, lui, ne bouge pas : il est volontairement figé `
+        + `à ${RAYON_TENSION} m pour rester comparable d'une capture à l'autre.${simu}`,
+        false);
+    });
   });
 
   // Localiser un local précis
@@ -1776,30 +1987,55 @@ function initUI() {
   });
   document.getElementById('btn-garder').addEventListener('click', garderCandidat);
 
-  // Hypothèses ajustables : tout recalculer à chaque mouvement
+  // Hypothèses ajustables : tout recalculer à chaque mouvement, puis annoncer ce
+  // que le mouvement a réellement changé.
+  //
+  // `modele: false` marque les réglages qui ne touchent QUE le compte
+  // d'exploitation. Leur appliquer la mesure d'impact ordinaire afficherait
+  // « aucun effet », ce qui serait faux : ils changent le résultat net.
   const hyps = [
-    ['h-depense', 'h-depense-val', v => { state.hyp.depenseMediane = v; return fmtInt(v); }],
-    ['h-demande', 'h-demande-val', v => { state.hyp.facteurDemande = v / 100; return v; }],
-    ['h-caref', 'h-caref-val', v => { state.hyp.caReference = v; return fmtInt(v); }],
-    ['h-loyer', 'h-loyer-val', v => { state.hyp.loyer = v; return fmtInt(v); }],
-    ['h-portee', 'h-portee-val', v => { state.hyp.porteeParking = v; return v.toFixed(1); }],
+    { id: 'h-depense', val: 'h-depense-val', libelle: 'Dépense annuelle', modele: true,
+      appliquer: v => { state.hyp.depenseMediane = v; return fmtInt(v); } },
+    { id: 'h-demande', val: 'h-demande-val', libelle: 'Niveau de demande', modele: true,
+      appliquer: v => { state.hyp.facteurDemande = v / 100; return v; } },
+    { id: 'h-caref', val: 'h-caref-val', libelle: 'CA moyen à Pessac', modele: true,
+      appliquer: v => { state.hyp.caReference = v; return fmtInt(v); } },
+    { id: 'h-portee', val: 'h-portee-val', libelle: 'Portée avec parking', modele: true,
+      appliquer: v => { state.hyp.porteeParking = v; return v.toFixed(1); } },
+    { id: 'h-loyer', val: 'h-loyer-val', libelle: 'Loyer mensuel', modele: false,
+      appliquer: v => { state.hyp.loyer = v; return fmtInt(v); } },
   ];
-  for (const [id, idVal, appliquer] of hyps) {
-    const s = document.getElementById(id);
+  for (const h of hyps) {
+    const s = document.getElementById(h.id);
     s.addEventListener('input', () => {
-      document.getElementById(idVal).textContent = appliquer(Number(s.value));
+      document.getElementById(h.val).textContent = h.appliquer(Number(s.value));
       document.getElementById('btn-reset-hyp').classList.remove('hidden');
-      rafraichir();
-      if (state.derniereSimulation) {
-        const d = state.derniereSimulation;
-        simuler(d.lat, d.lon);
-      }
+      differer('hyp', 130, () => {
+        rafraichir();
+        if (state.derniereSimulation) {
+          const d = state.derniereSimulation;
+          simuler(d.lat, d.lon);
+        }
+        if (h.modele) {
+          afficherImpact(h.libelle);
+        } else {
+          afficherToast(h.libelle,
+            "ne change ni le chiffre d'affaires, ni la carte, ni le classement — "
+            + 'seulement le résultat net, le point mort et le retour sur investissement '
+            + 'du compte d\'exploitation.', false);
+        }
+      });
     });
   }
   document.getElementById('h-energie').addEventListener('change', (e) => {
     state.hyp.stressEnergie = e.target.checked;
     document.getElementById('btn-reset-hyp').classList.remove('hidden');
     if (state.derniereSimulation) simuler(state.derniereSimulation.lat, state.derniereSimulation.lon);
+    afficherToast('Scénario stressé',
+      e.target.checked
+        ? "énergie et eau majorées de 30 % dans les charges. Le chiffre d'affaires et le "
+          + 'classement sont inchangés : seul le résultat net se dégrade.'
+        : 'charges revenues au niveau du secteur.', false);
   });
 
   document.getElementById('btn-reset-hyp').addEventListener('click', () => {
@@ -1820,13 +2056,14 @@ function initUI() {
     document.getElementById('btn-reset-hyp').classList.add('hidden');
     rafraichir();
     if (state.derniereSimulation) simuler(state.derniereSimulation.lat, state.derniereSimulation.lon);
+    afficherImpact('Retour aux valeurs du secteur');
   });
 
   const btn = document.getElementById('btn-simu');
   btn.addEventListener('click', () => {
     state.simulation = !state.simulation;
     btn.classList.toggle('active', state.simulation);
-    btn.textContent = state.simulation ? '🎯 Cliquez sur la carte… (cliquer ici pour quitter)' : '📍 Activer le mode simulation';
+    btn.textContent = state.simulation ? '🎯 Cliquez sur la carte… (cliquer ici pour quitter)' : '📍 Activer le clic sur la carte';
     if (!state.simulation) {
       state.layers.simulation.clearLayers();
       document.getElementById('simu-result').classList.add('hidden');

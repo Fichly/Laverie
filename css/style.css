@@ -377,6 +377,18 @@ button.active { background: var(--orange); color: #431407; }
 .verdict.moyen { background: rgba(234, 179, 8, 0.16); color: #fde047; }
 .verdict.faible { background: rgba(220, 38, 38, 0.16); color: #fca5a5; }
 
+/* ---- Avis d'absence de fond de plan ---- */
+#avis-fond {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 1100; max-width: 620px;
+  background: rgba(21, 29, 46, 0.96); border: 1px solid var(--line);
+  border-left: 3px solid #fbbf24; border-radius: var(--r-md);
+  padding: 9px 14px; font-size: 0.76rem; line-height: 1.5; color: var(--muted);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px);
+}
+#avis-fond b { color: var(--text); }
+#avis-fond.hidden { display: none; }
+
 /* ---- Noms de communes sur la carte ---- */
 .etiquette-commune {
   position: absolute; transform: translate(-50%, -50%);
@@ -403,6 +415,18 @@ button.active { background: var(--orange); color: #431407; }
 }
 .check-gen { gap: 7px; }
 .check-gen .badge { margin-left: auto; }
+
+/* ---- Avis d'absence de fond de plan ---- */
+#avis-fond {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 1100; max-width: 620px;
+  background: rgba(21, 29, 46, 0.96); border: 1px solid var(--line);
+  border-left: 3px solid #fbbf24; border-radius: var(--r-md);
+  padding: 9px 14px; font-size: 0.76rem; line-height: 1.5; color: var(--muted);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px);
+}
+#avis-fond b { color: var(--text); }
+#avis-fond.hidden { display: none; }
 
 /* ---- Noms de communes sur la carte ---- */
 .etiquette-commune {

@@ -1048,6 +1048,18 @@ button.active { background: var(--orange); color: #431407; }
 .verdict.moyen { background: rgba(234, 179, 8, 0.16); color: #fde047; }
 .verdict.faible { background: rgba(220, 38, 38, 0.16); color: #fca5a5; }
 
+/* ---- Avis d'absence de fond de plan ---- */
+#avis-fond {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 1100; max-width: 620px;
+  background: rgba(21, 29, 46, 0.96); border: 1px solid var(--line);
+  border-left: 3px solid #fbbf24; border-radius: var(--r-md);
+  padding: 9px 14px; font-size: 0.76rem; line-height: 1.5; color: var(--muted);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px);
+}
+#avis-fond b { color: var(--text); }
+#avis-fond.hidden { display: none; }
+
 /* ---- Noms de communes sur la carte ---- */
 .etiquette-commune {
   position: absolute; transform: translate(-50%, -50%);
@@ -1074,6 +1086,18 @@ button.active { background: var(--orange); color: #431407; }
 }
 .check-gen { gap: 7px; }
 .check-gen .badge { margin-left: auto; }
+
+/* ---- Avis d'absence de fond de plan ---- */
+#avis-fond {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 1100; max-width: 620px;
+  background: rgba(21, 29, 46, 0.96); border: 1px solid var(--line);
+  border-left: 3px solid #fbbf24; border-radius: var(--r-md);
+  padding: 9px 14px; font-size: 0.76rem; line-height: 1.5; color: var(--muted);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px);
+}
+#avis-fond b { color: var(--text); }
+#avis-fond.hidden { display: none; }
 
 /* ---- Noms de communes sur la carte ---- */
 .etiquette-commune {
@@ -1751,6 +1775,12 @@ button.active { background: var(--orange); color: #431407; }
     </aside>
 
     <div id="map"></div>
+    <div id="avis-fond" class="hidden">
+      <b>Fond de plan indisponible ici.</b>
+      Les rues ne s'affichent pas — cette page n'a pas accès à OpenStreetMap.
+      Repérez-vous aux <b>noms de communes</b> ; tout le reste fonctionne.
+      Pour la carte complète, ouvrez le projet en local.
+    </div>
     <div id="toast-impact" class="hidden"></div>
     <div id="barre-export" class="hidden">
       <span id="modifs-info"></span>
@@ -1982,10 +2012,21 @@ const VUES_CARTE = {
 function initCarte() {
   const cadre = VUES_CARTE[state.perimetre] || VUES_CARTE.pessac;
   map = L.map('map').setView(cadre.centre, cadre.zoom);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  const tuiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap',
   }).addTo(map);
+
+  // Le fond de plan peut être injoignable : hors ligne, réseau d'entreprise, ou
+  // page publiée qui interdit les requêtes externes. Sans explication, on croit
+  // que l'application est cassée alors qu'elle fonctionne — seules les rues
+  // manquent. On le dit, une fois, après quelques échecs.
+  let echecsTuiles = 0;
+  tuiles.on('tileerror', () => {
+    if (++echecsTuiles !== 4) return;
+    const el = document.getElementById('avis-fond');
+    if (el) el.classList.remove('hidden');
+  });
 
   state.layers.marqueurs = L.layerGroup().addTo(map);
   state.layers.couverture = L.layerGroup().addTo(map);

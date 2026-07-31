@@ -197,10 +197,21 @@ const VUES_CARTE = {
 function initCarte() {
   const cadre = VUES_CARTE[state.perimetre] || VUES_CARTE.pessac;
   map = L.map('map').setView(cadre.centre, cadre.zoom);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  const tuiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap',
   }).addTo(map);
+
+  // Le fond de plan peut être injoignable : hors ligne, réseau d'entreprise, ou
+  // page publiée qui interdit les requêtes externes. Sans explication, on croit
+  // que l'application est cassée alors qu'elle fonctionne — seules les rues
+  // manquent. On le dit, une fois, après quelques échecs.
+  let echecsTuiles = 0;
+  tuiles.on('tileerror', () => {
+    if (++echecsTuiles !== 4) return;
+    const el = document.getElementById('avis-fond');
+    if (el) el.classList.remove('hidden');
+  });
 
   state.layers.marqueurs = L.layerGroup().addTo(map);
   state.layers.couverture = L.layerGroup().addTo(map);

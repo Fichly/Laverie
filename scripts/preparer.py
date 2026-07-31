@@ -254,7 +254,7 @@ def verifier_reseau():
 # ─────────────────────────────────────────────────────────── les étapes
 
 def etape_insee(bilan):
-    titre(1, 4, "La population, quartier par quartier (INSEE)")
+    titre(1, 5, "La population, quartier par quartier (INSEE)")
     dire("""
 Sans cette donnée, le modèle répartit les habitants à la louche. Avec elle, il
 connaît la population réellement observée par carré de 200 mètres.
@@ -298,7 +298,7 @@ L'application marchera quand même sans, avec des populations estimées.
 
 
 def etape_laveries(bilan, cle):
-    titre(2, 4, "Les laveries de toute la métropole (Google)")
+    titre(2, 5, "Les laveries de toute la métropole (Google)")
     dire("""
 L'inventaire actuel couvre Pessac et ses abords. Pour travailler à l'échelle
 des 28 communes, il faut recenser les laveries partout — sinon les communes
@@ -324,8 +324,43 @@ largement couverts par le crédit mensuel offert par Google.
         nettoyer(bilan)
 
 
+def etape_generateurs(bilan, cle):
+    titre(3, 5, "D'où vient la demande : résidences et logements sociaux")
+    dire("""
+Un studio étudiant n'a presque jamais de lave-linge : les résidences
+universitaires sont le premier générateur de demande d'une laverie. Les grands
+ensembles de logement social viennent ensuite.
+
+Deux sources, complémentaires :
+  • le CROUS publie son parc en accès libre — gratuit, sans clé, avec les
+    positions officielles et souvent le nombre de logements ;
+  • Google complète avec les résidences privées (Studéa, Estudines, Yugo…) et
+    les logements sociaux, qui ne figurent dans aucun fichier public exploitable.
+""")
+
+    if demander("Importer les résidences CROUS (gratuit, ~10 secondes) ?"):
+        ok = lancer("import_crous.py", "--ecrire")
+        bilan["Résidences CROUS"] = "✅ importées" if ok else "❌ échec"
+    else:
+        bilan["Résidences CROUS"] = "ignorée à votre demande"
+
+    if not cle:
+        dire("\n⏭  Pas de clé Google : les résidences privées et les logements "
+             "sociaux ne seront pas recensés.")
+        bilan["Résidences privées / HLM"] = "⏭ ignorée (pas de clé Google)"
+        return
+    dire("\nLe balayage Google couvre les 28 communes en 12 tuiles : comptez "
+         "~150 requêtes\net deux à trois minutes.")
+    if not demander("Lancer le balayage Google ?"):
+        bilan["Résidences privées / HLM"] = "ignorée à votre demande"
+        return
+    ok = lancer("find_generateurs.py", "--ecrire",
+                env_sup={"GOOGLE_MAPS_API_KEY": cle})
+    bilan["Résidences privées / HLM"] = "✅ recensées" if ok else "❌ échec"
+
+
 def etape_entreprises(bilan):
-    titre(3, 4, "Les chiffres d'affaires réels (SIRENE, greffes, BODACC)")
+    titre(4, 5, "Les chiffres d'affaires réels (SIRENE, greffes, BODACC)")
     dire("""
 Aujourd'hui le modèle suppose qu'une laverie fait 50 000 € par an. Ce chiffre
 vient d'un dossier de marché, personne ne l'a vérifié.
@@ -363,7 +398,7 @@ ce qu'il affiche :
 
 
 def etape_construction(bilan):
-    titre(4, 4, "Fabrication de l'application")
+    titre(5, 5, "Fabrication de l'application")
     dire("""
 Toutes les données récupérées sont assemblées dans un seul fichier
 laverie-mapper.html, que vous ouvrez d'un double-clic. Rien à installer.
@@ -428,9 +463,11 @@ les autres se poursuivent et l'application vous dira ce qui lui manque.
         etape_insee(bilan)
         if reseau_ok:
             etape_laveries(bilan, cle)
+            etape_generateurs(bilan, cle)
             etape_entreprises(bilan)
         else:
             bilan["Laveries métropole"] = "⏭ ignorée (pas d'accès internet)"
+            bilan["Générateurs de demande"] = "⏭ ignorée (pas d'accès internet)"
             bilan["Chiffres réels"] = "⏭ ignorée (pas d'accès internet)"
             bilan["Historique BODACC"] = "⏭ ignorée (pas d'accès internet)"
         # Un inventaire élargi qui n'a pas encore été trié contient des stations

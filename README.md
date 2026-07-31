@@ -16,8 +16,9 @@ d'elles échoue.
 python3 scripts/preparer.py
 ```
 
-L'assistant enchaîne les quatre imports dans le bon ordre (population INSEE,
-laveries de la métropole, chiffres d'affaires réels, historique BODACC) puis
+L'assistant enchaîne les cinq étapes dans le bon ordre (population INSEE,
+laveries de la métropole, générateurs de demande, chiffres d'affaires réels et
+historique BODACC) puis
 construit `laverie-mapper.html`. Chaque étape est facultative : ce qui manque
 est signalé dans le bilan final, et l'application le redit dans son interface.
 
@@ -157,10 +158,24 @@ Résidences étudiantes, logements sociaux et hébergements touristiques sont
 recensés bâtiment par bâtiment et posés en **pins colorés** sur la vue
 « Demande captive », avec un filtre par famille :
 
+Deux sources complémentaires, dédoublonnées entre elles :
+
 ```bash
+python3 scripts/import_crous.py --ecrire                # parc public, sans clé
 python3 scripts/find_generateurs.py --type residence_etudiante --ecrire
 python3 scripts/find_generateurs.py --ecrire            # les trois familles
 ```
+
+**Le CROUS d'abord** : le CNOUS publie son parc académie par académie, en accès
+libre et sans clé, avec les positions officielles et souvent la capacité
+d'accueil — donc un vrai nombre de logements au lieu d'une valeur par défaut. Le
+flux existe pour les 26 académies (`--academie lyon`, `--academie lille`…), ce
+qui rend l'extension à d'autres villes immédiate.
+
+Il ne couvre que le parc **public** : les résidences privées (Studéa, Estudines,
+Yugo, Nemea) et les logements sociaux passent par le balayage Google. Quand les
+deux sources décrivent le même bâtiment, il n'est compté qu'une fois et la
+position officielle du CROUS l'emporte.
 
 Le balayage couvre les 28 communes en 12 tuiles (~150 requêtes pour tout,
 une cinquantaine pour les seules résidences étudiantes). **Les générateurs déjà

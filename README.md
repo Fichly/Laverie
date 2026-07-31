@@ -24,18 +24,24 @@ est signalé dans le bilan final, et l'application le redit dans son interface.
 
 ## Lancer l'application
 
-**Le plus simple — version autonome :** ouvrir `laverie-mapper.html` d'un
-double-clic. Un seul fichier, aucune installation, aucun serveur. Une connexion
-internet est nécessaire uniquement pour afficher le fond de carte.
+**Sur Mac** — double-cliquez `LANCER.command`. Un serveur local démarre et votre
+navigateur s'ouvre sur la carte.
 
-**Version modulaire** (pour développer, avec les données dans des fichiers
-séparés) :
+**Sur tout système** :
 
 ```bash
-python3 -m http.server 8000   # puis ouvrir http://localhost:8000
+python3 scripts/servir.py     # affiche et ouvre http://localhost:8000/
 ```
 
-Après toute modification de `data/*.json`, régénérer le fichier autonome :
+C'est la façon recommandée de travailler : cette version lit `data/*.json` à
+chaque chargement, donc **corriger une donnée ou relancer un import se voit d'un
+simple rafraîchissement**. Le serveur choisit un port libre si 8000 est pris, et
+envoie un en-tête anti-cache — sans lui, le navigateur ressert un fichier périmé
+après un import et on croit que le script n'a rien fait.
+
+**Version figée, sans serveur** — `laverie-mapper.html`, ouvrable d'un
+double-clic ou transmissible par mail. Un seul fichier, toutes les données
+embarquées. Il faut le reconstruire après chaque modification :
 
 ```bash
 python3 scripts/build_standalone.py

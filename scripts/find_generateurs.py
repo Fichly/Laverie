@@ -34,6 +34,7 @@ import math
 import os
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -138,7 +139,7 @@ FAMILLES = [
 # eux-mêmes. On les écarte sur le nom.
 EXCLUSIONS = [
     "pharmacie", "boulangerie", "agence", "adil", "ccas", "action sociale",
-    "resto", "restaurant", "université", "siège", "maison de quartier",
+    "resto", "restaurant", "siège", "maison de quartier",
     "mairie", "école", "collège", "lycée", "banque", "assurance", "bureau",
     "supermarché", "tabac", "coiffeur", "garage", "cabinet",
     # Les résidences pour personnes âgées disposent d'un service de blanchisserie
@@ -149,12 +150,70 @@ EXCLUSIONS = [
     # ils signalent bien un bâtiment d'habitation mais ne sont pas le bâtiment.
     "synd", "copro", "location", "immobilier", "notaire", "médecin", "téléconsultation",
     "amicale", "salle municipale", "centre social", "centre commercial", "btp",
+    # Sièges de bailleurs, agences de gestion et sociétés de service : ils
+    # signalent le métier du logement, pas un bâtiment habité. Les laisser
+    # créerait de la demande là où il n'y a que des bureaux.
+    "solution logement", "gestion locative", "gestfac", "vilogia", "promotion",
+    "conseil", "sci ", "sas ", "groupe ", "siege social",
+    "fonds solidarite", "maison du departement", "solidarites",
+    "action logement",
+    # Établissements d'enseignement, sans ambiguïté possible.
+    "aerocampus", "campus prive", "formation",
+    "crous de bordeaux", "crous aquitaine",
 ]
+
+# Termes qui désignent un lieu d'études — SAUF quand le nom dit aussi qu'il
+# s'agit d'un logement. « Université Bordeaux Montaigne » est une fac ;
+# « Yugo Bordeaux Talence Université - Résidence étudiante » est un immeuble.
+EXCLUSIONS_SAUF_HABITAT = ("universite", "faculte", "iut", "institut", "ecole",
+                           "college", "lycee", "hopital", "clinique")
+
+
+# Noms de bailleurs sociaux. Seuls, ils désignent un siège ou une agence ; suivis
+# d'un mot d'habitat, ils désignent un vrai programme de logements.
+#   « Domofrance »                        → bureau
+#   « Résidence Campus 47 par Domofrance » → immeuble
+# Sigles : seuls eux justifient de comparer aussi la forme sans séparateurs
+# (« C.c.a.s » → « ccas »). Appliquer ce test à tous les motifs ferait
+# correspondre « sci » à l'intérieur de « scientifiques ».
+SIGLES = ("ccas", "cias", "fsl", "adil", "chu", "epa")
+
+BAILLEURS = ("domofrance", "logevie", "mesolia", "aquitanis", "clairsienne",
+             "gironde habitat", "vilogia", "erilia", "in cite", "cdc habitat",
+             "logeo", "coligny", "tout mon habitat")
+
+MOTS_HABITAT = ("residence", "cite", "logement", "immeuble", "villa", "domaine",
+                "hameau", "jardin", "parc", "clos", "tour", "batiment", "foyer",
+                "campus", "studio", "appart", "maison des", "village", "hlm",
+                "habitation", "etudiant", "student", "study")
+
+
+def sans_accents(texte):
+    t = unicodedata.normalize("NFD", str(texte).lower())
+    return "".join(c for c in t if unicodedata.category(c) != "Mn")
 
 
 def est_habitation(nom):
-    n = nom.lower()
-    if any(x in n for x in EXCLUSIONS):
+    # Les DEUX côtés de la comparaison sont normalisés. Normaliser seulement le
+    # nom laissait passer « Résidence Personnes Agées » : le motif lui-même
+    # portait des accents et ne correspondait donc à rien.
+    n = sans_accents(nom)
+    # Les sigles s'écrivent avec ou sans points selon les fiches : « C.C.A.S »,
+    # « CCAS », « C.c.a.s ». On teste aussi la forme sans séparateurs, sinon la
+    # moitié des sigles passe entre les mailles.
+    if any(sans_accents(x) in n for x in EXCLUSIONS):
+        return False
+    # Les sigles s'écrivent avec ou sans points : « C.C.A.S », « CCAS ». On les
+    # cherche dans les mots isolés, jamais à l'intérieur d'un mot plus long.
+    mots = {"".join(c for c in mot if c.isalnum()) for mot in n.split()}
+    compact_court = "".join(c for c in n if c.isalnum())
+    if any(sig in mots or (len(compact_court) <= 12 and sig in compact_court)
+           for sig in SIGLES):
+        return False
+    habitat = any(sans_accents(h) in n for h in MOTS_HABITAT)
+    if any(sans_accents(b) in n for b in BAILLEURS) and not habitat:
+        return False
+    if any(sans_accents(x) in n for x in EXCLUSIONS_SAUF_HABITAT) and not habitat:
         return False
     # Un nom réduit au code postal ou à la ville n'identifie aucun bâtiment.
     if len(n.strip()) < 4 or n.strip().isdigit():
@@ -186,12 +245,45 @@ def chercher(requete, cle, restriction):
         return []
 
 
+def nettoyer(ecrire):
+    """Ré-applique le filtre à un fichier déjà constitué, sans appel réseau.
+
+    Le filtre s'affine à mesure qu'on découvre ce que Google renvoie. Plutôt que
+    de relancer un balayage payant, on reclasse l'existant.
+    """
+    if not SORTIE.exists():
+        sys.exit("❌ data/generateurs.json absent.")
+    contenu = json.loads(SORTIE.read_text(encoding="utf-8"))
+    gardes, ecartes = [], []
+    for g in contenu.get("generateurs", []):
+        (gardes if est_habitation(g.get("nom", "")) else ecartes).append(g)
+
+    print(f"{len(contenu.get('generateurs', []))} générateurs · "
+          f"{len(ecartes)} à écarter :\n")
+    for g in ecartes:
+        print(f"  − {g['nom'][:52]:<54} {g.get('adresse', '')[:38]}")
+    print(f"\nAprès nettoyage : {len(gardes)} générateurs.")
+    if not ecrire:
+        print("Rien écrit — relancez avec --ecrire pour appliquer.")
+        return
+    contenu["generateurs"] = gardes
+    SORTIE.write_text(json.dumps(contenu, ensure_ascii=False, indent=2) + "\n",
+                      encoding="utf-8")
+    print(f"✅ → {SORTIE}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ecrire", action="store_true", help="écrire data/generateurs.json")
+    ap.add_argument("--nettoyer", action="store_true",
+                    help="reclasser le fichier existant, sans appel réseau")
     ap.add_argument("--type", choices=[f["cle"] for f in FAMILLES],
                     help="ne chercher qu'une famille (moins de requêtes, moins cher)")
     args = ap.parse_args()
+
+    if args.nettoyer:
+        nettoyer(args.ecrire)
+        return
 
     cle = os.environ.get("GOOGLE_MAPS_API_KEY")
     if not cle:

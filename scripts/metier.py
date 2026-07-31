@@ -22,12 +22,22 @@ import re
 import unicodedata
 
 
+# Les apostrophes typographiques sont partout dans les noms Google (WASH'N DRY
+# avec une apostrophe courbe), et jamais dans un motif tapé au clavier. On les
+# ramène toutes à une espace, des deux côtés de la comparaison : sans ça,
+# « WASH'N DRY » ne reconnaissait pas le motif « wash'n dry » et une enseigne
+# entière tombait en « douteux ».
+APOSTROPHES = "'\u2019\u02bc\u00b4`"
+
+
 def normaliser(texte):
     if not texte:
         return ""
     t = unicodedata.normalize("NFD", str(texte))
     t = "".join(c for c in t if unicodedata.category(c) != "Mn").lower()
-    return re.sub(r"[^a-z0-9' ]+", " ", t)
+    for a in APOSTROPHES:
+        t = t.replace(a, " ")
+    return re.sub(r"[^a-z0-9 ]+", " ", t)
 
 
 # Autres métiers, sans ambiguïté possible.

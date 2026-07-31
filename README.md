@@ -100,6 +100,8 @@ data/benchmarks.json         Hypothèses économiques du secteur (fourchettes)
 scripts/sync_osm.py          Synchronisation de l'inventaire avec OpenStreetMap
 scripts/enrich_google_places.py  Notes, avis, photos et positions via l'API Google
 scripts/geocode_quartiers.py     Recale les centroïdes de quartiers via l'API Google
+scripts/find_generateurs.py      Localise résidences étudiantes et logement social
+scripts/import_insee_carreaux.py Importe le carroyage INSEE 200 m (voir DONNEES_INSEE.md)
 scripts/build_standalone.py  Génère laverie-mapper.html
 ```
 
@@ -115,7 +117,8 @@ population de chaque quartier est étalée sur un disque de 450 m plutôt que
 concentrée en un point. C'est un pis-aller : le correctif définitif reste
 l'import du **carroyage INSEE Filosofi 200 m** (gratuit), qui donne la
 population réellement observée maille par maille. C'est la priorité n°1 pour
-fiabiliser le classement des zones.
+fiabiliser le classement des zones — mode d'emploi complet dans
+[DONNEES_INSEE.md](DONNEES_INSEE.md), script d'import prêt à l'emploi.
 
 ## Récupérer les infos d'une fiche Google — deux méthodes
 

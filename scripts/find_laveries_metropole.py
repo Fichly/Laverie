@@ -30,6 +30,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import reseau                                              # noqa: E402
+
 RACINE = Path(__file__).resolve().parent.parent
 DATA = RACINE / "data" / "laveries.json"
 API = "https://places.googleapis.com/v1"
@@ -77,6 +80,13 @@ def chercher(requete, restriction, cle):
         print(f"  ⚠ HTTP {e.code} : {e.read().decode(errors='replace')[:200]}",
               file=sys.stderr)
         return []
+    except Exception as e:                                  # noqa: BLE001
+        # Un traceback Python n'aide personne : on nomme la cause réelle.
+        raise SystemExit("\n" + reseau.expliquer_echec(
+            "certificat" if reseau.est_erreur_certificat(e) else "reseau",
+            "L'API Google Places",
+            "Vérifiez aussi que « Places API (New) » est activée dans la "
+            "console Google Cloud."))
 
 
 def enseigne_de(nom):
@@ -105,7 +115,8 @@ def main():
         sys.exit("❌ GOOGLE_MAPS_API_KEY absente. Voir GOOGLE_API.md.")
 
     # Une première tuile sert de test : si Google ne répond pas (pas de réseau,
-    # clé invalide, facturation non activée), autant le savoir tout de suite.
+    # certificats absents, clé invalide, facturation non activée), autant le
+    # savoir avant de lancer 48 requêtes.
     premiere = list(tuiles())[0]
     if not chercher("laverie", premiere, cle):
         print("⚠ Aucun résultat sur la première tuile. Causes possibles : pas de\n"

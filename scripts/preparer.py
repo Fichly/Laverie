@@ -24,6 +24,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import reseau                                              # noqa: E402
+
 RACINE = Path(__file__).resolve().parent.parent
 PY = sys.executable or "python3"
 
@@ -111,6 +114,47 @@ def taille_lisible(chemin):
 
 def existe(nom):
     return (RACINE / "data" / nom).exists()
+
+
+# ────────────────────────────────────────────────── vérification préalable
+
+def verifier_reseau():
+    """Teste HTTPS avant toute chose, et répare les certificats si besoin.
+
+    Sur un Python installé depuis python.org, le magasin de certificats est vide
+    et TOUTES les étapes réseau échouent d'un coup. Diagnostiquer ça après coup,
+    à partir de deux traces d'erreur différentes, est décourageant : autant le
+    voir tout de suite et proposer le correctif.
+    """
+    ok, motif = reseau.tester_https()
+    if ok:
+        return True
+
+    if motif != "certificat":
+        dire("""
+⚠ Pas d'accès internet détecté.
+
+  Les étapes 2 et 3 seront ignorées. L'étape 1 (population INSEE) fonctionne
+  hors ligne : elle lit un fichier déjà sur votre disque.
+""")
+        return False
+
+    print()
+    dire(reseau.message_certificat())
+    if not demander("Je lance le correctif automatiquement ?"):
+        return False
+
+    dire("Installation des certificats…")
+    reseau.reparer_certificats()
+    ok, _ = reseau.tester_https()
+    if ok:
+        dire("✅ Connexion HTTPS rétablie.")
+    else:
+        inst = reseau.installateur_macos()
+        dire("❌ Toujours pas. Lancez le correctif à la main, puis relancez :\n\n"
+             + (f'   open "{inst}"' if inst
+                else "   python3 -m pip install --upgrade certifi"))
+    return ok
 
 
 # ─────────────────────────────────────────────────────────── les étapes
@@ -264,8 +308,10 @@ Quatre étapes. Chacune est facultative : si l'une échoue ou si vous la sautez,
 les autres se poursuivent et l'application vous dira ce qui lui manque.
 """)
 
+    reseau_ok = verifier_reseau()
+
     cle = None
-    if not args.sans_google:
+    if not args.sans_google and reseau_ok:
         cle = os.environ.get("GOOGLE_MAPS_API_KEY")
         if cle:
             dire("🔑 Clé Google trouvée dans votre environnement.")
@@ -283,8 +329,13 @@ les autres se poursuivent et l'application vous dira ce qui lui manque.
     bilan = {}
     try:
         etape_insee(bilan)
-        etape_laveries(bilan, cle)
-        etape_entreprises(bilan)
+        if reseau_ok:
+            etape_laveries(bilan, cle)
+            etape_entreprises(bilan)
+        else:
+            bilan["Laveries métropole"] = "⏭ ignorée (pas d'accès internet)"
+            bilan["Chiffres réels"] = "⏭ ignorée (pas d'accès internet)"
+            bilan["Historique BODACC"] = "⏭ ignorée (pas d'accès internet)"
         etape_construction(bilan)
     except KeyboardInterrupt:
         print("\n\n   ⏹  Interrompu. Les étapes déjà terminées sont conservées.")

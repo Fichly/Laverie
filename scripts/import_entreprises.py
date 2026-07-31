@@ -45,6 +45,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import reseau                                              # noqa: E402
+
 RACINE = Path(__file__).resolve().parent.parent
 LAVERIES = RACINE / "data" / "laveries.json"
 SORTIE = RACINE / "data" / "entreprises.json"
@@ -138,23 +141,6 @@ def nombre(v):
 
 
 # ------------------------------------------------------------------ requêtes
-
-def joignable():
-    """Un seul appel court pour savoir si l'API répond.
-
-    Sans ce test, une coupure réseau condamne l'utilisateur à attendre plusieurs
-    minutes de tentatives silencieuses avant le premier message d'erreur.
-    """
-    try:
-        req = urllib.request.Request(API + "?q=test&per_page=1",
-                                     headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=12):
-            return True
-    except urllib.error.HTTPError:
-        return True                     # l'API répond, même si elle refuse
-    except Exception:                   # noqa: BLE001
-        return False
-
 
 def appeler(params, essais=2):
     url = API + "?" + urllib.parse.urlencode(params)
@@ -377,13 +363,14 @@ def main():
     codes = ([c.strip() for c in args.communes.split(",")] if args.communes
              else COMMUNES_DEFAUT)
 
-    if not joignable():
-        sys.exit(
-            "❌ L'API Recherche d'entreprises ne répond pas.\n"
-            "   Vérifiez votre connexion internet, puis relancez.\n"
-            "   Si vous êtes derrière un réseau d'entreprise ou un VPN, il bloque\n"
-            "   peut-être recherche-entreprises.api.gouv.fr — essayez depuis une\n"
-            "   connexion personnelle.")
+    # Un appel court avant de boucler : sans lui, une coupure réseau ou des
+    # certificats manquants condamnent l'utilisateur à plusieurs minutes de
+    # tentatives silencieuses avant le premier message.
+    ok, motif = reseau.joignable(API + "?q=test&per_page=1")
+    if not ok:
+        sys.exit("\n" + reseau.expliquer_echec(
+            motif, "L'API Recherche d'entreprises",
+            "Service concerné : recherche-entreprises.api.gouv.fr"))
 
     if args.diagnostic:
         rep = appeler({"code_naf": args.naf, "code_postal": codes[0], "per_page": 1})

@@ -36,6 +36,9 @@ import urllib.request
 from collections import Counter
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import reseau                                              # noqa: E402
+
 RACINE = Path(__file__).resolve().parent.parent
 ENTREPRISES = RACINE / "data" / "entreprises.json"
 SORTIE = RACINE / "data" / "bodacc.json"
@@ -59,19 +62,6 @@ MOTIF_PRIX = re.compile(
 
 MOTS_LAVERIE = ("laverie", "lavomatic", "laverie automatique", "libre service",
                 "libre-service", "blanchisserie")
-
-
-def joignable():
-    """Un appel court pour vérifier que l'API BODACC répond avant de boucler."""
-    try:
-        req = urllib.request.Request(API + "?limit=1",
-                                     headers={"Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=12):
-            return True
-    except urllib.error.HTTPError:
-        return True
-    except Exception:                   # noqa: BLE001
-        return False
 
 
 def appeler(params, essais=2):
@@ -174,9 +164,9 @@ def main():
         sys.exit("❌ data/entreprises.json manquant. Lancez d'abord :\n"
                  "   python3 scripts/import_entreprises.py")
 
-    if not joignable():
-        sys.exit("❌ L'API BODACC ne répond pas. Vérifiez votre connexion "
-                 "internet, puis relancez.")
+    ok, motif = reseau.joignable(API + "?limit=1")
+    if not ok:
+        sys.exit("\n" + reseau.expliquer_echec(motif, "L'API BODACC"))
 
     ent = json.loads(ENTREPRISES.read_text(encoding="utf-8"))
     sirens = sorted({e["siren"] for e in ent["etablissements"]

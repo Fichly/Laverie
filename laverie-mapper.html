@@ -1938,6 +1938,12 @@ async function charger() {
   // plutôt que d'afficher une carte creuse où le vide passerait pour une
   // opportunité.
   if (laveriesEtude().length < 40) state.perimetre = 'pessac';
+  // 158 cercles de chalandise superposés ne montrent plus rien : à l'échelle
+  // métropole, on ouvre sans, l'utilisateur les rallume quand il zoome.
+  if (state.perimetre === 'metropole') {
+    const c = document.getElementById('l-couverture');
+    if (c) c.checked = false;
+  }
   for (const b of document.querySelectorAll('[data-perimetre]')) {
     b.classList.toggle('actif', b.dataset.perimetre === state.perimetre);
   }
@@ -1948,8 +1954,16 @@ async function charger() {
 
 // ---------- carte ----------
 
+// Cadrage de départ par périmètre. Déclaré avant initCarte : un `const` n'est
+// pas hissé, et la carte s'initialise bien avant la bascule de périmètre.
+const VUES_CARTE = {
+  pessac: { centre: [44.798, -0.640], zoom: 13 },
+  metropole: { centre: [44.855, -0.590], zoom: 11 },
+};
+
 function initCarte() {
-  map = L.map('map').setView([44.798, -0.640], 13);
+  const cadre = VUES_CARTE[state.perimetre] || VUES_CARTE.pessac;
+  map = L.map('map').setView(cadre.centre, cadre.zoom);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '© OpenStreetMap',
@@ -4251,11 +4265,6 @@ function montrerSimulation() {
 // Changer d'échelle invalide tout ce qui dépend du périmètre : la demande, le
 // calibrage, l'ancre de CA et le classement. On repart proprement plutôt que de
 // laisser des caches raconter l'ancienne échelle.
-
-const VUES_CARTE = {
-  pessac: { centre: [44.798, -0.640], zoom: 13 },
-  metropole: { centre: [44.855, -0.590], zoom: 11 },
-};
 
 function changerPerimetre(nouveau) {
   if (nouveau === state.perimetre) return;

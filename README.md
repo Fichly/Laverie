@@ -114,7 +114,7 @@ sans aucun modèle.
 
 | Onglet | Ce qu'on y fait |
 |---|---|
-| **Carte** | Choisir *une* vue d'analyse (potentiel, demande captive, diagnostic par quartier, concentration de l'offre, ou aucune), régler le rayon de chalandise, filtrer ce qui s'affiche. |
+| **Carte** | Choisir *une* vue d'analyse (potentiel, zones étudiantes/HLM, diagnostic par quartier, concentration de l'offre, ou aucune), régler le rayon de chalandise, filtrer ce qui s'affiche. |
 | **Analyse** | Le parcours en trois étapes : classement des zones → test d'un local précis → comparaison des candidats. |
 | **Laveries** | Les statistiques du marché, ce que disent les chiffres publiés, et l'inventaire complet — indépendant des filtres de la carte. |
 | **Modèle** | Le contrôle de fiabilité, les cinq réglages du modèle et les repères du secteur. |
@@ -162,7 +162,7 @@ veut le chiffre technique.
 
 Résidences étudiantes, logements sociaux et hébergements touristiques sont
 recensés bâtiment par bâtiment et posés en **pins colorés** sur la vue
-« Demande captive », avec un filtre par famille :
+« Zones étudiantes, HLM… », avec un filtre par famille :
 
 Deux sources complémentaires, dédoublonnées entre elles :
 
@@ -189,8 +189,45 @@ enregistrés sont conservés avec leurs corrections** : le nombre de logements
 saisi à la main est le travail le plus coûteux du projet, un nouveau balayage ne
 l'écrase jamais.
 
-Décocher une famille masque ses pins et sa contribution au fond orange, mais ne
+Décocher une famille masque ses pins et sa contribution au fond coloré, mais ne
 retire rien au modèle : la demande reste comptée dans le potentiel.
+
+### Les zones de besoin
+
+La vue ne se contente pas de poser des pins : elle répond à « où sont les
+étudiants, où sont les HLM, et où ce monde-là n'a pas de laverie ».
+
+**La couleur dit qui habite là.** Chaque famille a sa teinte — ambre pour
+l'étudiant, rose pour le logement social, vert pour le tourisme —, la même que
+son pin. Une maille de 60 m mélange les teintes au prorata de ses habitants,
+pondérées au carré pour que les secteurs franchement dominés restent lisibles.
+L'intensité dit combien, le trait foncé marque la limite du secteur habité.
+
+**Les pastilles numérotées disent où regarder.** Une zone n'est pas une tache
+contiguë — en ville dense, tout se touche, et un premier essai par composantes
+connexes rendait *une* grappe de 11 000 ménages allant du campus de Talence au
+centre de Bordeaux : vraie topologiquement, inutilisable commercialement. Une
+zone est donc **une implantation possible** : on cherche le point qui capterait
+le plus de ménages captifs dans un rayon de 800 m, on lui attribue ces
+bâtiments, on les retire du jeu, et on recommence. Deux zones ne peuvent pas se
+revendiquer le même immeuble, et l'étendue d'une zone ne dépasse jamais son
+rayon de chalandise.
+
+**Le besoin** vaut `ménages sans lave-linge / (pression concurrentielle +
+option extérieure)` — le dénominateur du modèle de Huff, qui empêche une zone
+sans laverie d'afficher un besoin infini. Le résultat est rapporté à la **zone
+médiane du périmètre** : « 2,4× » signifie 2,4 fois plus de ménages captifs par
+laverie accessible que la zone médiane. Référence relative, comme partout dans
+l'app — un seuil absolu supposerait connaître le panier moyen et le taux
+d'équipement réels, qui ne sont pas mesurés ici.
+
+Le classement complet est dans l'onglet **Analyse**. Attention à ne pas le
+confondre avec « les zones les plus prometteuses » : celui-ci ne compte que la
+demande **captive**, l'autre compte toute la population.
+
+Limite connue et non résolue : le nombre de logements de chaque bâtiment reste
+une valeur par défaut selon le type, sauf là où il a été corrigé à la main.
+C'est la principale source d'erreur de cette vue.
 
 ## Ce que fait la Phase 1 (version actuelle)
 

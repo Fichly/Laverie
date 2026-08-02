@@ -398,24 +398,6 @@ button.active { background: var(--orange); color: #431407; }
   text-shadow: 0 0 3px #0b111f, 0 0 6px #0b111f, 0 1px 2px #0b111f;
 }
 
-/* ---- Pins des générateurs de demande ---- */
-.pin-gen {
-  display: flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 50% 50% 50% 2px;
-  transform: rotate(-45deg);
-  background: var(--pc, #94a3b8); border: 2px solid #fff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.45);
-  font-size: 0.68rem; line-height: 1;
-}
-.pin-gen > * , .pin-gen { }
-.pin-gen::first-letter { display: inline-block; }
-.pin-inline {
-  width: 15px; height: 15px; border-width: 1px; font-size: 0.55rem;
-  flex-shrink: 0; box-shadow: none;
-}
-.check-gen { gap: 7px; }
-.check-gen .badge { margin-left: auto; }
-
 /* ---- Avis d'absence de fond de plan ---- */
 #avis-fond {
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
@@ -455,6 +437,36 @@ button.active { background: var(--orange); color: #431407; }
 .pin-inline > i { font-size: 0.5rem; }
 .check-gen { gap: 7px; }
 .check-gen .badge { margin-left: auto; }
+
+/* ---- Pastilles de zone de besoin ---- */
+/* Ronde et numérotée, là où les bâtiments sont en goutte : à un coup d'œil on
+   sait si on regarde un immeuble ou le rang d'une grappe entière. */
+.pastille-zone {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--zc, #64748b); border: 2px solid #fff;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.55);
+  color: #fff; font-size: 0.8rem; font-weight: 800; line-height: 1;
+  font-family: inherit;
+}
+/* Petit trait de rappel vers le centre de la zone, qui se trouve 16 px plus bas. */
+.pastille-zone::after {
+  content: ''; position: absolute; top: 100%; left: 50%;
+  width: 2px; height: 14px; margin-left: -1px;
+  background: var(--zc, #64748b); opacity: 0.85;
+}
+.legende i.rond { border-radius: 50%; }
+
+.popup-sous { margin: -2px 0 7px; font-size: 0.72rem; color: var(--faint); line-height: 1.35; }
+.compo-ligne { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 8px; }
+.compo { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; color: var(--muted); }
+.btn-zone {
+  width: 100%; margin-top: 9px; padding: 7px 10px;
+  background: var(--accent); border: none; border-radius: var(--r-md);
+  color: #fff; font-size: 0.76rem; font-weight: 600; font-family: inherit; cursor: pointer;
+}
+.btn-zone:hover { filter: brightness(1.1); }
 
 /* ---- Jauge de fiabilité ---- */
 .jauge {

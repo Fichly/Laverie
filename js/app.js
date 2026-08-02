@@ -229,6 +229,16 @@ function initCarte() {
     simuler(e.latlng.lat, e.latlng.lng);
     montrerSimulation();
   });
+
+  // Les pins de bâtiments apparaissent en zoomant : on ne redessine que les
+  // repères, pas la surface de densité, qui coûte 300 000 pixels à repeindre.
+  let zoomPrecedent = map.getZoom();
+  map.on('zoomend', () => {
+    const z = map.getZoom();
+    const franchi = (z < ZOOM_PINS) !== (zoomPrecedent < ZOOM_PINS);
+    zoomPrecedent = z;
+    if (franchi && state.vue === 'demande') { dessinerReperesDemande(); majLegendeZones(); }
+  });
 }
 
 function typesActifs() {
@@ -284,10 +294,22 @@ function laveriesVisibles() {
                                  && (voisines || !l.hors_commune));
 }
 
+// Les zones de besoin sont recalculées à chaque rafraîchissement : leur verdict
+// dépend de l'offre, donc des laveries et des hypothèses. La GRILLE de densité,
+// elle, ne dépend que des bâtiments — coûteuse à construire, elle survit et
+// n'est jetée que par invaliderGenerateurs().
+function invaliderGenerateurs() {
+  state._pointsDemande = null;
+  state._indexDemande = null;
+  state._grille = undefined;
+  state._zones = undefined;
+}
+
 function rafraichir() {
   state._coefCal = null;   // le calibrage dépend des hypothèses courantes
   state._indexDemande = null;
   state._indexOffre = null;
+  state._zones = undefined;
   dessinerMarqueurs();
   dessinerLibelles();
   dessinerListe();
@@ -296,6 +318,7 @@ function rafraichir() {
   dessinerHeat();
   dessinerHeatPotentiel();
   dessinerDemandeCaptive();
+  dessinerZonesBesoin();
   majSousTitre();
   dessinerFiabilite();
   dessinerMarcheReel();
@@ -2227,6 +2250,20 @@ function iconeGenerateur(g) {
 const RAYON_DENSITE_M = 320;
 const GRILLE_DENSITE_M = 60;
 
+const FAMILLES = ['residence_etudiante', 'logement_social', 'hebergement_tourisme'];
+
+const LIBELLE_FAMILLE = {
+  residence_etudiante: 'étudiante',
+  logement_social: 'HLM / logement social',
+  hebergement_tourisme: 'touristique',
+};
+
+const RVB_FAMILLE = {
+  residence_etudiante: [237, 161, 0],
+  logement_social: [232, 123, 164],
+  hebergement_tourisme: [27, 175, 122],
+};
+
 // Générateurs retenus pour l'AFFICHAGE (filtres de la légende). Le modèle, lui,
 // continue de tous les compter : un filtre de carte ne change pas la demande.
 function generateursAffiches() {
@@ -2234,34 +2271,28 @@ function generateursAffiches() {
     g => !g.exclu && state.genTypes[g.type] !== false);
 }
 
-// Densité de ménages sans lave-linge en un point, tous bâtiments confondus.
-// C'est l'agrégation qui compte : cinq immeubles voisins doivent former UNE
-// zone chaude, pas cinq pastilles côte à côte.
-function densiteDemande(lat, lon) {
-  let d = 0;
-  for (const g of generateursAffiches()) {
-    const w = couverture(distanceM(lat, lon, g.lat, g.lon), RAYON_DENSITE_M);
-    if (w < 0.03) continue;
-    d += menagesGenerateur(g).reguliers * w;
-  }
-  return d;
-}
-
-// Échelle SÉQUENTIELLE (une seule teinte, intensité croissante) : la densité est
-// une magnitude sans point de bascule. L'orange la distingue de la heatmap du
-// potentiel, qui est divergente bleu-rouge.
+// Échelle SÉQUENTIELLE (intensité croissante) : la densité est une magnitude
+// sans point de bascule. La TEINTE, elle, dit qui habite là — c'est la question
+// « où sont les étudiants, où sont les HLM ».
 const PALIERS_DENSITE = [15, 40, 90, 180, 320];
 
-function dessinerDemandeCaptive() {
-  state.layers.demande.clearLayers();
-  if (state.layers.demandeSurface) {
-    map.removeLayer(state.layers.demandeSurface);
-    state.layers.demandeSurface = null;
-  }
-  if (state.vue !== 'demande') return;
+// En dessous, la maille reste transparente : c'est la limite du secteur habité
+// captif, celle que le trait foncé souligne sur la carte.
+const SEUIL_AFFICHAGE = PALIERS_DENSITE[0];
 
+// ---------- GRILLE DE DENSITÉ CAPTIVE ----------
+//
+// Une grille de 60 m sur l'emprise des bâtiments, avec un compteur PAR FAMILLE
+// en plus du total : c'est ce qui permet de colorer une zone selon qui l'occupe
+// plutôt que de tout noyer dans un orange unique.
+//
+// Dépôt (scatter) et non balayage (gather) : chaque bâtiment n'éclaire qu'un
+// carré de ~1,2 km de côté. Interroger les 290 000 mailles de la métropole pour
+// chacun des 274 bâtiments coûtait 80 millions de distances ; ici, ~120 000.
+function grilleDemande() {
+  if (state._grille !== undefined) return state._grille;
   const gens = generateursAffiches();
-  if (!gens.length) return;
+  if (!gens.length) return (state._grille = null);
 
   const marge = 0.006;
   const sud = Math.min(...gens.map(g => g.lat)) - marge;
@@ -2274,41 +2305,437 @@ function dessinerDemandeCaptive() {
   const nY = Math.ceil((nord - sud) / pasLat);
   const nX = Math.ceil((est - ouest) / pasLon);
 
+  const tot = new Float32Array(nX * nY);
+  const parFamille = {};
+  for (const f of FAMILLES) parFamille[f] = new Float32Array(nX * nY);
+
+  // Au-delà de 1,9 rayon, exp(-(d/R)²) < 0,03 : le seuil de coupure d'origine.
+  const portee = Math.ceil((RAYON_DENSITE_M * 1.9) / GRILLE_DENSITE_M);
+
+  for (const g of gens) {
+    const poids = menagesGenerateur(g).reguliers;
+    if (!(poids > 0)) continue;
+    const cx = Math.round((g.lon - ouest) / pasLon);
+    const cy = Math.round((nord - g.lat) / pasLat);
+    const bac = parFamille[g.type] || null;
+    for (let y = Math.max(0, cy - portee); y <= Math.min(nY - 1, cy + portee); y++) {
+      const lat = nord - y * pasLat;
+      for (let x = Math.max(0, cx - portee); x <= Math.min(nX - 1, cx + portee); x++) {
+        const w = couverture(distanceM(lat, ouest + x * pasLon, g.lat, g.lon), RAYON_DENSITE_M);
+        if (w < 0.03) continue;
+        const i = y * nX + x;
+        tot[i] += poids * w;
+        if (bac) bac[i] += poids * w;
+      }
+    }
+  }
+  state._grille = { sud, nord, ouest, est, nX, nY, pasLat, pasLon, tot, parFamille };
+  return state._grille;
+}
+
+// Densité de ménages sans lave-linge en un point, tous bâtiments confondus.
+function densiteDemande(lat, lon) {
+  let d = 0;
+  for (const g of generateursAffiches()) {
+    const w = couverture(distanceM(lat, lon, g.lat, g.lon), RAYON_DENSITE_M);
+    if (w < 0.03) continue;
+    d += menagesGenerateur(g).reguliers * w;
+  }
+  return d;
+}
+
+// ---------- ZONES DE BESOIN ----------
+//
+// PREMIÈRE TENTATIVE, ABANDONNÉE : étiqueter les composantes connexes de la
+// grille au-dessus d'un seuil. En zone urbaine dense, tout se touche — le test a
+// rendu UNE grappe de 11 000 ménages allant du campus de Talence au centre de
+// Bordeaux. Vraie au sens topologique, inutilisable au sens commercial : aucune
+// laverie ne dessert 6 km de long.
+//
+// CE QU'ON FAIT À LA PLACE : une zone n'est pas une tache contiguë, c'est UNE
+// IMPLANTATION POSSIBLE. On cherche donc, itérativement, le point qui capterait
+// le plus de ménages captifs dans un rayon de chalandise, on lui attribue ces
+// bâtiments, on les retire, et on recommence. Chaque zone est ainsi, par
+// construction, « ce qu'une laverie posée là ramasserait » — l'unité de décision
+// réelle, et deux zones ne peuvent pas se revendiquer le même immeuble.
+const RAYON_ZONE = RAYON_TENSION;      // 800 m, le rayon de référence de l'app
+
+// En dessous, c'est un immeuble isolé, pas un quartier : une pastille numérotée
+// y donnerait à un petit hôtel le même poids qu'à une cité universitaire.
+const MIN_MENAGES_ZONE = 30;
+
+function zonesBesoin() {
+  if (state._zones !== undefined) return state._zones;
+
+  const restants = generateursAffiches()
+    .map(g => ({ g, m: menagesGenerateur(g).reguliers }))
+    .filter(x => x.m > 0);
+  if (!restants.length) return (state._zones = []);
+
+  // Une seule fois pour toutes les zones : zonesEtude() reconstruit la liste des
+  // communes à chaque appel en mode métropole.
+  const secteurs = zonesEtude() || [];
+  const zones = [];
+
+  while (restants.length) {
+    // Le meilleur emplacement est cherché SUR les bâtiments restants : le point
+    // optimal d'un semis de points pondérés est toujours à côté de l'un d'eux, et
+    // cela évite de balayer une grille pour un gain nul.
+    let meilleur = null;
+    for (const centre of restants) {
+      let score = 0;
+      for (const x of restants) {
+        const d = distanceM(centre.g.lat, centre.g.lon, x.g.lat, x.g.lon);
+        if (d > RAYON_ZONE) continue;
+        score += x.m * couverture(d, RAYON_ZONE);
+      }
+      if (!meilleur || score > meilleur.score) meilleur = { centre, score };
+    }
+    if (!meilleur || meilleur.score < MIN_MENAGES_ZONE) break;
+
+    // RECENTRAGE. Le point de départ est un bâtiment ; le centre d'une zone est
+    // le barycentre de ses ménages. Les deux diffèrent, et sélectionner autour de
+    // l'un puis mesurer depuis l'autre laissait des immeubles à 960 m du centre
+    // d'une zone annoncée à 800 m — le test l'a relevé. On itère donc jusqu'à ce
+    // que centre et sélection s'accordent : « tous les bâtiments à moins de
+    // 800 m du centre » devient vrai par construction.
+    let lat = meilleur.centre.g.lat, lon = meilleur.centre.g.lon;
+    let dedans = [];
+    for (let iter = 0; iter < 6; iter++) {
+      dedans = restants.filter(x => distanceM(lat, lon, x.g.lat, x.g.lon) <= RAYON_ZONE);
+      let poids = 0, sLat = 0, sLon = 0;
+      for (const { g, m } of dedans) { poids += m; sLat += g.lat * m; sLon += g.lon * m; }
+      if (!poids) break;
+      const nLat = sLat / poids, nLon = sLon / poids;
+      const bouge = distanceM(lat, lon, nLat, nLon);
+      lat = nLat; lon = nLon;
+      if (bouge < 20) break;      // 20 m : sous la précision d'une adresse
+    }
+    // Dernière sélection avec le centre définitif, pour que l'étendue mesurée
+    // depuis ce centre respecte vraiment le rayon.
+    dedans = restants.filter(x => distanceM(lat, lon, x.g.lat, x.g.lon) <= RAYON_ZONE);
+
+    // Les bâtiments retenus sortent du jeu : sans ce retrait, les vingt
+    // premières zones seraient vingt variantes du même campus, décalées de
+    // cinquante mètres.
+    const pris = new Set(dedans.map(x => x.g.id));
+    const dehors = restants.filter(x => !pris.has(x.g.id));
+    restants.length = 0;
+    restants.push(...dehors);
+
+    let menages = 0;
+    const familles = {};
+    for (const { g, m } of dedans) {
+      menages += m;
+      const f = familles[g.type] || (familles[g.type] = { batiments: 0, logements: 0, menages: 0 });
+      f.batiments++; f.logements += g.logements; f.menages += m;
+    }
+    if (menages < MIN_MENAGES_ZONE) continue;
+    const bats = dedans.map(x => x.g);
+
+    // Offre accessible depuis ce centre, au rayon de référence du diagnostic.
+    // Même fonction que le modèle : la vue ne peut pas raconter autre chose.
+    const { pression, concurrents } = offreAccessible(lat, lon, RAYON_TENSION);
+    let plusProche = null;
+    for (const l of laveriesProches(lat, lon, RAYON_TENSION)) {
+      const d = distanceM(lat, lon, l.lat, l.lon);
+      if (!plusProche || d < plusProche.d) plusProche = { l, d };
+    }
+
+    // Ménages captifs par « laverie moyenne » réellement accessible. Le terme
+    // d'option extérieure au dénominateur est celui du modèle de Huff : sans
+    // lui, une zone sans aucune laverie afficherait un besoin infini.
+    const parLaverie = menages / (pression + ATTRACTIVITE_EXTERIEURE);
+
+    const dominante = Object.keys(familles)
+      .sort((a, b) => familles[b].menages - familles[a].menages)[0];
+
+    // Rayon réellement occupé par les bâtiments : une zone de trois immeubles
+    // collés ne doit pas se présenter comme un secteur de 800 m.
+    const etendue = Math.max(...bats.map(g => distanceM(lat, lon, g.lat, g.lon)));
+
+    zones.push({
+      id: zones.length, batiments: bats, lat, lon, etendue,
+      menages, familles, dominante, pression, concurrents, parLaverie, plusProche,
+      nom: nommerZone(lat, lon, bats, secteurs),
+    });
+  }
+
+  // Référence RELATIVE, comme partout dans l'app : « par rapport à la zone
+  // captive médiane du périmètre ». Un seuil absolu de ménages par laverie
+  // n'existe pas — il dépendrait du panier moyen, du format des laveries et du
+  // taux d'équipement, dont aucun n'est mesuré ici.
+  const med = mediane(zones.map(z => z.parLaverie));
+  for (const z of zones) z.besoin = med ? z.parLaverie / med : 1;
+  zones.sort((a, b) => b.besoin - a.besoin);
+  zones.forEach((z, i) => { z.rang = i + 1; });
+
+  state._zones = zones;
+  return zones;
+}
+
+// Nom lisible : la zone d'étude la plus proche (quartier à Pessac, commune en
+// métropole), qualifiée par le plus gros bâtiment de la grappe. « Zone n°3 »
+// tout court n'aide personne à retrouver l'endroit sur le terrain.
+function nommerZone(lat, lon, bats, secteurs) {
+  let secteur = null;
+  for (const z of secteurs) {
+    const d = distanceM(lat, lon, z.lat, z.lon);
+    if (!secteur || d < secteur.d) secteur = { nom: z.nom, d };
+  }
+  const phare = bats.slice().sort((a, b) => b.logements - a.logements)[0];
+  return { secteur: secteur ? secteur.nom : 'Secteur', phare: phare ? phare.nom : '' };
+}
+
+// Trois verdicts, mêmes couleurs que le diagnostic par quartier : rouge = de la
+// place, vert = déjà servi. Cohérence des couleurs d'une vue à l'autre.
+const VERDICTS_BESOIN = [
+  { min: 1.5, cle: 'fort', libelle: 'Besoin fort', couleur: '#dc2626' },
+  { min: 0.9, cle: 'modere', libelle: 'Besoin modéré', couleur: '#eab308' },
+  { min: -Infinity, cle: 'servi', libelle: 'Déjà desservie', couleur: '#15803d' },
+];
+
+function verdictBesoin(besoin) {
+  return VERDICTS_BESOIN.find(v => besoin >= v.min);
+}
+
+// Nombre de pastilles numérotées. Au-delà, la carte de la métropole devient un
+// champ de chiffres illisible — mais le compte total est annoncé dans la
+// légende : une troncature silencieuse se lirait comme « il n'y a que ça ».
+const MAX_PASTILLES = 20;
+
+function dessinerDemandeCaptive() {
+  state.layers.demande.clearLayers();
+  cercleZone(null);
+  if (state.layers.demandeSurface) {
+    map.removeLayer(state.layers.demandeSurface);
+    state.layers.demandeSurface = null;
+  }
+  if (state.vue !== 'demande') return;
+
+  const gr = grilleDemande();
+  if (!gr) return;
+  const { sud, nord, ouest, est, nX, nY, tot, parFamille } = gr;
+
   const canvas = document.createElement('canvas');
   canvas.width = nX; canvas.height = nY;
   const ctx = canvas.getContext('2d');
   const img = ctx.createImageData(nX, nY);
+  const px = img.data;
+
+  const dedans = (i) => tot[i] >= SEUIL_AFFICHAGE;
 
   for (let y = 0; y < nY; y++) {
-    const lat = nord - y * pasLat;
     for (let x = 0; x < nX; x++) {
-      const d = densiteDemande(lat, ouest + x * pasLon);
-      const i = (y * nX + x) * 4;
-      if (d < PALIERS_DENSITE[0]) { img.data[i + 3] = 0; continue; }
+      const i = y * nX + x;
+      const d = tot[i];
+      const o = i * 4;
+      if (d < SEUIL_AFFICHAGE) { px[o + 3] = 0; continue; }
+
       let niveau = 0;
       while (niveau < PALIERS_DENSITE.length - 1 && d >= PALIERS_DENSITE[niveau + 1]) niveau++;
       const t = niveau / (PALIERS_DENSITE.length - 1);
-      // Orange qui s'intensifie : clair et transparent en périphérie, saturé au cœur.
-      img.data[i] = 245 - t * 30;
-      img.data[i + 1] = 190 - t * 110;
-      img.data[i + 2] = 90 - t * 60;
-      img.data[i + 3] = 60 + t * 145;
+
+      // Mélange des teintes de famille, pondéré au CARRÉ. Une grappe 70/30 rend
+      // une couleur à 84 % dominante — donc lisible comme « étudiante » — tandis
+      // qu'un vrai 50/50 donne un mélange franc. Une bascule brutale au
+      // gagnant-prend-tout ferait clignoter la carte au moindre pin décoché.
+      let r = 0, v = 0, b = 0, somme = 0;
+      for (const f of FAMILLES) {
+        const w = parFamille[f][i];
+        if (w <= 0) continue;
+        const p = w * w;
+        const c = RVB_FAMILLE[f];
+        r += c[0] * p; v += c[1] * p; b += c[2] * p; somme += p;
+      }
+      if (!somme) { r = 148; v = 163; b = 184; somme = 1; }
+      r /= somme; v /= somme; b /= somme;
+
+      // Bord de grappe : opaque et assombri. C'est le tracé de la zone, celui
+      // qu'on suit du doigt pour dire « le quartier va jusque-là ».
+      const bord = (x === 0 || !dedans(i - 1)) || (x === nX - 1 || !dedans(i + 1))
+                || (y === 0 || !dedans(i - nX)) || (y === nY - 1 || !dedans(i + nX));
+      if (bord) {
+        px[o] = r * 0.6; px[o + 1] = v * 0.6; px[o + 2] = b * 0.6; px[o + 3] = 205;
+        continue;
+      }
+
+      // Vers le clair en périphérie, vers la teinte pure au cœur.
+      const clair = 1 - t;
+      px[o] = r + (255 - r) * clair * 0.55;
+      px[o + 1] = v + (255 - v) * clair * 0.55;
+      px[o + 2] = b + (255 - b) * clair * 0.55;
+      px[o + 3] = 55 + t * 150;
     }
   }
   ctx.putImageData(img, 0, 0);
   state.layers.demandeSurface = L.imageOverlay(canvas.toDataURL(),
-    [[sud, ouest], [nord, est]], { opacity: 0.8, interactive: false, zIndex: 240 }).addTo(map);
+    [[sud, ouest], [nord, est]], { opacity: 0.85, interactive: false, zIndex: 240 }).addTo(map);
+
+  dessinerReperesDemande();
+}
+
+// En dessous de ce zoom, 274 pins recouvrent entièrement les aplats de couleur —
+// on ne voit plus les zones, seulement une nuée de gouttes. À l'échelle
+// métropole on veut d'abord lire les secteurs ; le détail bâtiment par bâtiment
+// vient en zoomant.
+const ZOOM_PINS = 13;
+
+function dessinerReperesDemande() {
+  state.layers.demande.clearLayers();
+  if (state.vue !== 'demande') return;
+
+  // Pastilles de zone : le rang répond à « où faut-il regarder en premier »,
+  // le pin à « quel bâtiment exactement ».
+  for (const z of zonesBesoin().slice(0, MAX_PASTILLES)) {
+    L.marker([z.lat, z.lon], { icon: iconeZone(z), riseOnHover: true, zIndexOffset: 500 })
+      .bindPopup(popupZone(z), { maxWidth: 330 })
+      .bindTooltip(`Zone n°${z.rang} — ${verdictBesoin(z.besoin).libelle}`, { direction: 'top' })
+      .on('popupopen', (e) => ouvrirZone(e.popup, z))
+      .on('popupclose', () => cercleZone(null))
+      .addTo(state.layers.demande);
+  }
+
+  if (map.getZoom() < ZOOM_PINS) return;
 
   // Repères cliquables par-dessus la surface. Une pastille de 4 px se perdait
-  // dans l'orange : on pose de vrais pins, reconnaissables au premier coup d'œil
+  // dans l'aplat : on pose de vrais pins, reconnaissables au premier coup d'œil
   // et distincts par famille.
-  for (const g of gens) {
+  for (const g of generateursAffiches()) {
     const m = menagesGenerateur(g);
     L.marker([g.lat, g.lon], { icon: iconeGenerateur(g), riseOnHover: true })
       .bindPopup(popupGenerateur(g, m), { maxWidth: 300 })
       .bindTooltip(`${SYMBOLE_GENERATEUR[g.type] || '•'} ${g.nom}`, { direction: 'top' })
       .on('popupopen', (e) => brancherEditionGenerateur(e.popup))
       .addTo(state.layers.demande);
+  }
+}
+
+// La pastille flotte AU-DESSUS du point, pas dessus : sur une zone d'un seul
+// bâtiment, elle recouvrait exactement son pin — le pin devenait incliquable, et
+// le test l'a montré avant que ça n'atteigne la carte.
+function iconeZone(z) {
+  const v = verdictBesoin(z.besoin);
+  return L.divIcon({
+    className: '',
+    html: `<span class="pastille-zone" style="--zc:${v.couleur}">${z.rang}</span>`,
+    iconSize: [30, 38], iconAnchor: [15, 46], popupAnchor: [0, -44],
+  });
+}
+
+function compositionZone(z) {
+  return FAMILLES.filter(f => z.familles[f]).map(f => {
+    const d = z.familles[f];
+    return `<span class="compo"><span class="pin-gen pin-inline" style="--pc:${
+      COULEUR_GENERATEUR[f]}"><i>${SYMBOLE_GENERATEUR[f]}</i></span>${
+      d.batiments} bât. · ${fmtInt(d.logements)} log.</span>`;
+  }).join('');
+}
+
+function popupZone(z) {
+  const v = verdictBesoin(z.besoin);
+  const proche = z.plusProche
+    ? `${z.plusProche.l.nom} à ${fmtInt(z.plusProche.d)} m`
+    : 'aucune laverie recensée à portée';
+  const dansRayon = z.concurrents.length;
+  return `<div class="popup">
+      <span class="tag" style="background:${v.couleur}">n°${z.rang} · ${v.libelle}</span>
+      <h3>Zone ${LIBELLE_FAMILLE[z.dominante] || ''} — ${z.nom.secteur}</h3>
+      <p class="popup-sous">autour de ${z.nom.phare}</p>
+      <div class="compo-ligne">${compositionZone(z)}</div>
+      <table>
+        <tr><td>Ménages sans lave-linge</td><td><b>~${fmtInt(z.menages)}</b>
+          dans ${z.batiments.length} bâtiment${z.batiments.length > 1 ? 's' : ''}</td></tr>
+        <tr><td>Le plus éloigné du centre</td><td>${fmtInt(z.etendue)} m</td></tr>
+        <tr><td>Laverie la plus proche</td><td>${proche}</td></tr>
+        <tr><td>Laveries dans les 800 m</td><td>${dansRayon}</td></tr>
+        <tr><td>Ménages captifs par laverie accessible</td><td><b>${fmtInt(z.parLaverie)}</b>
+          — ${z.besoin >= 1 ? `${z.besoin.toFixed(1)}×` : `${(1 / z.besoin).toFixed(1)}× moins que`}
+          la zone médiane</td></tr>
+      </table>
+      <button class="btn-zone" data-zone-simu="${z.id}">📍 Simuler une laverie ici</button>
+      <p class="warn">Le besoin ne compte QUE la demande captive de ces bâtiments, dans un
+      rayon de 800 m. La population ordinaire du quartier s'y ajoute : pour le chiffre
+      d'affaires complet, lancez la simulation.</p>
+    </div>`;
+}
+
+// Le rayon de chalandise de la zone, matérialisé seulement quand on l'ouvre :
+// vingt cercles de 800 m affichés en permanence rendraient la carte illisible,
+// alors que la question « jusqu'où va cette zone ? » ne se pose qu'une à la fois.
+function cercleZone(z) {
+  if (state.layers.zoneCercle) {
+    map.removeLayer(state.layers.zoneCercle);
+    state.layers.zoneCercle = null;
+  }
+  if (!z) return;
+  state.layers.zoneCercle = L.circle([z.lat, z.lon], {
+    radius: RAYON_ZONE, color: verdictBesoin(z.besoin).couleur,
+    weight: 2, dashArray: '6 5', fill: false, interactive: false,
+  }).addTo(map);
+}
+
+function ouvrirZone(popup, z) {
+  cercleZone(z);
+  const el = popup.getElement?.();
+  const btn = el && el.querySelector('button[data-zone-simu]');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    map.closePopup();
+    simuler(z.lat, z.lon);
+    montrerSimulation();
+  });
+}
+
+// ---------- CLASSEMENT DES ZONES DE BESOIN (onglet Analyse) ----------
+
+function dessinerZonesBesoin() {
+  const ol = document.getElementById('zones-besoin');
+  if (!ol) return;
+  const zones = zonesBesoin();
+  const note = document.getElementById('zones-besoin-note');
+
+  if (!zones.length) {
+    ol.innerHTML = '';
+    if (note) note.textContent = 'Aucune concentration de logements captifs détectée avec '
+      + 'les familles actuellement cochées dans la légende de la carte.';
+    return;
+  }
+
+  const forts = zones.filter(z => verdictBesoin(z.besoin).cle === 'fort').length;
+  if (note) {
+    note.innerHTML = `<b>${zones.length} zones</b> de logements captifs détectées, dont
+      <b>${forts}</b> en besoin fort. Chacune est une implantation possible à 800 m de rayon,
+      classée par ménages sans lave-linge rapportés aux laveries accessibles. Cliquez une
+      ligne&nbsp;: la carte s'y rend et lance la simulation.`;
+  }
+
+  ol.innerHTML = zones.slice(0, 8).map(z => {
+    const v = verdictBesoin(z.besoin);
+    const compo = FAMILLES.filter(f => z.familles[f])
+      .map(f => `${SYMBOLE_GENERATEUR[f]} ${z.familles[f].batiments}`).join(' ');
+    return `<li data-zone="${z.id}" style="border-left-color:${v.couleur}">
+      <span class="z-nom">${z.nom.secteur} · ${LIBELLE_FAMILLE[z.dominante] || ''}
+        <span class="z-ca">${compo} — ~${fmtInt(z.menages)} ménages sans lave-linge ·
+          ${z.plusProche ? `laverie à ${fmtInt(z.plusProche.d)} m` : 'aucune laverie à portée'}</span></span>
+      <span class="z-ind" style="background:${v.couleur};color:#fff">${z.besoin.toFixed(1)}×</span>
+    </li>`;
+  }).join('') + (zones.length > 8
+    ? `<li class="non-evaluable">${zones.length - 8} autres zones non listées ici — les
+       ${MAX_PASTILLES} premières restent visibles sur la carte, en vue « Zones étudiantes,
+       HLM… ».</li>` : '');
+
+  for (const li of ol.querySelectorAll('li[data-zone]')) {
+    li.addEventListener('click', () => {
+      const z = zonesBesoin().find(x => String(x.id) === li.dataset.zone);
+      if (!z) return;
+      ouvrirOnglet('carte');
+      const radio = document.querySelector('input[name="vue"][value="demande"]');
+      if (radio && !radio.checked) { radio.checked = true; state.vue = 'demande'; rafraichir(); }
+      map.flyTo([z.lat, z.lon], 15, { duration: 0.8 });
+      simuler(z.lat, z.lon);
+      montrerSimulation();
+    });
   }
 }
 
@@ -2324,7 +2751,7 @@ function brancherEditionGenerateur(popup) {
       if (!g) return;
       g.logements = Math.max(0, Number(champ.value) || 0);
       g.logements_source = 'saisi à la main';
-      state._pointsDemande = null; state._indexDemande = null;    // la demande doit être recalculée
+      invaliderGenerateurs();          // la demande et les zones sont à refaire
       state.modifie = true;
       map.closePopup();
       rafraichir();
@@ -2336,7 +2763,7 @@ function brancherEditionGenerateur(popup) {
       const g = state.generateurs.find(x => x.id === btn.dataset.excl);
       if (!g) return;
       g.exclu = true;
-      state._pointsDemande = null; state._indexDemande = null;
+      invaliderGenerateurs();
       state.modifie = true;
       map.closePopup();
       rafraichir();
@@ -2536,6 +2963,9 @@ function changerPerimetre(nouveau) {
   state.perimetre = nouveau;
   state._pointsDemande = null;
   state._indexDemande = null;
+  // Les zones changent de nom avec le périmètre (quartier de Pessac ou commune) :
+  // la grille de densité, elle, ne dépend pas de l'échelle d'analyse.
+  state._zones = undefined;
   state._coefCal = null;
   state._caObserve = undefined;
   state._empreinte = null;
@@ -2597,19 +3027,29 @@ const LEGENDES = {
         <span class="pin-gen pin-inline" style="--pc:${COULEUR_GENERATEUR[t]}"><i>${
           SYMBOLE_GENERATEUR[t]}</i></span>
         <span>${libelle}</span><span class="badge">${compte(t)}</span></label>`;
+    const pastille = (v) => `<span class="lg"><i class="rond"
+      style="background:${v.couleur}"></i> ${v.libelle}</span>`;
     return `
-      <span class="texte">Un <b>pin par bâtiment</b>, sur un fond orange qui s'intensifie
-      là où ils se regroupent : une grappe d'immeubles forme <b>une seule zone chaude</b>,
-      comme la résidence Compostelle. Cliquez un pin pour corriger son nombre de
-      logements.</span>
+      <span class="texte"><b>La couleur du fond dit QUI habite là</b> — chaque famille a sa
+      teinte, la même que son pin ; un secteur mixte prend une teinte intermédiaire.
+      L'intensité dit combien : pâle en lisière, saturé au cœur. Le <b>trait foncé</b>
+      marque la limite du secteur habité captif.</span>
       ${ligne('residence_etudiante', 'Résidences étudiantes')}
-      ${ligne('logement_social', 'Logements sociaux')}
+      ${ligne('logement_social', 'Logements sociaux (HLM)')}
       ${ligne('hebergement_tourisme', 'Hébergements touristiques')}
       <span class="texte">Décocher masque les pins <b>et</b> le fond correspondant, sans
       rien changer au modèle : la demande de ces bâtiments reste comptée dans le
       potentiel.</span>
+      <span class="texte"><b>Les pastilles numérotées</b> marquent les <b>implantations
+      possibles</b> : chacune est le meilleur point d'un rayon de 800 m, et deux pastilles
+      ne se disputent jamais les mêmes immeubles. Elles sont classées par <b>besoin</b> —
+      ménages sans lave-linge rapportés aux laveries réellement accessibles, comparé à la
+      zone médiane. Cliquez-en une : son rayon s'affiche.</span>
+      ${VERDICTS_BESOIN.map(pastille).join('')}
+      <span class="texte" id="legende-zones"></span>
       <span class="texte" style="color:#fbbf24">⚠ Le nombre de logements est une valeur par
-      défaut, sauf là où vous l'avez corrigé.</span>`;
+      défaut, sauf là où vous l'avez corrigé : c'est aujourd'hui la principale source
+      d'erreur de cette vue.</span>`;
   },
 
   quartiers: () => `
@@ -2632,16 +3072,43 @@ const LEGENDES = {
     chalandise restent affichés — pratique pour repérer les rues et les locaux vacants.</span>`,
 };
 
+// Compte des grappes, mis à jour seul : régénérer toute la légende à chaque case
+// cochée ferait perdre le focus du clavier sur la case qu'on vient d'utiliser.
+function majLegendeZones() {
+  const el = document.getElementById('legende-zones');
+  if (!el) return;
+  const zones = zonesBesoin();
+  if (!zones.length) { el.textContent = 'Aucune zone détectée avec ces familles.'; return; }
+  const affichees = Math.min(zones.length, MAX_PASTILLES);
+  el.innerHTML = `<b>${zones.length} zones</b> détectées`
+    + (affichees < zones.length
+      ? ` — seules les <b>${affichees} premières</b> reçoivent une pastille, pour garder
+         la carte lisible. Le classement est dans l'onglet <b>Analyse</b>.`
+      : `, toutes numérotées.`)
+    + ` Les regroupements de moins de ${MIN_MENAGES_ZONE} ménages restent colorés mais ne
+       sont pas classés : c'est un immeuble isolé, pas un quartier.`
+    + (map && map.getZoom() < ZOOM_PINS
+      ? ` <b>Zoomez</b> pour faire apparaître le pin de chaque bâtiment — à cette échelle,
+         ils recouvriraient entièrement les couleurs.`
+      : '');
+}
+
 function majLegendeVue() {
   const el = document.getElementById('legende-vue');
   if (!el) return;
   el.innerHTML = LEGENDES[state.vue] ? LEGENDES[state.vue]() : '';
+  majLegendeZones();
   // Les filtres de la vue « demande » vivent dans la légende : le HTML étant
   // régénéré à chaque rendu, on les rebranche ici.
   for (const c of el.querySelectorAll('[data-gentype]')) {
     c.addEventListener('change', () => {
       state.genTypes[c.dataset.gentype] = c.checked;
+      // Masquer une famille change l'emprise et la teinte de la grille : elle est
+      // à reconstruire, pas seulement à redessiner.
+      invaliderGenerateurs();
       dessinerDemandeCaptive();
+      dessinerZonesBesoin();
+      majLegendeZones();
     });
   }
 }

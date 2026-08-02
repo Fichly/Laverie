@@ -71,8 +71,9 @@
               <label class="vue">
                 <input type="radio" name="vue" value="demande">
                 <span class="vue-corps">
-                  <b>🏢 Demande captive</b>
-                  <span>Résidences étudiantes et logements sociaux : d'où vient la demande.</span>
+                  <b>🎓 Zones étudiantes, HLM…</b>
+                  <span>Les grappes de logements sans lave-linge, colorées par population,
+                  classées par besoin non couvert.</span>
                 </span>
               </label>
               <label class="vue">
@@ -167,7 +168,38 @@
           </section>
 
           <section class="bloc">
-            <h2><span class="etape">2</span> Tester un local précis</h2>
+            <h2><span class="etape">2</span> Zones étudiantes, HLM… où le besoin n'est pas couvert</h2>
+            <p class="note" id="zones-besoin-note"></p>
+            <ol id="zones-besoin" class="classement"></ol>
+            <details class="aide">
+              <summary>Comment le besoin est-il calculé&nbsp;?</summary>
+              <div class="aide-corps">
+                <p><b>Ce qu'on mesure</b> — pour chaque grappe de bâtiments contigus
+                (résidences étudiantes, HLM, hébergements touristiques), on additionne les
+                <b>ménages sans lave-linge</b>, puis on les divise par le nombre de
+                <b>laveries réellement accessibles</b> depuis le centre de la grappe —
+                pondérées par la distance et par leur attractivité, exactement comme dans le
+                reste du modèle.</p>
+                <p><b>Ce que veut dire « 2,4× »</b> — cette grappe compte 2,4 fois plus de
+                ménages captifs par laverie accessible que la grappe médiane du périmètre.
+                La référence est <b>relative</b>, comme partout dans l'app : un seuil absolu
+                supposerait connaître le panier moyen et le taux d'équipement réels, qui ne
+                sont pas mesurés ici.</p>
+                <p><b>Ce que ça ne dit pas</b> — le besoin ne compte <b>que</b> la demande
+                captive de ces bâtiments. La population ordinaire du quartier s'y ajoute.
+                Une grappe très demandeuse peut donc sortir n°1 ici et rester derrière au
+                classement du CA potentiel, qui compte tout le monde.</p>
+                <p><b>La limite à connaître</b> — le nombre de logements de chaque bâtiment
+                est une valeur par défaut selon le type, sauf là où vous l'avez corrigé.
+                C'est la principale source d'erreur : corriger les cinq plus gros bâtiments
+                d'une grappe suffit souvent à en changer le rang. Cliquez un pin sur la
+                carte pour saisir le vrai nombre.</p>
+              </div>
+            </details>
+          </section>
+
+          <section class="bloc">
+            <h2><span class="etape">3</span> Tester un local précis</h2>
             <p class="note">Collez le lien Google Maps du local, ses coordonnées, ou cliquez
             directement sur la carte.</p>
             <div class="rangee-adresse">
@@ -181,7 +213,7 @@
           </section>
 
           <section class="bloc">
-            <h2><span class="etape">3</span> Comparer vos candidats <span id="candidats-count" class="badge"></span></h2>
+            <h2><span class="etape">4</span> Comparer vos candidats <span id="candidats-count" class="badge"></span></h2>
             <p class="note" id="candidats-vide">Aucun emplacement gardé pour l'instant. Lancez une
             simulation, puis « Garder cet emplacement » pour les comparer ici.</p>
             <div id="candidats-tableau"></div>
